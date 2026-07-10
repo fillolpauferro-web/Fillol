@@ -66,3 +66,16 @@ O melhor vídeo da conta hoje (100K views) já usava 2 dos 3 elementos da fórmu
 1. Monitorar as primeiras 2h (se passar de ~5x a média de views/hora dos posts recentes, o TikTok está empurrando para mais pessoas — sinal de que vai viralizar)
 2. Se performar acima da média nas primeiras 24h, cortar uma "parte 2" (outros 5 personagens) para capturar o mesmo público em alta enquanto o algoritmo ainda está testando o canal
 3. Responder aos comentários de discordância nas primeiras horas — comentários = maior sinal de engajamento no TikTok, e a conta já viu isso funcionar (o vídeo dos 100K teve 378 compartilhamentos, sinal de debate)
+
+## 5. Parte 2 já pronta (`content/shonen-cut-parte2-mais-5-que-doem.mp4`)
+
+Seguindo o próprio conselho do item 4 acima, já deixei uma parte 2 pronta pra postar assim que o primeiro vídeo mostrar tração (mesma fórmula, personagens novos, pra pegar o público quente sem repetir conteúdo):
+
+Zoro (One Piece), Gaara (Naruto), Nezuko (Demon Slayer), Deku (My Hero Academia), Killua (Hunter x Hunter) — expande ainda mais pra fandoms que a conta pouco explorou nesse formato (MHA, HxH).
+
+**Legenda sugerida:**
+> Voltei com mais 5 que doem. Dessa vez: Zoro, Gaara, Nezuko, Deku e Killua. Qual desses é mais você? Comenta aqui embaixo — e prova que eu tô errado na ordem. 👀
+>
+> #anime #otaku #animeedit #onepiece #naruto #demonslayer #boku #myheroacademia #hxh #fyp #shonen
+
+**Quando postar:** só depois que a parte 1 mostrar sinais claros de tração (bem acima da média de views/hora da conta) — postar cedo demais sem a parte 1 estar bombando dilui o efeito.
