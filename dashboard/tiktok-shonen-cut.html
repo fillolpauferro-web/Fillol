@@ -4,11 +4,15 @@
     --surface-1:#fcfcfb; --page:#f9f9f7; --surface-2:#ffffff;
     --ink-1:#0b0b0b; --ink-2:#52514e; --ink-muted:#898781;
     --grid:#e1e0d9; --baseline:#c3c2b7; --border:rgba(11,11,11,0.10);
-    --s1:#2a78d6; /* blue - primary series */
+    --s1:#2a78d6; /* blue */
     --s2:#1baf7a; /* aqua */
     --s3:#eda100; /* yellow */
+    --s4:#008300; /* green */
+    --s5:#4a3aa7; /* violet */
     --s6:#e34948; /* red */
+    --s7:#e87ba4; /* magenta */
     --s8:#eb6834; /* orange */
+    --muted-fill:#c3c2b7;
     --good:#0ca30c; --warning:#fab219; --critical:#d03b3b;
   }
   @media (prefers-color-scheme: dark){
@@ -16,7 +20,8 @@
       --surface-1:#1a1a19; --page:#0d0d0d; --surface-2:#202020;
       --ink-1:#ffffff; --ink-2:#c3c2b7; --ink-muted:#898781;
       --grid:#2c2c2a; --baseline:#383835; --border:rgba(255,255,255,0.10);
-      --s1:#3987e5; --s2:#199e70; --s3:#c98500; --s6:#e66767; --s8:#d95926;
+      --s1:#3987e5; --s2:#199e70; --s3:#c98500; --s4:#008300; --s5:#9085e9; --s6:#e66767; --s7:#d55181; --s8:#d95926;
+      --muted-fill:#52514e;
       --good:#0ca30c; --warning:#fab219; --critical:#d03b3b;
     }
   }
@@ -24,13 +29,15 @@
     --surface-1:#1a1a19; --page:#0d0d0d; --surface-2:#202020;
     --ink-1:#ffffff; --ink-2:#c3c2b7; --ink-muted:#898781;
     --grid:#2c2c2a; --baseline:#383835; --border:rgba(255,255,255,0.10);
-    --s1:#3987e5; --s2:#199e70; --s3:#c98500; --s6:#e66767; --s8:#d95926;
+    --s1:#3987e5; --s2:#199e70; --s3:#c98500; --s4:#008300; --s5:#9085e9; --s6:#e66767; --s7:#d55181; --s8:#d95926;
+    --muted-fill:#52514e;
   }
   :root[data-theme="light"]{
     --surface-1:#fcfcfb; --page:#f9f9f7; --surface-2:#ffffff;
     --ink-1:#0b0b0b; --ink-2:#52514e; --ink-muted:#898781;
     --grid:#e1e0d9; --baseline:#c3c2b7; --border:rgba(11,11,11,0.10);
-    --s1:#2a78d6; --s2:#1baf7a; --s3:#eda100; --s6:#e34948; --s8:#eb6834;
+    --s1:#2a78d6; --s2:#1baf7a; --s3:#eda100; --s4:#008300; --s5:#4a3aa7; --s6:#e34948; --s7:#e87ba4; --s8:#eb6834;
+    --muted-fill:#c3c2b7;
   }
   *{box-sizing:border-box;}
   body{
@@ -47,7 +54,12 @@
   .card h2{font-size:1.02rem; margin:0 0 4px; color:var(--ink-1);}
   .card .note{color:var(--ink-muted); font-size:0.82rem; margin:0 0 16px;}
   .kpi-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:14px;}
-  .kpi{background:var(--surface-2); border:1px solid var(--border); border-radius:10px; padding:14px 16px;}
+  .kpi{background:var(--surface-2); border:1px solid var(--border); border-top:3px solid var(--s1); border-radius:10px; padding:14px 16px;}
+  .kpi:nth-child(2){border-top-color:var(--s2);}
+  .kpi:nth-child(3){border-top-color:var(--s3);}
+  .kpi:nth-child(4){border-top-color:var(--s4);}
+  .kpi:nth-child(5){border-top-color:var(--s5);}
+  .kpi:nth-child(6){border-top-color:var(--s6);}
   .kpi .label{font-size:0.75rem; color:var(--ink-muted); text-transform:uppercase; letter-spacing:.03em;}
   .kpi .value{font-size:1.6rem; font-weight:600; margin-top:4px; font-variant-numeric:tabular-nums;}
   .kpi .delta{font-size:0.8rem; margin-top:2px;}
@@ -86,7 +98,15 @@
   .pill.video{background:color-mix(in srgb, var(--s8) 18%, transparent); color:var(--s8);}
   ul{color:var(--ink-2); font-size:0.88rem; line-height:1.6; padding-left:20px;}
   li strong{color:var(--ink-1);}
-  .idea{background:var(--surface-2); border:1px solid var(--border); border-radius:10px; padding:14px 16px; margin-bottom:10px;}
+  .idea{background:var(--surface-2); border:1px solid var(--border); border-left:4px solid var(--s1); border-radius:10px; padding:14px 16px; margin-bottom:10px;}
+  .idea.c2{border-left-color:var(--s2);}
+  .idea.c3{border-left-color:var(--s3);}
+  .idea.c4{border-left-color:var(--s4);}
+  .idea.c5{border-left-color:var(--s5);}
+  .idea.c6{border-left-color:var(--s6);}
+  .hashtag-chip{display:inline-block; background:var(--surface-1); border:1px solid var(--border); border-radius:20px; padding:4px 12px; margin:3px; font-size:0.8rem; font-variant-numeric:tabular-nums;}
+  .hashtag-row{margin-bottom:10px;}
+  .hashtag-row-label{font-size:0.75rem; color:var(--ink-muted); text-transform:uppercase; letter-spacing:.03em; margin-bottom:6px;}
   .idea h3{margin:0 0 4px; font-size:0.92rem;}
   .idea p{margin:0; font-size:0.83rem; color:var(--ink-2); line-height:1.5;}
   .tag{font-size:0.68rem; color:var(--ink-muted); text-transform:uppercase; letter-spacing:.03em;}
@@ -112,12 +132,12 @@
 <div class="card">
   <h2>Views por mês</h2>
   <p class="note">Total de visualizações por mês. Março foi o pico absoluto do canal; maio teve uma queda severa tanto na frequência de posts quanto no resultado por post.</p>
-  <div class="hbar-row"><div class="hbar-label">Fev/26 (n=23)</div><div class="hbar-track"><div class="hbar-fill outside" style="width:16.1%;"><span>196.429</span></div></div></div>
-  <div class="hbar-row"><div class="hbar-label">Mar/26 (n=30)</div><div class="hbar-track"><div class="hbar-fill" style="width:100%;"><span>1.217.138 · 🔺 pico do canal</span></div></div></div>
-  <div class="hbar-row"><div class="hbar-label">Abr/26 (n=10)</div><div class="hbar-track"><div class="hbar-fill outside" style="width:19.8%;"><span>240.667</span></div></div></div>
-  <div class="hbar-row"><div class="hbar-label">Mai/26 (n=4)</div><div class="hbar-track"><div class="hbar-fill outside" style="width:1.6%;"><span>19.658 · 🔻 queda de atividade</span></div></div></div>
-  <div class="hbar-row"><div class="hbar-label">Jun/26 (n=26)</div><div class="hbar-track"><div class="hbar-fill outside" style="width:18.1%;"><span>220.163</span></div></div></div>
-  <div class="hbar-row"><div class="hbar-label">Jul/26 (n=5)*</div><div class="hbar-track"><div class="hbar-fill outside" style="width:0.2%;"><span>2.837</span></div></div></div>
+  <div class="hbar-row"><div class="hbar-label">Fev/26 (n=23)</div><div class="hbar-track"><div class="hbar-fill outside" style="width:16.1%; background:var(--s1);"><span>196.429</span></div></div></div>
+  <div class="hbar-row"><div class="hbar-label">Mar/26 (n=30)</div><div class="hbar-track"><div class="hbar-fill" style="width:100%; background:var(--s2);"><span>1.217.138 · 🔺 pico do canal</span></div></div></div>
+  <div class="hbar-row"><div class="hbar-label">Abr/26 (n=10)</div><div class="hbar-track"><div class="hbar-fill outside" style="width:19.8%; background:var(--s3);"><span>240.667</span></div></div></div>
+  <div class="hbar-row"><div class="hbar-label">Mai/26 (n=4)</div><div class="hbar-track"><div class="hbar-fill outside" style="width:1.6%; background:var(--s6);"><span>19.658 · 🔻 queda de atividade</span></div></div></div>
+  <div class="hbar-row"><div class="hbar-label">Jun/26 (n=26)</div><div class="hbar-track"><div class="hbar-fill outside" style="width:18.1%; background:var(--s5);"><span>220.163</span></div></div></div>
+  <div class="hbar-row"><div class="hbar-label">Jul/26 (n=5)*</div><div class="hbar-track"><div class="hbar-fill outside" style="width:0.2%; background:var(--s8);"><span>2.837</span></div></div></div>
   <p class="note" style="margin-top:10px; margin-bottom:0;">*Julho parcial (só 11 dias no ar até a data do painel).</p>
 </div>
 
@@ -148,15 +168,28 @@
     <p class="note" style="margin-top:10px; margin-bottom:0;">14,8x mais views em média. Mediana conta a mesma história (2.519 vs. 906) e os 10 posts de maior alcance de todo o histórico são <strong>100% carrossel</strong> — nenhum vídeo entre eles.</p>
   </div>
   <div class="card">
-    <h2>Melhor dia da semana</h2>
-    <p class="note">Mediana de views por dia de publicação. Amostra pequena por dia (7-19 posts) — leia como direção, não regra fixa.</p>
-    <div class="hbar-row"><div class="hbar-label">Quinta (n=9)</div><div class="hbar-track"><div class="hbar-fill" style="width:100%;"><span>29.777</span></div></div></div>
-    <div class="hbar-row"><div class="hbar-label">Quarta (n=12)</div><div class="hbar-track"><div class="hbar-fill" style="width:22%;"><span>6.479</span></div></div></div>
-    <div class="hbar-row"><div class="hbar-label">Terça (n=17)</div><div class="hbar-track"><div class="hbar-fill outside" style="width:5%;"><span>1.590</span></div></div></div>
-    <div class="hbar-row"><div class="hbar-label">Segunda (n=19)</div><div class="hbar-track"><div class="hbar-fill outside" style="width:5%;"><span>1.359</span></div></div></div>
-    <div class="hbar-row"><div class="hbar-label">Sexta (n=7)</div><div class="hbar-track"><div class="hbar-fill outside" style="width:4%;"><span>1.245</span></div></div></div>
-    <div class="hbar-row"><div class="hbar-label">Domingo (n=18)</div><div class="hbar-track"><div class="hbar-fill outside" style="width:4%;"><span>1.172</span></div></div></div>
-    <div class="hbar-row"><div class="hbar-label">Sábado (n=16)</div><div class="hbar-track"><div class="hbar-fill outside" style="width:3%;"><span>1.039</span></div></div></div>
+    <h2>Melhor dia e horário para postar</h2>
+    <p class="note">Mediana de views por dia de publicação (histórico do canal). Amostra pequena por dia (7-19 posts) — leia como direção, não regra fixa.</p>
+    <div class="hbar-row"><div class="hbar-label">Quinta (n=9)</div><div class="hbar-track"><div class="hbar-fill" style="width:100%; background:var(--s1);"><span>29.777</span></div></div></div>
+    <div class="hbar-row"><div class="hbar-label">Quarta (n=12)</div><div class="hbar-track"><div class="hbar-fill" style="width:22%; background:var(--s2);"><span>6.479</span></div></div></div>
+    <div class="hbar-row"><div class="hbar-label">Terça (n=17)</div><div class="hbar-track"><div class="hbar-fill outside" style="width:5%; background:var(--s3);"><span>1.590</span></div></div></div>
+    <div class="hbar-row"><div class="hbar-label">Segunda (n=19)</div><div class="hbar-track"><div class="hbar-fill outside" style="width:5%; background:var(--s4);"><span>1.359</span></div></div></div>
+    <div class="hbar-row"><div class="hbar-label">Sexta (n=7)</div><div class="hbar-track"><div class="hbar-fill outside" style="width:4%; background:var(--s5);"><span>1.245</span></div></div></div>
+    <div class="hbar-row"><div class="hbar-label">Domingo (n=18)</div><div class="hbar-track"><div class="hbar-fill outside" style="width:4%; background:var(--s6);"><span>1.172</span></div></div></div>
+    <div class="hbar-row"><div class="hbar-label">Sábado (n=16)</div><div class="hbar-track"><div class="hbar-fill outside" style="width:3%; background:var(--s7);"><span>1.039</span></div></div></div>
+    <p class="note" style="margin-top:14px; margin-bottom:6px; border-top:1px solid var(--grid); padding-top:12px;">Melhor horário (atividade da sua audiência, dado do Metricool — fonte diferente da performance histórica acima, mas convergem no mesmo recado: quarta e quinta são os dias fortes).</p>
+    <table style="font-size:0.8rem;">
+      <thead><tr><th>Dia</th><th>Melhor horário</th><th>2ª opção</th></tr></thead>
+      <tbody>
+        <tr><td class="desc">Quinta</td><td class="desc">10h</td><td>18h</td></tr>
+        <tr><td class="desc">Quarta</td><td class="desc">10h</td><td>18h</td></tr>
+        <tr><td class="desc">Sexta</td><td class="desc">10h</td><td>12h</td></tr>
+        <tr><td class="desc">Terça</td><td class="desc">10h</td><td>18h</td></tr>
+        <tr><td class="desc">Segunda</td><td class="desc">18h</td><td>10h</td></tr>
+        <tr><td class="desc">Sábado / Domingo</td><td class="desc">10h</td><td>12h</td></tr>
+      </tbody>
+    </table>
+    <p class="note" style="margin-top:8px; margin-bottom:0;">Em quase todos os dias, os picos de atividade da audiência são <strong>10h, 12h e 18h</strong> (horário de Brasília) — bom recado geral pra qualquer dia da semana.</p>
   </div>
 </div>
 
@@ -188,18 +221,19 @@
 <div class="card">
   <h2>Desempenho por hashtag</h2>
   <p class="note">Só hashtags usadas em 5+ posts, histórico completo. Atenção: #amor deve boa parte da média ao post viral de 22/03, que usava a tag — não é causalidade pura da tag.</p>
-  <div class="hbar-row"><div class="hbar-label">#amor (n=7)</div><div class="hbar-track"><div class="hbar-fill" style="width:100%; background:var(--s3);"><span>131.826</span></div></div></div>
-  <div class="hbar-row"><div class="hbar-label">#naruto (n=59)</div><div class="hbar-track"><div class="hbar-fill" style="width:22%;"><span>29.468</span></div></div></div>
-  <div class="hbar-row"><div class="hbar-label">#animetiktok (n=6)</div><div class="hbar-track"><div class="hbar-fill" style="width:22%;"><span>28.730</span></div></div></div>
-  <div class="hbar-row"><div class="hbar-label">#otaku (n=65)</div><div class="hbar-track"><div class="hbar-fill" style="width:21%;"><span>27.641</span></div></div></div>
-  <div class="hbar-row"><div class="hbar-label">#animeedit (n=58)</div><div class="hbar-track"><div class="hbar-fill" style="width:20%;"><span>25.993</span></div></div></div>
-  <div class="hbar-row"><div class="hbar-label">#anime (n=79)</div><div class="hbar-track"><div class="hbar-fill" style="width:16%;"><span>21.685</span></div></div></div>
-  <div class="hbar-row"><div class="hbar-label">#narutoshippuden (n=36)</div><div class="hbar-track"><div class="hbar-fill" style="width:16%;"><span>21.614</span></div></div></div>
-  <div class="hbar-row"><div class="hbar-label">#onepiece (n=8)</div><div class="hbar-track"><div class="hbar-fill" style="width:10%;"><span>13.468</span></div></div></div>
-  <div class="hbar-row"><div class="hbar-label">#geek (n=5)</div><div class="hbar-track"><div class="hbar-fill outside" style="width:9%;"><span>12.506</span></div></div></div>
-  <div class="hbar-row"><div class="hbar-label">#fyp (n=18)</div><div class="hbar-track"><div class="hbar-fill outside" style="width:7%;"><span>9.883</span></div></div></div>
-  <div class="hbar-row"><div class="hbar-label">#dragonball (n=5)</div><div class="hbar-track"><div class="hbar-fill outside" style="width:5%;"><span>7.310</span></div></div></div>
-  <div class="hbar-row"><div class="hbar-label">#bleach (n=7)</div><div class="hbar-track"><div class="hbar-fill outside" style="width:5%;"><span>6.266</span></div></div></div>
+  <div class="hbar-row"><div class="hbar-label">#amor (n=7)</div><div class="hbar-track"><div class="hbar-fill" style="width:100%; background:var(--s1);"><span>131.826</span></div></div></div>
+  <div class="hbar-row"><div class="hbar-label">#naruto (n=59)</div><div class="hbar-track"><div class="hbar-fill" style="width:22%; background:var(--s2);"><span>29.468</span></div></div></div>
+  <div class="hbar-row"><div class="hbar-label">#animetiktok (n=6)</div><div class="hbar-track"><div class="hbar-fill" style="width:22%; background:var(--s3);"><span>28.730</span></div></div></div>
+  <div class="hbar-row"><div class="hbar-label">#otaku (n=65)</div><div class="hbar-track"><div class="hbar-fill" style="width:21%; background:var(--s4);"><span>27.641</span></div></div></div>
+  <div class="hbar-row"><div class="hbar-label">#animeedit (n=58)</div><div class="hbar-track"><div class="hbar-fill" style="width:20%; background:var(--s5);"><span>25.993</span></div></div></div>
+  <div class="hbar-row"><div class="hbar-label">#anime (n=79)</div><div class="hbar-track"><div class="hbar-fill" style="width:16%; background:var(--s6);"><span>21.685</span></div></div></div>
+  <div class="hbar-row"><div class="hbar-label">#narutoshippuden (n=36)</div><div class="hbar-track"><div class="hbar-fill" style="width:16%; background:var(--s7);"><span>21.614</span></div></div></div>
+  <div class="hbar-row"><div class="hbar-label">#onepiece (n=8)</div><div class="hbar-track"><div class="hbar-fill" style="width:10%; background:var(--s8);"><span>13.468</span></div></div></div>
+  <div class="hbar-row"><div class="hbar-label">#geek (n=5)</div><div class="hbar-track"><div class="hbar-fill outside" style="width:9%; background:var(--muted-fill);"><span>12.506</span></div></div></div>
+  <div class="hbar-row"><div class="hbar-label">#fyp (n=18)</div><div class="hbar-track"><div class="hbar-fill outside" style="width:7%; background:var(--muted-fill);"><span>9.883</span></div></div></div>
+  <div class="hbar-row"><div class="hbar-label">#dragonball (n=5)</div><div class="hbar-track"><div class="hbar-fill outside" style="width:5%; background:var(--muted-fill);"><span>7.310</span></div></div></div>
+  <div class="hbar-row"><div class="hbar-label">#bleach (n=7)</div><div class="hbar-track"><div class="hbar-fill outside" style="width:5%; background:var(--muted-fill);"><span>6.266</span></div></div></div>
+  <p class="note" style="margin-top:6px; margin-bottom:0;">Últimas 4 tags (volume menor) em cinza — mesmo grupo, só pra não estourar as 8 cores de destaque do painel.</p>
   <p class="note" style="margin-top:10px; margin-bottom:0;">Naruto aparece em 59 dos 98 posts (60% do canal). JJK, Demon Slayer, AOT, HxH e My Hero Academia somados aparecem em menos de 10 posts — volume baixo demais pra entrar neste ranking, mas é exatamente o gap de nicho detalhado abaixo.</p>
 </div>
 
@@ -234,25 +268,51 @@
     <h3>"A perspectiva do vilão de [X] não é errada"</h3>
     <p>O tema exato do maior post do canal (693K views) e do 7º maior (85K views, mesmo tema repetido) — vilão + amor/perda/humanidade. Aplicar a mesma fórmula a vilões de JJK (Sukuna, Geto) e Demon Slayer (Muzan, Akaza) para puxar essa audiência sem sair do formato comprovado.</p>
   </div>
-  <div class="idea">
+  <div class="idea c2">
     <span class="tag">Carrossel · cobrir gap de nicho</span>
     <h3>"3 pares de JJK e Demon Slayer que parecem a mesma pessoa"</h3>
     <p>Já em produção — usa o formato vencedor (carrossel + legenda reflexiva) pra cobrir o gap identificado: JJK/Demon Slayer somam menos de 10 posts em 98, mas dominam o nicho em 2026.</p>
   </div>
-  <div class="idea">
+  <div class="idea c3">
+    <span class="tag">Formato · tendência da vez</span>
+    <h3>Testar o trend "Food Jutsu" com Naruto</h3>
+    <p>Trend viral de julho/2026: reveal com sinais de mão estilo jutsu. Como o canal já é 100% Naruto/shonen, é um encaixe natural e barato de produzir — pode trazer alcance fora da bolha atual de seguidores.</p>
+  </div>
+  <div class="idea c4">
     <span class="tag">Consistência · maior risco do canal</span>
     <h3>Manter cadência mesmo sem hit recente</h3>
     <p>Maio teve só 4 posts e o pior resultado médio do histórico — a queda de frequência coincidiu com a queda de performance. Definir uma meta mínima de posts/semana e manter mesmo em meses "fracos" evita esse tipo de vale.</p>
   </div>
-  <div class="idea">
+  <div class="idea c5">
     <span class="tag">Vídeo · só se bem executado</span>
     <h3>Não priorizar vídeo editado sem repensar o formato</h3>
     <p>Os 34 vídeos publicados em 5 meses têm média de 1.928 views — 14,8x menos que o carrossel. Se for continuar com vídeo, testar gancho nos primeiros 2s e um áudio em alta, ou migrar esse conteúdo pro formato carrossel.</p>
   </div>
-  <div class="idea">
+  <div class="idea c6">
     <span class="tag">Consistência de legenda</span>
     <h3>Evitar reposts e legendas vazias</h3>
     <p>Os posts sem legenda ou repostados seguem entre os piores resultados do canal. Cada post deve ter uma legenda com contexto/reflexão — é o que diferencia os top 10 dos flop 5.</p>
+  </div>
+</div>
+
+<div class="card">
+  <h2>Hashtags em alta pra aumentar o engajamento</h2>
+  <p class="note">Mistura de tags que já funcionam no canal, tags de descoberta de alto volume e tags específicas do gap de nicho (JJK/Demon Slayer). Regra geral: 3-5 hashtags por post, misturando 1-2 amplas com 2-3 de nicho.</p>
+  <div class="hashtag-row">
+    <div class="hashtag-row-label">Núcleo do canal (manter — já validado)</div>
+    <span class="hashtag-chip">#naruto</span><span class="hashtag-chip">#narutoshippuden</span><span class="hashtag-chip">#otaku</span><span class="hashtag-chip">#anime</span><span class="hashtag-chip">#animeedit</span>
+  </div>
+  <div class="hashtag-row">
+    <div class="hashtag-row-label">Descoberta / alto volume (ajuda a sair da bolha de seguidores)</div>
+    <span class="hashtag-chip">#fyp</span><span class="hashtag-chip">#foryoupage</span><span class="hashtag-chip">#animetiktok</span><span class="hashtag-chip">#animefyp</span><span class="hashtag-chip">#viral</span>
+  </div>
+  <div class="hashtag-row">
+    <div class="hashtag-row-label">Gap de nicho (JJK / Demon Slayer — cobertura ainda baixa no canal)</div>
+    <span class="hashtag-chip">#jujutsukaisen</span><span class="hashtag-chip">#jjk</span><span class="hashtag-chip">#jjkedit</span><span class="hashtag-chip">#demonslayer</span><span class="hashtag-chip">#kimetsunoyaiba</span>
+  </div>
+  <div class="hashtag-row">
+    <div class="hashtag-row-label">Trend do momento (julho/2026 — testar enquanto durar, trends somem em 7-10 dias)</div>
+    <span class="hashtag-chip">#foodjutsutrend</span><span class="hashtag-chip">#animeedits</span><span class="hashtag-chip">#amv</span>
   </div>
 </div>
 
