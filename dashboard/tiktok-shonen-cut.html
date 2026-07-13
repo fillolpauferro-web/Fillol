@@ -1,0 +1,286 @@
+<title>Painel TikTok — @shonen.cut</title>
+<style>
+  :root{
+    --surface-1:#fcfcfb; --page:#f9f9f7; --surface-2:#ffffff;
+    --ink-1:#0b0b0b; --ink-2:#52514e; --ink-muted:#898781;
+    --grid:#e1e0d9; --baseline:#c3c2b7; --border:rgba(11,11,11,0.10);
+    --s1:#2a78d6; /* blue - primary series */
+    --s2:#1baf7a; /* aqua */
+    --s3:#eda100; /* yellow */
+    --s6:#e34948; /* red */
+    --s8:#eb6834; /* orange */
+    --good:#0ca30c; --warning:#fab219; --critical:#d03b3b;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --surface-1:#1a1a19; --page:#0d0d0d; --surface-2:#202020;
+      --ink-1:#ffffff; --ink-2:#c3c2b7; --ink-muted:#898781;
+      --grid:#2c2c2a; --baseline:#383835; --border:rgba(255,255,255,0.10);
+      --s1:#3987e5; --s2:#199e70; --s3:#c98500; --s6:#e66767; --s8:#d95926;
+      --good:#0ca30c; --warning:#fab219; --critical:#d03b3b;
+    }
+  }
+  :root[data-theme="dark"]{
+    --surface-1:#1a1a19; --page:#0d0d0d; --surface-2:#202020;
+    --ink-1:#ffffff; --ink-2:#c3c2b7; --ink-muted:#898781;
+    --grid:#2c2c2a; --baseline:#383835; --border:rgba(255,255,255,0.10);
+    --s1:#3987e5; --s2:#199e70; --s3:#c98500; --s6:#e66767; --s8:#d95926;
+  }
+  :root[data-theme="light"]{
+    --surface-1:#fcfcfb; --page:#f9f9f7; --surface-2:#ffffff;
+    --ink-1:#0b0b0b; --ink-2:#52514e; --ink-muted:#898781;
+    --grid:#e1e0d9; --baseline:#c3c2b7; --border:rgba(11,11,11,0.10);
+    --s1:#2a78d6; --s2:#1baf7a; --s3:#eda100; --s6:#e34948; --s8:#eb6834;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:var(--page); color:var(--ink-1);
+    font-family:system-ui,-apple-system,"Segoe UI",sans-serif;
+    padding:24px; max-width:1180px; margin-inline:auto;
+  }
+  h1{font-size:1.5rem; margin:0 0 4px;}
+  .subtitle{color:var(--ink-2); font-size:0.92rem; margin:0 0 24px;}
+  .card{
+    background:var(--surface-1); border:1px solid var(--border); border-radius:12px;
+    padding:20px; margin-bottom:20px;
+  }
+  .card h2{font-size:1.02rem; margin:0 0 4px; color:var(--ink-1);}
+  .card .note{color:var(--ink-muted); font-size:0.82rem; margin:0 0 16px;}
+  .kpi-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:14px;}
+  .kpi{background:var(--surface-2); border:1px solid var(--border); border-radius:10px; padding:14px 16px;}
+  .kpi .label{font-size:0.75rem; color:var(--ink-muted); text-transform:uppercase; letter-spacing:.03em;}
+  .kpi .value{font-size:1.6rem; font-weight:600; margin-top:4px; font-variant-numeric:tabular-nums;}
+  .kpi .delta{font-size:0.8rem; margin-top:2px;}
+  .delta.good{color:var(--good);}
+  .delta.crit{color:var(--critical);}
+  .bars{position:relative; height:230px; display:flex; align-items:flex-end; gap:3px; border-bottom:1px solid var(--baseline); padding-bottom:2px;}
+  .bar{flex:1; background:var(--s1); border-radius:4px 4px 0 0; min-height:2px; position:relative; cursor:pointer;}
+  .bar.hit{background:var(--s6);}
+  .bar.video{background:var(--s8);}
+  .axis-labels{display:flex; gap:3px; margin-top:6px;}
+  .axis-labels span{flex:1; font-size:0.62rem; color:var(--ink-muted); text-align:center; white-space:nowrap; overflow:hidden;}
+  .legend{display:flex; gap:16px; margin-bottom:10px; font-size:0.8rem; color:var(--ink-2);}
+  .legend .dot{display:inline-block; width:9px; height:9px; border-radius:50%; margin-right:6px;}
+  .tooltip{
+    position:fixed; background:var(--ink-1); color:var(--surface-1); font-size:0.75rem;
+    padding:6px 9px; border-radius:6px; pointer-events:none; opacity:0; transition:opacity .1s;
+    z-index:50; white-space:nowrap; font-variant-numeric:tabular-nums;
+  }
+  .hbar-row{display:flex; align-items:center; gap:10px; margin-bottom:8px;}
+  .hbar-label{width:150px; font-size:0.8rem; color:var(--ink-2); flex-shrink:0; text-align:right;}
+  .hbar-track{flex:1; background:var(--surface-2); border-radius:4px; height:20px; position:relative;}
+  .hbar-fill{height:100%; border-radius:4px; background:var(--s1); display:flex; align-items:center;}
+  .hbar-fill span{margin-left:8px; font-size:0.72rem; color:#fff; font-variant-numeric:tabular-nums; white-space:nowrap;}
+  .hbar-fill.outside{overflow:visible;}
+  .hbar-fill.outside span{margin-left:calc(100% + 8px); color:var(--ink-1);}
+  table{width:100%; border-collapse:collapse; font-size:0.85rem;}
+  th{text-align:left; color:var(--ink-muted); font-weight:500; font-size:0.72rem; text-transform:uppercase; letter-spacing:.03em; padding:6px 10px; border-bottom:1px solid var(--grid);}
+  td{padding:8px 10px; border-bottom:1px solid var(--grid); color:var(--ink-2); font-variant-numeric:tabular-nums;}
+  td.desc{color:var(--ink-1); font-variant-numeric:normal;}
+  tr.top td{color:var(--ink-1);}
+  a{color:var(--s1);}
+  .grid2{display:grid; grid-template-columns:1fr 1fr; gap:20px;}
+  @media (max-width:820px){ .grid2{grid-template-columns:1fr;} }
+  .pill{display:inline-block; padding:2px 8px; border-radius:20px; font-size:0.7rem; font-weight:600;}
+  .pill.photo{background:color-mix(in srgb, var(--s1) 18%, transparent); color:var(--s1);}
+  .pill.video{background:color-mix(in srgb, var(--s8) 18%, transparent); color:var(--s8);}
+  ul{color:var(--ink-2); font-size:0.88rem; line-height:1.6; padding-left:20px;}
+  li strong{color:var(--ink-1);}
+  .idea{background:var(--surface-2); border:1px solid var(--border); border-radius:10px; padding:14px 16px; margin-bottom:10px;}
+  .idea h3{margin:0 0 4px; font-size:0.92rem;}
+  .idea p{margin:0; font-size:0.83rem; color:var(--ink-2); line-height:1.5;}
+  .tag{font-size:0.68rem; color:var(--ink-muted); text-transform:uppercase; letter-spacing:.03em;}
+  footer{color:var(--ink-muted); font-size:0.75rem; text-align:center; margin-top:30px; padding-bottom:10px;}
+</style>
+
+<h1>Painel de Performance — @shonen.cut (TikTok)</h1>
+<p class="subtitle">98 posts escaneados (100% do histórico do canal, 13/fev a 11/jul/2026) · dados via Metricool</p>
+
+<div class="card">
+  <h2>Indicadores principais</h2>
+  <p class="note">Período completo analisado — quase 5 meses de canal</p>
+  <div class="kpi-grid">
+    <div class="kpi"><div class="label">Posts escaneados</div><div class="value">98</div><div class="delta">100% do histórico</div></div>
+    <div class="kpi"><div class="label">Visualizações totais</div><div class="value">1,90M</div></div>
+    <div class="kpi"><div class="label">Média views/post</div><div class="value">19.356</div><div class="delta">mediana: 1.569</div></div>
+    <div class="kpi"><div class="label">Engajamento médio</div><div class="value">5,68%</div></div>
+    <div class="kpi"><div class="label">Seguidores atuais</div><div class="value">6.478</div><div class="delta good">▲ +812 desde 15/jun</div></div>
+    <div class="kpi"><div class="label">Cadência</div><div class="value">1 post/1,5 dias</div><div class="delta">varia muito por mês, ver abaixo</div></div>
+  </div>
+</div>
+
+<div class="card">
+  <h2>Views por mês</h2>
+  <p class="note">Total de visualizações por mês. Março foi o pico absoluto do canal; maio teve uma queda severa tanto na frequência de posts quanto no resultado por post.</p>
+  <div class="hbar-row"><div class="hbar-label">Fev/26 (n=23)</div><div class="hbar-track"><div class="hbar-fill outside" style="width:16.1%;"><span>196.429</span></div></div></div>
+  <div class="hbar-row"><div class="hbar-label">Mar/26 (n=30)</div><div class="hbar-track"><div class="hbar-fill" style="width:100%;"><span>1.217.138 · 🔺 pico do canal</span></div></div></div>
+  <div class="hbar-row"><div class="hbar-label">Abr/26 (n=10)</div><div class="hbar-track"><div class="hbar-fill outside" style="width:19.8%;"><span>240.667</span></div></div></div>
+  <div class="hbar-row"><div class="hbar-label">Mai/26 (n=4)</div><div class="hbar-track"><div class="hbar-fill outside" style="width:1.6%;"><span>19.658 · 🔻 queda de atividade</span></div></div></div>
+  <div class="hbar-row"><div class="hbar-label">Jun/26 (n=26)</div><div class="hbar-track"><div class="hbar-fill outside" style="width:18.1%;"><span>220.163</span></div></div></div>
+  <div class="hbar-row"><div class="hbar-label">Jul/26 (n=5)*</div><div class="hbar-track"><div class="hbar-fill outside" style="width:0.2%;"><span>2.837</span></div></div></div>
+  <p class="note" style="margin-top:10px; margin-bottom:0;">*Julho parcial (só 11 dias no ar até a data do painel).</p>
+</div>
+
+<div class="card">
+  <h2>Views por post ao longo do tempo</h2>
+  <p class="note">Cada barra é um post publicado (ordem cronológica, 98 posts). Em vermelho, o top 10% (9 posts) que sozinho concentra 78% de todas as views do canal — incluindo um único post em 22/mar com 693.921 views (36,6% do total histórico).</p>
+  <div class="legend">
+    <span><span class="dot" style="background:var(--s1)"></span>Carrossel de fotos</span>
+    <span><span class="dot" style="background:var(--s8)"></span>Vídeo editado</span>
+    <span><span class="dot" style="background:var(--s6)"></span>Top 10% (hit)</span>
+  </div>
+  <div class="bars" id="barsChart"></div>
+  <div id="tooltip" class="tooltip"></div>
+</div>
+
+<div class="grid2">
+  <div class="card">
+    <h2>Formato: carrossel de fotos vs. vídeo</h2>
+    <p class="note">Média de views por post, por tipo de conteúdo (histórico completo)</p>
+    <div class="hbar-row">
+      <div class="hbar-label">Carrossel (n=64)</div>
+      <div class="hbar-track"><div class="hbar-fill" style="width:100%; background:var(--s1);"><span>28.614</span></div></div>
+    </div>
+    <div class="hbar-row">
+      <div class="hbar-label">Vídeo editado (n=34)</div>
+      <div class="hbar-track"><div class="hbar-fill outside" style="width:6.7%; background:var(--s8);"><span>1.928</span></div></div>
+    </div>
+    <p class="note" style="margin-top:10px; margin-bottom:0;">14,8x mais views em média. Mediana conta a mesma história (2.519 vs. 906) e os 10 posts de maior alcance de todo o histórico são <strong>100% carrossel</strong> — nenhum vídeo entre eles.</p>
+  </div>
+  <div class="card">
+    <h2>Melhor dia da semana</h2>
+    <p class="note">Mediana de views por dia de publicação. Amostra pequena por dia (7-19 posts) — leia como direção, não regra fixa.</p>
+    <div class="hbar-row"><div class="hbar-label">Quinta (n=9)</div><div class="hbar-track"><div class="hbar-fill" style="width:100%;"><span>29.777</span></div></div></div>
+    <div class="hbar-row"><div class="hbar-label">Quarta (n=12)</div><div class="hbar-track"><div class="hbar-fill" style="width:22%;"><span>6.479</span></div></div></div>
+    <div class="hbar-row"><div class="hbar-label">Terça (n=17)</div><div class="hbar-track"><div class="hbar-fill outside" style="width:5%;"><span>1.590</span></div></div></div>
+    <div class="hbar-row"><div class="hbar-label">Segunda (n=19)</div><div class="hbar-track"><div class="hbar-fill outside" style="width:5%;"><span>1.359</span></div></div></div>
+    <div class="hbar-row"><div class="hbar-label">Sexta (n=7)</div><div class="hbar-track"><div class="hbar-fill outside" style="width:4%;"><span>1.245</span></div></div></div>
+    <div class="hbar-row"><div class="hbar-label">Domingo (n=18)</div><div class="hbar-track"><div class="hbar-fill outside" style="width:4%;"><span>1.172</span></div></div></div>
+    <div class="hbar-row"><div class="hbar-label">Sábado (n=16)</div><div class="hbar-track"><div class="hbar-fill outside" style="width:3%;"><span>1.039</span></div></div></div>
+  </div>
+</div>
+
+<div class="card">
+  <h2>O que está funcionando (top 10) vs. o que não funciona mais (flop 5)</h2>
+  <p class="note">Agora com o histórico completo desde fevereiro — o ranking muda bastante em relação a uma leitura de só 3 meses.</p>
+  <table>
+    <thead><tr><th>Data</th><th>Formato</th><th>Legenda</th><th>Views</th><th>Curtidas</th><th>Engaj.</th></tr></thead>
+    <tbody>
+      <tr class="top"><td>22/03</td><td><span class="pill photo">Carrossel</span></td><td class="desc">"A perspectiva do vilão não é errada" — frases de vilões de Naruto ligadas ao amor</td><td>693.921</td><td>64.762</td><td>10,0%</td></tr>
+      <tr class="top"><td>06/04</td><td><span class="pill photo">Carrossel</span></td><td class="desc">"Luta muito forçada em Naruto" — crítica/opinião sobre o roteiro</td><td>193.690</td><td>7.885</td><td>4,5%</td></tr>
+      <tr class="top"><td>24/03</td><td><span class="pill photo">Carrossel</span></td><td class="desc">Frases de Naruto que "tocam fundo" — reflexão + amor</td><td>112.866</td><td>9.204</td><td>8,6%</td></tr>
+      <tr class="top"><td>24/02</td><td><span class="pill photo">Carrossel</span></td><td class="desc">Carrossel só com hashtags de Naruto, sem legenda autoral</td><td>108.740</td><td>5.111</td><td>4,9%</td></tr>
+      <tr class="top"><td>17/06</td><td><span class="pill photo">Carrossel</span></td><td class="desc">Citações JJK + Naruto + One Piece ("anime não é só porrada")</td><td>100.832</td><td>7.968</td><td>8,3%</td></tr>
+      <tr class="top"><td>12/03</td><td><span class="pill photo">Carrossel</span></td><td class="desc">Carrossel só com hashtags de Naruto, sem legenda autoral</td><td>99.337</td><td>4.566</td><td>4,8%</td></tr>
+      <tr class="top"><td>31/03</td><td><span class="pill photo">Carrossel</span></td><td class="desc">"A perspectiva do vilão não é errada" — mesmo tema do post nº1, repetido com sucesso</td><td>85.616</td><td>7.474</td><td>9,1%</td></tr>
+      <tr class="top"><td>26/02</td><td><span class="pill photo">Carrossel</span></td><td class="desc">Carrossel só com hashtags de Naruto, sem legenda autoral</td><td>50.451</td><td>4.933</td><td>10,3%</td></tr>
+      <tr class="top"><td>26/03</td><td><span class="pill photo">Carrossel</span></td><td class="desc">"Você já se identificou com Naruto?" — pergunta direta pra comentários</td><td>39.418</td><td>2.856</td><td>7,7%</td></tr>
+      <tr class="top"><td>11/03</td><td><span class="pill photo">Carrossel</span></td><td class="desc">Carrossel só com hashtags de Naruto, sem legenda autoral</td><td>39.086</td><td>1.960</td><td>5,5%</td></tr>
+      <tr><td>16/06</td><td><span class="pill photo">Carrossel</span></td><td class="desc">Repost de "Geto pergunta sem resposta" (conteúdo duplicado no feed)</td><td>57</td><td>2</td><td>3,5%</td></tr>
+      <tr><td>22/06</td><td><span class="pill photo">Carrossel</span></td><td class="desc">"Lutas polêmicas cross universo" — sem gancho, legenda genérica</td><td>107</td><td>3</td><td>3,7%</td></tr>
+      <tr><td>22/06</td><td><span class="pill photo">Carrossel</span></td><td class="desc">Referência à Copa do Mundo + Akatsuki (tema fora do nicho)</td><td>122</td><td>5</td><td>4,9%</td></tr>
+      <tr><td>11/07</td><td><span class="pill video">Vídeo</span></td><td class="desc">"Naruto sempre foi gênio" — vídeo editado de 71s</td><td>141</td><td>13</td><td>9,2%</td></tr>
+      <tr><td>09/06</td><td><span class="pill video">Vídeo</span></td><td class="desc">Vídeo editado só com hashtags #fyp, sem legenda</td><td>293</td><td>12</td><td>4,1%</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="card">
+  <h2>Desempenho por hashtag</h2>
+  <p class="note">Só hashtags usadas em 5+ posts, histórico completo. Atenção: #amor deve boa parte da média ao post viral de 22/03, que usava a tag — não é causalidade pura da tag.</p>
+  <div class="hbar-row"><div class="hbar-label">#amor (n=7)</div><div class="hbar-track"><div class="hbar-fill" style="width:100%; background:var(--s3);"><span>131.826</span></div></div></div>
+  <div class="hbar-row"><div class="hbar-label">#naruto (n=59)</div><div class="hbar-track"><div class="hbar-fill" style="width:22%;"><span>29.468</span></div></div></div>
+  <div class="hbar-row"><div class="hbar-label">#animetiktok (n=6)</div><div class="hbar-track"><div class="hbar-fill" style="width:22%;"><span>28.730</span></div></div></div>
+  <div class="hbar-row"><div class="hbar-label">#otaku (n=65)</div><div class="hbar-track"><div class="hbar-fill" style="width:21%;"><span>27.641</span></div></div></div>
+  <div class="hbar-row"><div class="hbar-label">#animeedit (n=58)</div><div class="hbar-track"><div class="hbar-fill" style="width:20%;"><span>25.993</span></div></div></div>
+  <div class="hbar-row"><div class="hbar-label">#anime (n=79)</div><div class="hbar-track"><div class="hbar-fill" style="width:16%;"><span>21.685</span></div></div></div>
+  <div class="hbar-row"><div class="hbar-label">#narutoshippuden (n=36)</div><div class="hbar-track"><div class="hbar-fill" style="width:16%;"><span>21.614</span></div></div></div>
+  <div class="hbar-row"><div class="hbar-label">#onepiece (n=8)</div><div class="hbar-track"><div class="hbar-fill" style="width:10%;"><span>13.468</span></div></div></div>
+  <div class="hbar-row"><div class="hbar-label">#geek (n=5)</div><div class="hbar-track"><div class="hbar-fill outside" style="width:9%;"><span>12.506</span></div></div></div>
+  <div class="hbar-row"><div class="hbar-label">#fyp (n=18)</div><div class="hbar-track"><div class="hbar-fill outside" style="width:7%;"><span>9.883</span></div></div></div>
+  <div class="hbar-row"><div class="hbar-label">#dragonball (n=5)</div><div class="hbar-track"><div class="hbar-fill outside" style="width:5%;"><span>7.310</span></div></div></div>
+  <div class="hbar-row"><div class="hbar-label">#bleach (n=7)</div><div class="hbar-track"><div class="hbar-fill outside" style="width:5%;"><span>6.266</span></div></div></div>
+  <p class="note" style="margin-top:10px; margin-bottom:0;">Naruto aparece em 59 dos 98 posts (60% do canal). JJK, Demon Slayer, AOT, HxH e My Hero Academia somados aparecem em menos de 10 posts — volume baixo demais pra entrar neste ranking, mas é exatamente o gap de nicho detalhado abaixo.</p>
+</div>
+
+<div class="card">
+  <h2>Leitura do que está funcionando</h2>
+  <ul>
+    <li><strong>Um único post carrega o canal.</strong> O carrossel de 22/03 ("a perspectiva do vilão não é errada") sozinho tem 693.921 views — 36,6% de tudo que o canal já visualizou em 5 meses. O top 10% dos posts (9 de 98) concentra 78% das views totais.</li>
+    <li><strong>O padrão por trás dos maiores hits é bem específico:</strong> não é "frase de anime" genérica, é reflexão emocional sobre vilões de Naruto conectada a temas de amor/perda/humanidade. Esse exato tema aparece 2x no top 10 (22/03 e 31/03) — já foi validado, repetir.</li>
+    <li><strong>Carrossel de fotos domina vídeo editado</strong> em qualquer recorte: 14,8x mais views em média (28.614 vs. 1.928), e os 10 posts de maior alcance de todo o histórico são 100% carrossel.</li>
+    <li><strong>Março foi o auge do canal</strong> (1,2M views em 30 posts) — e maio foi o oposto: só 4 posts publicados e apenas 19.658 views no mês inteiro, uma queda de frequência que coincidiu com o pior resultado por post do histórico. Consistência parece pesar tanto quanto o conteúdo em si.</li>
+    <li><strong>Naruto domina o canal</strong> — está em 60% dos posts (59 de 98). Todo o resto do universo shonen (One Piece, Dragon Ball, Bleach, JJK, Demon Slayer, AOT, HxH, MHA) soma os outros 40%.</li>
+    <li><strong>Reposts e conteúdo fora do nicho</strong> (repost de "Geto pergunta sem resposta", post sobre Copa do Mundo) seguem entre os piores resultados do canal — vale evitar.</li>
+  </ul>
+</div>
+
+<div class="card">
+  <h2>Oportunidades do nicho e concorrência</h2>
+  <p class="note">Metricool não rastreia concorrentes para TikTok (só disponível para Instagram/Facebook/Twitch/YouTube/Twitter/Bluesky) — leitura abaixo combina os 98 posts escaneados com pesquisa de tendências do nicho de anime edits em 2026.</p>
+  <ul>
+    <li><strong>Concentração de conteúdo em Naruto (60% dos posts) é bem maior do que o dado de 3 meses sugeria.</strong> Jujutsu Kaisen, Demon Slayer, AOT, HxH e My Hero Academia somados aparecem em menos de 10 posts em 5 meses de canal — e seguem dominando o espaço de edits de anime em 2026.</li>
+    <li><strong>O canal já provou que sabe atrair audiência fora do Naruto puro:</strong> o post de 17/06 (citações JJK + Naruto + One Piece) chegou a 100.832 views — prova de que multi-fandom funciona, só falta repetir com mais frequência e cobrir Demon Slayer/AOT, que ainda não tiveram um post dedicado de peso.</li>
+    <li><strong>Contas de "frases de anime" são um nicho consolidado e ainda crescendo</strong> no TikTok em português — o formato que mais funciona no canal (carrossel de citações/reflexão) é exatamente o que domina esse subnicho.</li>
+    <li><strong>Tendência "Twins at the Carousel"</strong> (meme de animação com Hatsune Miku/Kikuo) viralizou entre múltiplos fandoms em 2026, incluindo Dragon Ball e JoJo's — oportunidade de participar com uma versão no estilo shonen se houver capacidade de animação/edição.</li>
+    <li><strong>Gap identificado:</strong> o canal ainda não explora crossovers "qual anime venceria" nem rankings recorrentes de personagens — formato que costuma gerar alto volume de comentários no nicho.</li>
+  </ul>
+</div>
+
+<div class="card">
+  <h2>Exemplos de conteúdo para os próximos posts</h2>
+  <div class="idea">
+    <span class="tag">Carrossel · replicar o maior hit do canal</span>
+    <h3>"A perspectiva do vilão de [X] não é errada"</h3>
+    <p>O tema exato do maior post do canal (693K views) e do 7º maior (85K views, mesmo tema repetido) — vilão + amor/perda/humanidade. Aplicar a mesma fórmula a vilões de JJK (Sukuna, Geto) e Demon Slayer (Muzan, Akaza) para puxar essa audiência sem sair do formato comprovado.</p>
+  </div>
+  <div class="idea">
+    <span class="tag">Carrossel · cobrir gap de nicho</span>
+    <h3>"3 pares de JJK e Demon Slayer que parecem a mesma pessoa"</h3>
+    <p>Já em produção — usa o formato vencedor (carrossel + legenda reflexiva) pra cobrir o gap identificado: JJK/Demon Slayer somam menos de 10 posts em 98, mas dominam o nicho em 2026.</p>
+  </div>
+  <div class="idea">
+    <span class="tag">Consistência · maior risco do canal</span>
+    <h3>Manter cadência mesmo sem hit recente</h3>
+    <p>Maio teve só 4 posts e o pior resultado médio do histórico — a queda de frequência coincidiu com a queda de performance. Definir uma meta mínima de posts/semana e manter mesmo em meses "fracos" evita esse tipo de vale.</p>
+  </div>
+  <div class="idea">
+    <span class="tag">Vídeo · só se bem executado</span>
+    <h3>Não priorizar vídeo editado sem repensar o formato</h3>
+    <p>Os 34 vídeos publicados em 5 meses têm média de 1.928 views — 14,8x menos que o carrossel. Se for continuar com vídeo, testar gancho nos primeiros 2s e um áudio em alta, ou migrar esse conteúdo pro formato carrossel.</p>
+  </div>
+  <div class="idea">
+    <span class="tag">Consistência de legenda</span>
+    <h3>Evitar reposts e legendas vazias</h3>
+    <p>Os posts sem legenda ou repostados seguem entre os piores resultados do canal. Cada post deve ter uma legenda com contexto/reflexão — é o que diferencia os top 10 dos flop 5.</p>
+  </div>
+</div>
+
+<footer>Painel gerado a partir de dados do Metricool (@shonen.cut) em 13/07/2026 · 98/98 posts escaneados (100%, desde 13/02/2026)</footer>
+
+<script>
+  const posts = [{"date": "20260213", "views": 982, "likes": 72, "comments": 0, "shares": 1, "type": "VIDEO", "eng": 7.43}, {"date": "20260214", "views": 726, "likes": 57, "comments": 2, "shares": 3, "type": "VIDEO", "eng": 8.54}, {"date": "20260214", "views": 390, "likes": 12, "comments": 0, "shares": 4, "type": "VIDEO", "eng": 4.1}, {"date": "20260214", "views": 571, "likes": 51, "comments": 0, "shares": 3, "type": "VIDEO", "eng": 9.46}, {"date": "20260214", "views": 677, "likes": 62, "comments": 2, "shares": 3, "type": "VIDEO", "eng": 9.9}, {"date": "20260215", "views": 595, "likes": 37, "comments": 6, "shares": 0, "type": "VIDEO", "eng": 7.23}, {"date": "20260215", "views": 656, "likes": 51, "comments": 0, "shares": 2, "type": "VIDEO", "eng": 8.08}, {"date": "20260216", "views": 1068, "likes": 100, "comments": 4, "shares": 1, "type": "VIDEO", "eng": 9.83}, {"date": "20260216", "views": 1747, "likes": 159, "comments": 6, "shares": 5, "type": "VIDEO", "eng": 9.73}, {"date": "20260217", "views": 437, "likes": 29, "comments": 0, "shares": 0, "type": "VIDEO", "eng": 6.64}, {"date": "20260217", "views": 599, "likes": 52, "comments": 2, "shares": 0, "type": "VIDEO", "eng": 9.02}, {"date": "20260217", "views": 1326, "likes": 93, "comments": 11, "shares": 4, "type": "VIDEO", "eng": 8.14}, {"date": "20260220", "views": 5605, "likes": 603, "comments": 19, "shares": 1, "type": "VIDEO", "eng": 11.12}, {"date": "20260221", "views": 906, "likes": 52, "comments": 2, "shares": 8, "type": "VIDEO", "eng": 6.84}, {"date": "20260222", "views": 1143, "likes": 53, "comments": 0, "shares": 2, "type": "VIDEO", "eng": 4.81}, {"date": "20260224", "views": 108740, "likes": 5111, "comments": 93, "shares": 149, "type": "PHOTO", "eng": 4.92}, {"date": "20260224", "views": 695, "likes": 24, "comments": 1, "shares": 0, "type": "VIDEO", "eng": 3.6}, {"date": "20260226", "views": 50451, "likes": 4933, "comments": 88, "shares": 157, "type": "PHOTO", "eng": 10.26}, {"date": "20260226", "views": 4124, "likes": 400, "comments": 22, "shares": 34, "type": "PHOTO", "eng": 11.06}, {"date": "20260227", "views": 6650, "likes": 222, "comments": 51, "shares": 1, "type": "PHOTO", "eng": 4.12}, {"date": "20260228", "views": 871, "likes": 44, "comments": 1, "shares": 0, "type": "VIDEO", "eng": 5.17}, {"date": "20260228", "views": 6427, "likes": 254, "comments": 1, "shares": 3, "type": "VIDEO", "eng": 4.01}, {"date": "20260228", "views": 1043, "likes": 26, "comments": 0, "shares": 0, "type": "VIDEO", "eng": 2.49}, {"date": "20260301", "views": 751, "likes": 55, "comments": 0, "shares": 0, "type": "VIDEO", "eng": 7.32}, {"date": "20260302", "views": 446, "likes": 19, "comments": 0, "shares": 2, "type": "PHOTO", "eng": 4.71}, {"date": "20260304", "views": 24687, "likes": 915, "comments": 59, "shares": 21, "type": "PHOTO", "eng": 4.03}, {"date": "20260305", "views": 2337, "likes": 115, "comments": 3, "shares": 2, "type": "PHOTO", "eng": 5.13}, {"date": "20260306", "views": 1725, "likes": 62, "comments": 6, "shares": 1, "type": "PHOTO", "eng": 4.0}, {"date": "20260307", "views": 34250, "likes": 999, "comments": 31, "shares": 20, "type": "PHOTO", "eng": 3.07}, {"date": "20260308", "views": 1172, "likes": 78, "comments": 4, "shares": 2, "type": "VIDEO", "eng": 7.17}, {"date": "20260308", "views": 555, "likes": 24, "comments": 1, "shares": 0, "type": "VIDEO", "eng": 4.5}, {"date": "20260308", "views": 495, "likes": 28, "comments": 0, "shares": 0, "type": "VIDEO", "eng": 5.66}, {"date": "20260309", "views": 2519, "likes": 66, "comments": 4, "shares": 0, "type": "PHOTO", "eng": 2.78}, {"date": "20260310", "views": 1378, "likes": 47, "comments": 0, "shares": 1, "type": "PHOTO", "eng": 3.48}, {"date": "20260311", "views": 39086, "likes": 1960, "comments": 135, "shares": 42, "type": "PHOTO", "eng": 5.47}, {"date": "20260312", "views": 685, "likes": 4, "comments": 0, "shares": 0, "type": "VIDEO", "eng": 0.58}, {"date": "20260312", "views": 99337, "likes": 4566, "comments": 158, "shares": 72, "type": "PHOTO", "eng": 4.83}, {"date": "20260313", "views": 1245, "likes": 56, "comments": 3, "shares": 3, "type": "PHOTO", "eng": 4.98}, {"date": "20260314", "views": 1548, "likes": 71, "comments": 0, "shares": 1, "type": "PHOTO", "eng": 4.65}, {"date": "20260316", "views": 1957, "likes": 51, "comments": 2, "shares": 1, "type": "PHOTO", "eng": 2.76}, {"date": "20260317", "views": 19069, "likes": 1100, "comments": 51, "shares": 56, "type": "PHOTO", "eng": 6.33}, {"date": "20260317", "views": 1886, "likes": 77, "comments": 1, "shares": 4, "type": "PHOTO", "eng": 4.35}, {"date": "20260318", "views": 12015, "likes": 355, "comments": 14, "shares": 2, "type": "PHOTO", "eng": 3.09}, {"date": "20260322", "views": 693921, "likes": 64762, "comments": 370, "shares": 4286, "type": "PHOTO", "eng": 10.0}, {"date": "20260324", "views": 112866, "likes": 9204, "comments": 42, "shares": 401, "type": "PHOTO", "eng": 8.55}, {"date": "20260325", "views": 28076, "likes": 1787, "comments": 9, "shares": 81, "type": "PHOTO", "eng": 6.69}, {"date": "20260325", "views": 1719, "likes": 73, "comments": 1, "shares": 5, "type": "VIDEO", "eng": 4.6}, {"date": "20260326", "views": 39418, "likes": 2856, "comments": 35, "shares": 138, "type": "PHOTO", "eng": 7.68}, {"date": "20260328", "views": 3427, "likes": 93, "comments": 4, "shares": 4, "type": "PHOTO", "eng": 2.95}, {"date": "20260329", "views": 948, "likes": 18, "comments": 0, "shares": 0, "type": "VIDEO", "eng": 1.9}, {"date": "20260329", "views": 1569, "likes": 69, "comments": 1, "shares": 8, "type": "PHOTO", "eng": 4.97}, {"date": "20260331", "views": 2435, "likes": 131, "comments": 0, "shares": 5, "type": "VIDEO", "eng": 5.59}, {"date": "20260331", "views": 85616, "likes": 7474, "comments": 35, "shares": 317, "type": "PHOTO", "eng": 9.14}, {"date": "20260401", "views": 1907, "likes": 46, "comments": 0, "shares": 1, "type": "VIDEO", "eng": 2.46}, {"date": "20260405", "views": 25174, "likes": 1209, "comments": 15, "shares": 31, "type": "VIDEO", "eng": 4.99}, {"date": "20260406", "views": 193690, "likes": 7885, "comments": 107, "shares": 744, "type": "PHOTO", "eng": 4.51}, {"date": "20260412", "views": 5056, "likes": 190, "comments": 3, "shares": 6, "type": "PHOTO", "eng": 3.94}, {"date": "20260413", "views": 1359, "likes": 18, "comments": 0, "shares": 4, "type": "VIDEO", "eng": 1.62}, {"date": "20260415", "views": 1091, "likes": 34, "comments": 3, "shares": 0, "type": "PHOTO", "eng": 3.39}, {"date": "20260420", "views": 6322, "likes": 136, "comments": 2, "shares": 3, "type": "PHOTO", "eng": 2.23}, {"date": "20260421", "views": 2576, "likes": 60, "comments": 21, "shares": 2, "type": "PHOTO", "eng": 3.22}, {"date": "20260426", "views": 1487, "likes": 81, "comments": 0, "shares": 1, "type": "PHOTO", "eng": 5.51}, {"date": "20260429", "views": 2005, "likes": 118, "comments": 0, "shares": 1, "type": "PHOTO", "eng": 5.94}, {"date": "20260502", "views": 4494, "likes": 158, "comments": 2, "shares": 3, "type": "PHOTO", "eng": 3.63}, {"date": "20260503", "views": 893, "likes": 11, "comments": 1, "shares": 1, "type": "PHOTO", "eng": 1.46}, {"date": "20260504", "views": 1507, "likes": 52, "comments": 6, "shares": 2, "type": "PHOTO", "eng": 3.98}, {"date": "20260510", "views": 12764, "likes": 669, "comments": 6, "shares": 18, "type": "PHOTO", "eng": 5.43}, {"date": "20260601", "views": 12692, "likes": 427, "comments": 3, "shares": 3, "type": "PHOTO", "eng": 3.41}, {"date": "20260604", "views": 2256, "likes": 127, "comments": 2, "shares": 11, "type": "PHOTO", "eng": 6.21}, {"date": "20260606", "views": 1904, "likes": 25, "comments": 0, "shares": 0, "type": "PHOTO", "eng": 1.31}, {"date": "20260607", "views": 651, "likes": 72, "comments": 0, "shares": 4, "type": "PHOTO", "eng": 11.67}, {"date": "20260607", "views": 3817, "likes": 61, "comments": 3, "shares": 2, "type": "PHOTO", "eng": 1.73}, {"date": "20260608", "views": 1039, "likes": 73, "comments": 1, "shares": 4, "type": "PHOTO", "eng": 7.51}, {"date": "20260609", "views": 293, "likes": 12, "comments": 0, "shares": 0, "type": "VIDEO", "eng": 4.1}, {"date": "20260609", "views": 432, "likes": 19, "comments": 0, "shares": 0, "type": "VIDEO", "eng": 4.4}, {"date": "20260610", "views": 6479, "likes": 475, "comments": 10, "shares": 30, "type": "PHOTO", "eng": 7.95}, {"date": "20260611", "views": 32822, "likes": 2228, "comments": 370, "shares": 91, "type": "PHOTO", "eng": 8.19}, {"date": "20260612", "views": 527, "likes": 30, "comments": 4, "shares": 1, "type": "PHOTO", "eng": 6.64}, {"date": "20260614", "views": 2428, "likes": 103, "comments": 4, "shares": 3, "type": "PHOTO", "eng": 4.53}, {"date": "20260615", "views": 331, "likes": 20, "comments": 0, "shares": 1, "type": "PHOTO", "eng": 6.34}, {"date": "20260615", "views": 945, "likes": 31, "comments": 2, "shares": 2, "type": "PHOTO", "eng": 3.7}, {"date": "20260616", "views": 57, "likes": 2, "comments": 0, "shares": 0, "type": "PHOTO", "eng": 3.51}, {"date": "20260616", "views": 3099, "likes": 140, "comments": 6, "shares": 1, "type": "PHOTO", "eng": 4.74}, {"date": "20260617", "views": 100832, "likes": 7968, "comments": 47, "shares": 379, "type": "PHOTO", "eng": 8.32}, {"date": "20260617", "views": 340, "likes": 11, "comments": 0, "shares": 0, "type": "PHOTO", "eng": 3.24}, {"date": "20260620", "views": 1039, "likes": 67, "comments": 1, "shares": 4, "type": "VIDEO", "eng": 6.93}, {"date": "20260622", "views": 386, "likes": 28, "comments": 1, "shares": 1, "type": "PHOTO", "eng": 7.77}, {"date": "20260622", "views": 122, "likes": 5, "comments": 1, "shares": 0, "type": "PHOTO", "eng": 4.92}, {"date": "20260622", "views": 107, "likes": 3, "comments": 1, "shares": 0, "type": "PHOTO", "eng": 3.74}, {"date": "20260622", "views": 3435, "likes": 122, "comments": 5, "shares": 1, "type": "PHOTO", "eng": 3.73}, {"date": "20260625", "views": 29777, "likes": 1614, "comments": 45, "shares": 51, "type": "PHOTO", "eng": 5.74}, {"date": "20260629", "views": 12763, "likes": 850, "comments": 7, "shares": 50, "type": "PHOTO", "eng": 7.11}, {"date": "20260630", "views": 1590, "likes": 129, "comments": 1, "shares": 1, "type": "PHOTO", "eng": 8.24}, {"date": "20260704", "views": 532, "likes": 13, "comments": 1, "shares": 0, "type": "PHOTO", "eng": 2.63}, {"date": "20260706", "views": 1354, "likes": 85, "comments": 8, "shares": 5, "type": "PHOTO", "eng": 7.24}, {"date": "20260708", "views": 468, "likes": 45, "comments": 1, "shares": 1, "type": "PHOTO", "eng": 10.04}, {"date": "20260710", "views": 342, "likes": 39, "comments": 0, "shares": 1, "type": "PHOTO", "eng": 11.7}, {"date": "20260711", "views": 141, "likes": 13, "comments": 0, "shares": 0, "type": "VIDEO", "eng": 9.22}];
+  const maxViews = Math.max(...posts.map(p=>p.views));
+  const container = document.getElementById('barsChart');
+  const tooltip = document.getElementById('tooltip');
+  const sorted = [...posts].map(p=>p.views).sort((a,b)=>b-a);
+  const hitCount = Math.max(1, Math.floor(posts.length * 0.10));
+  const hitThreshold = sorted[hitCount - 1]; // top 10% = "hit"
+
+  posts.forEach(p=>{
+    const bar = document.createElement('div');
+    const heightPct = Math.max((p.views/maxViews)*100, 1);
+    bar.className = 'bar' + (p.views>=hitThreshold ? ' hit' : (p.type==='VIDEO' ? ' video' : ''));
+    bar.style.height = heightPct + '%';
+    bar.addEventListener('mousemove', (e)=>{
+      tooltip.style.opacity = 1;
+      tooltip.style.left = (e.clientX+12)+'px';
+      tooltip.style.top = (e.clientY+12)+'px';
+      const d = p.date;
+      const dateFmt = d.slice(6,8)+'/'+d.slice(4,6);
+      tooltip.innerHTML = `<strong>${dateFmt}</strong> · ${p.type==='PHOTO'?'Carrossel':'Vídeo'}<br>${p.views.toLocaleString('pt-BR')} views · ${p.likes.toLocaleString('pt-BR')} curtidas · ${p.eng}% eng.`;
+    });
+    bar.addEventListener('mouseleave', ()=>{ tooltip.style.opacity = 0; });
+    container.appendChild(bar);
+  });
+</script>
