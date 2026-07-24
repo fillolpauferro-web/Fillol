@@ -1,0 +1,442 @@
+<title>Rotina de Conteúdo — @shonen.cut</title>
+<style>
+  :root{
+    --paper:#f3ede0;
+    --paper-2:#e9e0cd;
+    --ink:#1b1720;
+    --ink-2:#3a3444;
+    --indigo:#4f3f9e;
+    --indigo-deep:#2f2560;
+    --ember:#d9622b;
+    --ember-deep:#b84b1c;
+    --gold:#c99a3b;
+    --line: rgba(27,23,32,0.14);
+    --card: rgba(255,255,255,0.55);
+    --shadow: 0 1px 0 rgba(27,23,32,0.06);
+  }
+  :root[data-theme="dark"]{
+    --paper:#151220;
+    --paper-2:#1d1830;
+    --ink:#efe9db;
+    --ink-2:#c9c2d6;
+    --indigo:#9d8bff;
+    --indigo-deep:#c9bdff;
+    --ember:#ff8a54;
+    --ember-deep:#ffb08a;
+    --gold:#e3b45c;
+    --line: rgba(239,233,219,0.14);
+    --card: rgba(255,255,255,0.045);
+    --shadow: 0 1px 0 rgba(0,0,0,0.4);
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --paper:#151220;
+      --paper-2:#1d1830;
+      --ink:#efe9db;
+      --ink-2:#c9c2d6;
+      --indigo:#9d8bff;
+      --indigo-deep:#c9bdff;
+      --ember:#ff8a54;
+      --ember-deep:#ffb08a;
+      --gold:#e3b45c;
+      --line: rgba(239,233,219,0.14);
+      --card: rgba(255,255,255,0.045);
+      --shadow: 0 1px 0 rgba(0,0,0,0.4);
+    }
+  }
+
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:
+      radial-gradient(1200px 600px at 15% -10%, var(--paper-2), transparent 60%),
+      var(--paper);
+    color:var(--ink);
+    font-family: ui-sans-serif, system-ui, "Segoe UI", Roboto, sans-serif;
+    line-height:1.5;
+    min-height:100vh;
+  }
+  .wrap{max-width:920px;margin:0 auto;padding:2.5rem 1.5rem 5rem;}
+
+  .display{
+    font-family: "Arial Narrow", "Helvetica Neue Condensed", Impact, ui-sans-serif, system-ui, sans-serif;
+    font-weight:900;
+    text-transform:uppercase;
+    letter-spacing:-0.01em;
+    text-wrap:balance;
+  }
+
+  header.masthead{
+    display:flex;flex-wrap:wrap;gap:1rem;align-items:flex-end;justify-content:space-between;
+    border-bottom:3px solid var(--ink);
+    padding-bottom:1.1rem;margin-bottom:1.6rem;
+  }
+  .brand-label{
+    font-size:0.72rem;letter-spacing:0.14em;text-transform:uppercase;
+    color:var(--ink-2);font-weight:600;
+  }
+  h1.title{
+    font-size:clamp(2rem, 5vw, 3.1rem);
+    margin:0.15rem 0 0;
+    line-height:0.95;
+    color:var(--ink);
+  }
+  h1.title em{
+    font-style:normal;color:var(--ember);
+  }
+  .meta-chip{
+    font-size:0.75rem;font-weight:700;letter-spacing:0.04em;
+    background:var(--indigo);color:var(--paper);
+    padding:0.3rem 0.65rem;border-radius:100px;
+    white-space:nowrap;
+  }
+
+  .signals{
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:14px;
+    padding:1.15rem 1.3rem;
+    margin-bottom:1.8rem;
+    box-shadow:var(--shadow);
+  }
+  .signals h2{
+    font-size:0.72rem;letter-spacing:0.12em;text-transform:uppercase;
+    margin:0 0 0.7rem;color:var(--indigo-deep);font-weight:800;
+  }
+  .signals ul{margin:0;padding-left:1.1rem;}
+  .signals li{margin-bottom:0.45rem;font-size:0.94rem;color:var(--ink-2);}
+  .signals li b{color:var(--ink);}
+  .signals .best-time{
+    margin-top:0.8rem;padding-top:0.7rem;border-top:1px dashed var(--line);
+    font-size:0.85rem;color:var(--ink-2);
+  }
+  .best-time strong{color:var(--ember-deep);}
+
+  .hooks{
+    display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));
+    gap:0.8rem;margin-bottom:2rem;
+  }
+  .hook-card{
+    background:var(--card);border:1px solid var(--line);border-radius:12px;
+    padding:0.9rem 1rem;box-shadow:var(--shadow);
+  }
+  .hook-card .n{
+    font-size:0.68rem;font-weight:800;letter-spacing:0.1em;color:var(--ember-deep);
+    display:block;margin-bottom:0.35rem;
+  }
+  .hook-card p{margin:0;font-size:0.92rem;}
+
+  nav.tabs{
+    display:flex;flex-wrap:wrap;gap:0.5rem;
+    margin-bottom:1.6rem;
+  }
+  nav.tabs input{position:absolute;opacity:0;pointer-events:none;}
+  nav.tabs label{
+    cursor:pointer;user-select:none;
+    font-size:0.82rem;font-weight:700;
+    padding:0.55rem 0.95rem;border-radius:9px;
+    border:1px solid var(--line);
+    background:var(--card);color:var(--ink-2);
+    transition:background 0.15s ease, color 0.15s ease, border-color .15s ease, transform .1s ease;
+  }
+  nav.tabs label:hover{border-color:var(--indigo);}
+  nav.tabs input:focus-visible + label{outline:2px solid var(--indigo);outline-offset:2px;}
+
+  #t1:checked ~ nav.tabs label[for="t1"],
+  #t2:checked ~ nav.tabs label[for="t2"],
+  #t3:checked ~ nav.tabs label[for="t3"],
+  #t4:checked ~ nav.tabs label[for="t4"],
+  #t5:checked ~ nav.tabs label[for="t5"],
+  #t6:checked ~ nav.tabs label[for="t6"]{
+    background:var(--ink);color:var(--paper);border-color:var(--ink);
+  }
+
+  .panels .panel{display:none;}
+  #t1:checked ~ .panels #p1,
+  #t2:checked ~ .panels #p2,
+  #t3:checked ~ .panels #p3,
+  #t4:checked ~ .panels #p4,
+  #t5:checked ~ .panels #p5,
+  #t6:checked ~ .panels #p6{display:block;}
+
+  .panel{
+    background:var(--card);border:1px solid var(--line);border-radius:16px;
+    padding:1.6rem 1.7rem 1.8rem;box-shadow:var(--shadow);
+    animation: fade .25s ease;
+  }
+  @media (prefers-reduced-motion: reduce){ .panel{animation:none;} }
+  @keyframes fade{from{opacity:0;transform:translateY(3px);}to{opacity:1;transform:none;}}
+
+  .panel .eyebrow{
+    font-size:0.7rem;letter-spacing:0.12em;text-transform:uppercase;
+    color:var(--indigo-deep);font-weight:800;margin-bottom:0.3rem;
+  }
+  .panel h2.gancho{
+    font-size:clamp(1.3rem, 3vw, 1.9rem);
+    margin:0 0 1.1rem;color:var(--ink);
+  }
+  .panel h3{
+    font-size:0.78rem;letter-spacing:0.08em;text-transform:uppercase;
+    color:var(--ember-deep);margin:1.4rem 0 0.55rem;font-weight:800;
+  }
+  .panel h3:first-of-type{margin-top:0;}
+
+  .imgrow{display:flex;flex-wrap:wrap;gap:0.5rem;}
+  .imgrow a, .imgrow span{
+    font-size:0.82rem;padding:0.35rem 0.7rem;border-radius:8px;
+    border:1px solid var(--line);text-decoration:none;color:var(--ink-2);
+    background:rgba(255,255,255,0.25);
+  }
+  .imgrow a{color:var(--indigo-deep);font-weight:600;}
+  .imgrow a:hover{border-color:var(--indigo);}
+  .imgrow span.ready{
+    background:var(--gold);color:var(--ink);border-color:transparent;font-weight:700;
+  }
+
+  .phrase-groups{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1rem;}
+  .phrase-groups ol{margin:0;padding-left:1.15rem;}
+  .phrase-groups li{margin-bottom:0.45rem;font-size:0.9rem;}
+  .phrase-groups h4{
+    font-size:0.72rem;text-transform:uppercase;letter-spacing:0.06em;
+    margin:0 0 0.5rem;color:var(--ink-2);
+  }
+
+  .post-text{
+    background:rgba(255,255,255,0.3);border-left:3px solid var(--ember);
+    padding:0.85rem 1rem;border-radius:6px;font-size:0.95rem;margin-top:0.3rem;
+  }
+  :root[data-theme="dark"] .post-text, @media (prefers-color-scheme:dark){.post-text{background:rgba(255,255,255,0.04);}}
+
+  .tags{display:flex;flex-wrap:wrap;gap:0.4rem;margin-top:0.6rem;}
+  .tags span{
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size:0.78rem;background:var(--indigo);color:var(--paper);
+    padding:0.22rem 0.55rem;border-radius:6px;
+  }
+
+  .thread-list{list-style:none;margin:0;padding:0;counter-reset:step;}
+  .thread-list li{
+    counter-increment:step;position:relative;
+    padding:0.6rem 0 0.6rem 2.1rem;border-bottom:1px dashed var(--line);
+    font-size:0.93rem;
+  }
+  .thread-list li:last-of-type{border-bottom:none;}
+  .thread-list li::before{
+    content:counter(step);
+    position:absolute;left:0;top:0.55rem;
+    width:1.5rem;height:1.5rem;border-radius:50%;
+    background:var(--ember);color:#fff;font-weight:800;font-size:0.75rem;
+    display:flex;align-items:center;justify-content:center;
+  }
+  .thread-list li.cta{
+    font-weight:800;color:var(--indigo-deep);
+  }
+  .thread-list li.cta::before{background:var(--indigo);}
+
+  footer.note{
+    margin-top:2rem;font-size:0.8rem;color:var(--ink-2);text-align:center;
+  }
+</style>
+
+<div class="wrap">
+
+  <header class="masthead">
+    <div>
+      <span class="brand-label">Rotina semanal · @shonen.cut</span>
+      <h1 class="title display">Painel de <em>carrossel</em><br>24 · 07 · 2026</h1>
+    </div>
+    <span class="meta-chip">Escolha 1 tema · o resto some</span>
+  </header>
+
+  <div class="signals">
+    <h2>Sinais da semana</h2>
+    <ul>
+      <li><b>Bleach — "A Calamidade"</b> estreia em julho: confronto final Ichigo vs. Yhwach, com mais cenas originais que as partes anteriores.</li>
+      <li><b>Jujutsu Kaisen T3</b> chega mundialmente na Netflix em <b>22/07</b> — janela perfeita pra postar antes do pico de buscas.</li>
+      <li><b>One Piece</b> — mangá em hiato após o cap. 1188 (12/07); episódio de 05/07 virou o especial <b>"One Piece Heroines"</b>, com Nami e Robin em foco.</li>
+      <li><b>Momento raro:</b> Naruto, One Piece, Bleach e Dragon Ball com episódio novo simultâneo pela 1ª vez em 14 anos.</li>
+    </ul>
+    <div class="best-time">Melhor horário pra postar (Metricool, TikTok): <strong>quarta ou quinta, 10h ou 18h</strong> — pico absoluto quinta às 10h.</div>
+  </div>
+
+  <div class="hooks">
+    <div class="hook-card"><span class="n">Gancho 01 · afirmação polêmica</span><p>"ANIME NÃO É SÓ PORRADA." — mesma fórmula do vídeo que já bateu 100 mil views nesta conta.</p></div>
+    <div class="hook-card"><span class="n">Gancho 02 · pergunta que divide</span><p>"Quem vence: ___ ou ___? (a resposta não é a que você tá pensando)"</p></div>
+    <div class="hook-card"><span class="n">Gancho 03 · confissão pessoal</span><p>"Eu só entendi [personagem] depois que [experiência de vida real]."</p></div>
+  </div>
+
+  <input type="radio" name="tema" id="t1" checked>
+  <input type="radio" name="tema" id="t2">
+  <input type="radio" name="tema" id="t3">
+  <input type="radio" name="tema" id="t4">
+  <input type="radio" name="tema" id="t5">
+  <input type="radio" name="tema" id="t6">
+
+  <nav class="tabs">
+    <label for="t1">1 · Bleach volta</label>
+    <label for="t2">2 · JJK na Netflix</label>
+    <label for="t3">3 · One Piece Heroines</label>
+    <label for="t4">4 · Os 4 grandes juntos</label>
+    <label for="t5">5 · Frases que doem</label>
+    <label for="t6">Bônus · DBZ vs JJK</label>
+  </nav>
+
+  <div class="panels">
+
+    <section class="panel" id="p1">
+      <div class="eyebrow">Tema 1 · notícia — Bleach TYBW parte 4</div>
+      <h2 class="gancho">"Vingança e proteção não são a mesma coisa. O Ichigo provou isso 20 anos antes de todo mundo entender."</h2>
+
+      <h3>Imagens</h3>
+      <div class="imgrow">
+        <span class="ready">✓ já no repo: ichigo.jpg</span>
+        <a href="https://www.pinterest.com/search/pins/?q=ichigo%20bankai%20thousand%20year%20blood%20war" target="_blank" rel="noopener">Pinterest: Ichigo Bankai final</a>
+        <a href="https://www.pinterest.com/search/pins/?q=yhwach%20bleach%20fanart" target="_blank" rel="noopener">Pinterest: Yhwach fanart</a>
+      </div>
+
+      <h3>Frases por slide (variedade)</h3>
+      <div class="phrase-groups">
+        <div><h4>Motivação</h4><ol><li>"Talento sem esforço é só potencial guardado na gaveta."</li><li>"Desistir é a única batalha que você perde sem lutar."</li></ol></div>
+        <div><h4>Amor / solidão</h4><ol><li>"Ele não queria ser salvo. Só queria alguém que não desistisse de tentar."</li></ol></div>
+        <div><h4>Frase curta do anime</h4><ol><li>"Bankai." — Bleach</li><li>"Eu protejo. Isso nunca precisou de um motivo maior." — Ichigo</li></ol></div>
+      </div>
+
+      <h3>Texto do post</h3>
+      <div class="post-text">Depois de 14 anos esperando, Bleach volta pra fechar a conta mais pesada do shonen. Ichigo nunca lutou por poder — lutou pra não perder ninguém de novo. "A Calamidade" chega em julho. Você tá pronto?</div>
+      <div class="tags">
+        <span>#bleach</span><span>#ichigo</span><span>#bleachtybw</span><span>#acalamidade</span><span>#animeedit</span><span>#shonen</span><span>#fyp</span>
+      </div>
+    </section>
+
+    <section class="panel" id="p2">
+      <div class="eyebrow">Tema 2 · notícia — JJK Temporada 3</div>
+      <h2 class="gancho">"Quem venceria: Gojo no auge ou Sukuna com os 20 dedos? (não é o que você imagina)"</h2>
+
+      <h3>Imagens</h3>
+      <div class="imgrow">
+        <span class="ready">✓ já no repo: Gojo1.png</span>
+        <span class="ready">✓ já no repo: geto.jpg</span>
+        <a href="https://www.pinterest.com/search/pins/?q=sukuna%20jujutsu%20kaisen%20fanart" target="_blank" rel="noopener">Pinterest: Sukuna domain expansion</a>
+        <a href="https://www.pinterest.com/search/pins/?q=gojo%20vs%20sukuna%20fanart" target="_blank" rel="noopener">Pinterest: Gojo vs Sukuna</a>
+      </div>
+
+      <h3>Frases por slide (variedade)</h3>
+      <div class="phrase-groups">
+        <div><h4>Motivação</h4><ol><li>"Ninguém nasce forte. A gente vira forte na hora que não tinha escolha."</li></ol></div>
+        <div><h4>Amor / solidão</h4><ol><li>"Tem gente que ama tanto que esquece de ser amada de volta." (Geto)</li></ol></div>
+        <div><h4>Frase curta do anime</h4><ol><li>"Domain Expansion." — Jujutsu Kaisen</li><li>"Throughout Heaven and Earth, I alone am the honored one." — Gojo</li></ol></div>
+      </div>
+
+      <h3>Texto do post</h3>
+      <div class="post-text">22 de julho a Temporada 3 chega mundialmente na Netflix. Antes de todo mundo assistir e comentar, aqui vai o resumo de quem realmente segura essa temporada — e não é quem você acha.</div>
+      <div class="tags">
+        <span>#jjk</span><span>#jujutsukaisen</span><span>#gojo</span><span>#sukuna</span><span>#jjktemporada3</span><span>#netflix</span><span>#fyp</span>
+      </div>
+    </section>
+
+    <section class="panel" id="p3">
+      <div class="eyebrow">Tema 3 · notícia — One Piece Heroines</div>
+      <h2 class="gancho">"Eu só entendi por que o Luffy nunca desiste depois que eu quase desisti de mim mesmo."</h2>
+
+      <h3>Imagens</h3>
+      <div class="imgrow">
+        <span class="ready">✓ já no repo: Luffy1.jpg</span>
+        <a href="https://www.pinterest.com/search/pins/?q=nami%20e%20robin%20one%20piece%20fanart" target="_blank" rel="noopener">Pinterest: Nami e Robin</a>
+        <a href="https://www.pinterest.com/search/pins/?q=one%20piece%20heroines%20nami" target="_blank" rel="noopener">Pinterest: One Piece Heroines</a>
+      </div>
+
+      <h3>Frases por slide (variedade)</h3>
+      <div class="phrase-groups">
+        <div><h4>Motivação</h4><ol><li>"Seu ritmo não precisa ser rápido. Precisa ser constante."</li></ol></div>
+        <div><h4>Amor / solidão</h4><ol><li>"Solidão não é ficar sozinho. É estar cercado e não ser visto."</li></ol></div>
+        <div><h4>Frase curta do anime</h4><ol><li>"Eu vou ser o Rei dos Piratas." — Luffy</li><li>"Uma tripulação não se escolhe pela força. Se escolhe pela lealdade." — Nami</li></ol></div>
+      </div>
+
+      <h3>Texto do post</h3>
+      <div class="post-text">One Piece deu um respiro no mangá (cap. 1188) e usou o episódio de 5/07 pra dar protagonismo pra Nami e Robin — depois de mais de mil capítulos. Chegou a hora certa ou chegou tarde demais?</div>
+      <div class="tags">
+        <span>#onepiece</span><span>#nami</span><span>#robin</span><span>#onepieceheroines</span><span>#luffy</span><span>#elbaf</span><span>#fyp</span>
+      </div>
+    </section>
+
+    <section class="panel" id="p4">
+      <div class="eyebrow">Tema 4 · nostalgia cross-fandom</div>
+      <h2 class="gancho">"ANIME NÃO ENVELHECE. A gente que finge que não precisa mais dele."</h2>
+
+      <h3>Imagens</h3>
+      <div class="imgrow">
+        <span class="ready">✓ já no repo: Big3.png</span>
+        <span class="ready">✓ já no repo: Naruto1.jpg</span>
+        <span class="ready">✓ já no repo: itachisasuke.jpg</span>
+        <span class="ready">✓ já no repo: Kakashi.jpg</span>
+        <span class="ready">✓ já no repo: Jiraya.jpg</span>
+        <a href="https://www.pinterest.com/search/pins/?q=dragon%20ball%20daima%20fanart" target="_blank" rel="noopener">Pinterest: Dragon Ball</a>
+      </div>
+
+      <h3>Frases por slide (variedade)</h3>
+      <div class="phrase-groups">
+        <div><h4>Motivação</h4><ol><li>"O medo não vai embora. Você só aprende a andar com ele do lado."</li></ol></div>
+        <div><h4>Amor / solidão</h4><ol><li>"A pior guerra é a que a gente trava sozinho, calado, sorrindo pros outros."</li></ol></div>
+        <div><h4>Frase curta do anime</h4><ol><li>"Um Hokage nunca volta atrás com a palavra." — Naruto</li><li>"Força não é o que resta. É o que você constrói depois que perde tudo." — Levi</li></ol></div>
+      </div>
+
+      <h3>Texto do post</h3>
+      <div class="post-text">Naruto, One Piece, Bleach e Dragon Ball com episódio novo no ar ao mesmo tempo, pela primeira vez em 14 anos. Se você cresceu nos anos 2010 assistindo isso, essa semana é praticamente um reencontro. Qual desses te formou primeiro?</div>
+      <div class="tags">
+        <span>#naruto</span><span>#onepiece</span><span>#bleach</span><span>#dragonball</span><span>#anime2026</span><span>#nostalgia</span><span>#fyp</span>
+      </div>
+    </section>
+
+    <section class="panel" id="p5">
+      <div class="eyebrow">Tema 5 · evergreen — o formato que já deu 100 mil views</div>
+      <h2 class="gancho">"Ninguém te avisou que crescer ia doer que nem final de anime."</h2>
+
+      <h3>Imagens</h3>
+      <div class="imgrow">
+        <span class="ready">✓ já no repo: Levi.jpg</span>
+        <span class="ready">✓ já no repo: itachisasuke.jpg</span>
+        <span class="ready">✓ já no repo: Obito Fim.jpg</span>
+        <span class="ready">✓ já no repo: killer Bee.jpg</span>
+        <span class="ready">✓ já no repo: yamato.jpg</span>
+        <a href="https://www.pinterest.com/search/pins/?q=frases%20de%20anime%20tristes%20wallpaper" target="_blank" rel="noopener">Pinterest: frases de anime</a>
+      </div>
+
+      <h3>Frases por slide (variedade)</h3>
+      <div class="phrase-groups">
+        <div><h4>Motivação</h4><ol><li>"Ninguém nasce forte. A gente vira forte na hora que não tinha escolha."</li></ol></div>
+        <div><h4>Amor / solidão</h4><ol><li>"Amar do jeito certo às vezes parece abandono pra quem só recebeu o errado."</li></ol></div>
+        <div><h4>Frase curta do anime</h4><ol><li>"Não interessa o que os outros dizem — o que importa é o que eu decidi ser." — Itachi</li><li>"Domain Expansion." — Jujutsu Kaisen</li></ol></div>
+      </div>
+
+      <h3>Texto do post</h3>
+      <div class="post-text">Cada um desses personagens escondia uma verdade que a gente só entende depois de crescer. Qual frase mais pesou pra você? Comenta aqui embaixo — e se acha que errei a ordem, prova que eu tô errado. 👇</div>
+      <div class="tags">
+        <span>#anime</span><span>#animeedit</span><span>#frasesdeanime</span><span>#otaku</span><span>#shonen</span><span>#fyp</span>
+      </div>
+    </section>
+
+    <section class="panel" id="p6">
+      <div class="eyebrow">Bônus · thread de comparação</div>
+      <h2 class="gancho">Quem é mais forte: Dragon Ball Z ou Jujutsu Kaisen?</h2>
+
+      <h3>Sequência (1 slide = 1 argumento)</h3>
+      <ol class="thread-list">
+        <li>Goku venceria o Sukuna? Deixa eu te provar que não é bem assim... — <em>Imagem 1</em></li>
+        <li>Sukuna tem Domain Expansion. Ele nem precisa acertar um golpe pra te matar — só existir dentro do domínio já é sentença. — <em>Imagem 2</em></li>
+        <li>Goku tem o Instinto Superior. Ele reage antes de pensar — literalmente sem pensar, o corpo luta sozinho. — <em>Imagem 3</em></li>
+        <li>Mas Domain Expansion reescreve as regras da realidade dentro do espaço. Instinto não serve de nada se a "realidade" já decidiu seu resultado antes do golpe. — <em>Imagem 4</em></li>
+        <li>E se a luta fosse de resistência, não de golpe único? Goku sobrevive ao que mataria qualquer um. Sukuna nunca precisou de resistência — ele nunca perdeu uma vez. — <em>Imagem 5</em></li>
+        <li>Sukuna não é mais forte porque bate mais forte. É mais forte porque a luta já era dele antes de começar. — <em>Imagem 6 (virada)</em></li>
+        <li class="cta">Quem você acha que vence? Comenta aqui embaixo — e se acha que eu errei, prova que eu tô errado. 👇</li>
+      </ol>
+
+      <h3>Hashtags</h3>
+      <div class="tags">
+        <span>#dragonball</span><span>#jujutsukaisen</span><span>#goku</span><span>#sukuna</span><span>#animeversus</span><span>#quemvence</span><span>#fyp</span>
+      </div>
+    </section>
+
+  </div>
+
+  <footer class="note">Fontes das novidades: Angelotti Licensing, ComicBook.com, GameRant, Marketeer, OtakuPT · Horário: Metricool (TikTok, America/Sao_Paulo)</footer>
+</div>
