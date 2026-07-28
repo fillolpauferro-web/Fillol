@@ -1,0 +1,18 @@
+# Caddyfile do helpdesk (fase 1: sem domínio próprio ainda).
+#
+# Enquanto não houver domínio, servimos em HTTP puro no IP do servidor
+# (Caddy não emite certificado automático sem um hostname real).
+#
+# Quando a empresa registrar um domínio (ex: suporte.empresa.com):
+#   1. Aponte o DNS (registro A) do subdomínio para o IP deste servidor.
+#   2. Comente o bloco ":80" abaixo e descomente o bloco de domínio.
+#   3. Rode: docker compose restart caddy
+#   O Caddy emite e renova o certificado Let's Encrypt automaticamente.
+
+:80 {
+	reverse_proxy rails:3000
+}
+
+# suporte.empresa.com {
+# 	reverse_proxy rails:3000
+# }
