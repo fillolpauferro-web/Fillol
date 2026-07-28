@@ -1,0 +1,87 @@
+# Stack de self-hosting do Chatwoot (helpdesk estilo Zendesk) para a empresa.
+# Baseado no docker-compose oficial de produção do Chatwoot (chatwoot/chatwoot),
+# com Caddy na frente como reverse proxy. Ver ../RUNBOOK.md para o passo a passo
+# completo de deploy e configuração.
+#
+# Uso:
+#   cp .env.example .env   # preencher os valores reais
+#   docker compose up -d
+#   docker compose exec rails bundle exec rails db:chatwoot_prepare
+
+x-app: &app
+  image: chatwoot/chatwoot:v3.14.0
+  env_file: .env
+  volumes:
+    - storage:/app/storage
+  restart: unless-stopped
+  depends_on:
+    - postgres
+    - redis
+
+services:
+  rails:
+    <<: *app
+    container_name: chatwoot-rails
+    entrypoint: docker/entrypoints/rails.sh
+    command: ["bundle", "exec", "rails", "s", "-p", "3000", "-b", "0.0.0.0"]
+    networks:
+      - internal
+
+  sidekiq:
+    <<: *app
+    container_name: chatwoot-sidekiq
+    command: ["bundle", "exec", "sidekiq", "-C", "config/sidekiq.yml"]
+    networks:
+      - internal
+
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: chatwoot-postgres
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      - POSTGRES_DB=chatwoot
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - internal
+    # Não expor porta publicamente: acessível só internamente entre containers.
+
+  redis:
+    image: redis:7-alpine
+    container_name: chatwoot-redis
+    restart: unless-stopped
+    command: ["redis-server", "--requirepass", "${REDIS_PASSWORD}"]
+    volumes:
+      - redis_data:/data
+    networks:
+      - internal
+    # Não expor porta publicamente: acessível só internamente entre containers.
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: chatwoot-caddy
+    restart: unless-stopped
+    depends_on:
+      - rails
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - internal
+
+networks:
+  internal:
+
+volumes:
+  storage:
+  postgres_data:
+  redis_data:
+  caddy_data:
+  caddy_config:
