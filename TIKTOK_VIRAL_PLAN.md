@@ -1,5 +1,7 @@
 # Plano de conteúdo: vídeo com potencial de 1M de views (@shonen.cut)
 
+> **Atualização 30/07/2026:** o roteiro descrito abaixo (item 2) foi gravado e publicado em 17/06/2026 — ver `content/shonen-cut-anime-nao-e-so-porrada.mp4`, que chegou a 101.738 views. A Parte 2 (item 5, Zoro/Gaara/Nezuko/Deku/Killua) segue pronta em `content/shonen-cut-parte2-mais-5-que-doem.mp4` mas ainda não foi publicada — ver `dashboard/tiktok-shonen-cut.html` para a recomendação atual de publicá-la.
+
 ## 1. O que os dados reais da conta mostram
 
 Puxei o histórico de performance do TikTok `@shonen.cut` (via Windsor.ai, conector `tiktok_organic`) dos últimos ~90 dias. Conta: 6.475 seguidores, 93 vídeos, 134.827 curtidas totais.
