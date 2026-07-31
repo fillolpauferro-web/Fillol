@@ -69,6 +69,28 @@ Texto mínimo em cada foto (frase curta, alto contraste, tipo gancho — não pa
 
 **Atenção antes de produzir:** as imagens já salvas neste repo (Obito, Kakashi adulto, Itachi, Jiraiya etc.) são de arcos bem mais avançados da história — nenhuma delas é do episódio 1. Você vai precisar de screenshots reais do episódio 1 (Naruto criança, Iruka, Mizuki, a cena da pichação e da formatura) pra montar esse carrossel; as imagens atuais servem pra outros formatos, não pra essa série.
 
-## 6. Próximos passos
+## 6. Roteiro — vídeo falado (1 min), anúncio da série
+
+Primeiro vídeo com você aparecendo, falando direto pra câmera. Objetivo: anunciar a série de episódios e gerar expectativa pro episódio 1. Sem edição complexa — é sua fala carregando o vídeo.
+
+| Tempo | Fala (o que você diz) | Direção / tela |
+|---|---|---|
+| 0:00–0:04 | "Você lembra do episódio 1 de Naruto? Eu vou te fazer lembrar." | Olhando direto pra câmera, sem intro/logo antes — gancho já no corte 0 |
+| 0:04–0:12 | "A partir de hoje eu vou trazer, episódio por episódio, um resumo de tudo que rolou em Naruto — do 1 até onde a gente conseguir chegar." | Texto na tela reforçando: "SÉRIE NOVA: NARUTO EP. 1 → 200" |
+| 0:12–0:24 | "Vai ser tipo reviver a série com você: os momentos que marcaram, as cenas que você já tinha esquecido — tudo resumido, em ordem, sem pular arco." | Tom mais próximo/confidencial, pode gesticular |
+| 0:24–0:36 | "Episódio 1 já vai no ar essa semana: o dia em que o garoto que ninguém queria por perto virou ninja quase perdendo o único professor que acreditava nele." | Corta pra print/clipe do Naruto (mesmo material do carrossel do ep. 1), volta pro seu rosto no fim da frase |
+| 0:36–0:48 | "Se você cresceu vendo Naruto, isso aqui vai ser uma viagem. E se nunca assistiu, essa é sua chance de conhecer a história sem precisar ver 220 episódios." | Câmera de novo no seu rosto, tom mais leve/sorriso |
+| 0:48–0:60 | "Segue aqui pra não perder nenhum episódio — a série começa essa semana. Comenta qual episódio de Naruto mais te marcou, quero saber." | Texto na tela: "SEGUE PRA NÃO PERDER O EP. 1" + aponta pro botão de seguir |
+
+**Legenda sugerida:**
+> Começando uma série nova aqui: Naruto, episódio por episódio, do 1 até onde a gente conseguir. Episódio 1 sai essa semana. Comenta qual episódio marcou você 👇
+> #naruto #anime #shonen #fyp #naruto20anos
+
+**Notas de produção:**
+- 60s é o teto, mas se ficar em 45-50s falando no ritmo natural, não force pra completar o minuto — vídeo mais curto e direto retém melhor que um esticado.
+- Primeiros 3-4s sem overlay de marca/perfil — mesma regra que já funciona nos posts de texto (gancho imediato, sem intro).
+- Se quiser, os prints do próprio carrossel do episódio 1 (seção 5) servem de b-roll no trecho 0:24–0:36.
+
+## 7. Próximos passos
 
 Quando quiser o roteiro do episódio 2 (ou de qualquer outro), é só pedir — sigo o mesmo padrão: 1 capa com gancho curto + 5 fotos de conteúdo com texto mínimo.
