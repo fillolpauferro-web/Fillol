@@ -50,6 +50,25 @@ Baseado no `getBestTimeToPostByNetwork` já levantado no `TIKTOK_VIRAL_PLAN.md` 
 - Intercale com os outros formatos que já funcionam (frases cross-fandom) nos demais dias, pra não virar monotemático.
 - Em ~200 episódios com 1 post/semana dedicado à série, o arco leva quase 4 anos — se quiser terminar mais rápido, considere 2-3 posts de episódio por semana, mantendo os outros formatos nos dias restantes.
 
-## 5. Próximos passos
+## 5. Roteiro pronto — Episódio 1 ("Uzumaki Naruto!")
 
-Quando você tiver os episódios 11-200 mapeados (ou quiser que eu gere o próximo lote), me diga quantos por vez — recomendo lotes de 15-20 pra manter revisável.
+Texto mínimo em cada foto (frase curta, alto contraste, tipo gancho — não parágrafo). A narrativa completa fica na legenda, não nas fotos.
+
+| Foto | Texto na imagem | Cena sugerida |
+|---|---|---|
+| 1 (capa) | "NARUTO — EP. 1"\n"O garoto que a vila inteira evitava" | Naruto sozinho/isolado, olhando pra vila (plano de rosto, tom de abertura) |
+| 2 | "Pichou os Hokages. De novo." | Naruto pichando o monumento dos Hokages, sorrindo |
+| 3 | "3ª vez reprovando na prova." | Naruto falhando o Bushin no Jutsu na formatura |
+| 4 | "Um professor prometeu um atalho." | Mizuki convencendo Naruto a roubar o Pergaminho Proibido |
+| 5 | "A vila escondia um segredo dele. Ele descobriu na pior hora." | Mizuki revelando a Kyuubi pra Naruto / atacando Iruka |
+| 6 | "Virou ninja no dia que quase perdeu o único professor que acreditou nele." | Iruka entregando a bandana pra Naruto, os dois sorrindo |
+
+**Legenda sugerida:**
+> Episódio 1: o garoto que ninguém queria por perto. Naruto pichou o monumento dos Hokages, reprovou a prova 3 vezes seguidas — e foi enganado por um professor que só queria vê-lo morto. No mesmo dia, descobriu por que a vila inteira evitava ele, quase perdeu o único adulto que acreditava nele, e ainda assim virou ninja. Comenta se você lembra desse episódio 👇 Segue pra não perder o episódio 2.
+> #naruto #anime #animeedit #shonen #fyp #naruto20anos
+
+**Atenção antes de produzir:** as imagens já salvas neste repo (Obito, Kakashi adulto, Itachi, Jiraiya etc.) são de arcos bem mais avançados da história — nenhuma delas é do episódio 1. Você vai precisar de screenshots reais do episódio 1 (Naruto criança, Iruka, Mizuki, a cena da pichação e da formatura) pra montar esse carrossel; as imagens atuais servem pra outros formatos, não pra essa série.
+
+## 6. Próximos passos
+
+Quando quiser o roteiro do episódio 2 (ou de qualquer outro), é só pedir — sigo o mesmo padrão: 1 capa com gancho curto + 5 fotos de conteúdo com texto mínimo.
