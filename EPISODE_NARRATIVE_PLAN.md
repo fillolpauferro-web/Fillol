@@ -73,23 +73,56 @@ Texto mínimo em cada foto (frase curta, alto contraste, tipo gancho — não pa
 
 Primeiro vídeo com você aparecendo, falando direto pra câmera. Objetivo: anunciar a série de episódios e gerar expectativa pro episódio 1. Sem edição complexa — é sua fala carregando o vídeo.
 
-| Tempo | Fala (o que você diz) | Direção / tela |
-|---|---|---|
-| 0:00–0:04 | "Você lembra do episódio 1 de Naruto? Eu vou te fazer lembrar." | Olhando direto pra câmera, sem intro/logo antes — gancho já no corte 0 |
-| 0:04–0:12 | "A partir de hoje eu vou trazer, episódio por episódio, um resumo de tudo que rolou em Naruto — do 1 até onde a gente conseguir chegar." | Texto na tela reforçando: "SÉRIE NOVA: NARUTO EP. 1 → 200" |
-| 0:12–0:24 | "Vai ser tipo reviver a série com você: os momentos que marcaram, as cenas que você já tinha esquecido — tudo resumido, em ordem, sem pular arco." | Tom mais próximo/confidencial, pode gesticular |
-| 0:24–0:36 | "Episódio 1 já vai no ar essa semana: o dia em que o garoto que ninguém queria por perto virou ninja quase perdendo o único professor que acreditava nele." | Corta pra print/clipe do Naruto (mesmo material do carrossel do ep. 1), volta pro seu rosto no fim da frase |
-| 0:36–0:48 | "Se você cresceu vendo Naruto, isso aqui vai ser uma viagem. E se nunca assistiu, essa é sua chance de conhecer a história sem precisar ver 220 episódios." | Câmera de novo no seu rosto, tom mais leve/sorriso |
-| 0:48–0:60 | "Segue aqui pra não perder nenhum episódio — a série começa essa semana. Comenta qual episódio de Naruto mais te marcou, quero saber." | Texto na tela: "SEGUE PRA NÃO PERDER O EP. 1" + aponta pro botão de seguir |
+### 6.1 Antes de gravar (checklist de 2 min)
+
+- **Formato:** vertical 9:16, celular na horizontal invertida NÃO — celular na vertical, câmera na altura dos olhos (nem de baixo pra cima, nem de cima pra baixo).
+- **Distância:** enquadramento peito pra cima (não corta o queixo nem deixa espaço vazio demais acima da cabeça).
+- **Luz:** de frente pro seu rosto (janela ou luz de aro), nunca de trás — se a luz vem de trás você vira silhueta.
+- **Áudio:** grava num ambiente sem eco/barulho de fundo; se tiver mic de lapela, usa — áudio ruim derruba retenção mais que imagem ruim.
+- **Fundo:** qualquer coisa neutra ou que combine com anime (poster, estante, quarto) — não precisa estúdio, só não pode ser bagunçado a ponto de distrair.
+- **Leia o roteiro em voz alta 1x antes de gravar** só pra pegar o ritmo — não precisa decorar palavra por palavra, decorar a ideia de cada bloco já basta.
+
+### 6.2 Roteiro bloco a bloco (fala + direção + tela)
+
+| Tempo | Fala exata | Como falar / olhar | O que aparece na tela |
+|---|---|---|---|
+| 0:00–0:02 | "Você lembra do episódio 1 de Naruto?" | Olho reto na lente, sem sorrir ainda, tom de pergunta direta e seca — é o gancho, não pode ter titubeio | Sem overlay nenhum ainda — corte já entra com você falando, zero logo/intro |
+| 0:02–0:04 | "Eu vou te fazer lembrar." | Pausa de meio segundo antes dessa frase, fala mais devagar que a anterior, leve confirmação com a cabeça | Ainda sem texto na tela |
+| 0:04–0:08 | "A partir de hoje eu vou trazer, episódio por episódio," | Mantém o olhar na câmera, tom mais explicativo (baixa um pouco a intensidade em relação ao gancho) | Aos 0:05s entra o texto: "SÉRIE NOVA" (some depois de ~2s) |
+| 0:08–0:12 | "um resumo de tudo que rolou em Naruto — do 1 até onde a gente conseguir chegar." | Leve ênfase em "tudo" e em "1" | Texto: "NARUTO EP. 1 → 200" fica na tela até 0:14 |
+| 0:12–0:18 | "Vai ser tipo reviver a série com você:" | Sorriso leve, tom convidativo/cúmplice | — |
+| 0:18–0:24 | "os momentos que marcaram, as cenas que você já tinha esquecido — tudo resumido, em ordem, sem pular arco." | Ritmo um pouco mais rápido aqui, é a parte "de conteúdo", não precisa de tanto peso dramático | — |
+| 0:24–0:30 | "Episódio 1 já vai no ar essa semana:" | Aumenta o tom de novo (é o segundo gancho do vídeo) | Corte de você pra b-roll começa exatamente na palavra "episódio" |
+| 0:30–0:36 | "o dia em que o garoto que ninguém queria por perto virou ninja quase perdendo o único professor que acreditava nele." | Narração em cima do b-roll, não precisa aparecer seu rosto nesse trecho | B-roll: `Naruto1.jpg` ou `naruto2.jpg` (0:30–0:33) → `Iruka.jpg` na palavra "professor" (0:33–0:36) — as duas imagens já estão no repo |
+| 0:36–0:42 | "Se você cresceu vendo Naruto, isso aqui vai ser uma viagem." | Volta pro seu rosto, tom nostálgico/caloroso | — |
+| 0:42–0:48 | "E se nunca assistiu, essa é sua chance de conhecer a história sem precisar ver 220 episódios." | Leve tom de brincadeira/sorriso no "220 episódios" | — |
+| 0:48–0:54 | "Segue aqui pra não perder nenhum episódio — a série começa essa semana." | Fala mais devagar, olhando direto, é o pedido central do vídeo | Texto entra aos 0:49: "SEGUE PRA NÃO PERDER O EP. 1" (fica até o fim) |
+| 0:54–0:60 | "Comenta qual episódio de Naruto mais te marcou, quero saber." | Sorriso, tom leve, encerra olhando pra câmera (não desvia o olhar no corte final) | Aponta pro ícone de comentário/seguir se estiver usando gesto |
+
+**Tempo total falado:** ~55-58s no ritmo indicado — dá uma folga natural de 2-5s pra não estourar o minuto.
+
+### 6.3 Edição
+
+- **Corte principal:** você → b-roll → você, só isso. Não precisa de mais cortes que os indicados na tabela — vídeo de 1 min com corte demais fica cansativo, e o formato que já viraliza nessa conta é direto, sem enfeite.
+- **Legendas na tela (subtitles):** ativa, mesmo você falando claro — grande parte do público assiste sem som. Usa fonte grande, alto contraste, 1-2 linhas por vez, sincronizada com a fala.
+- **Música:** volume baixo (ambiente), só pra preencher silêncio — a fala é o centro, música não pode competir. Se quiser um som "em alta" do nicho anime/edit, dá pra sobrepor um trend leve por baixo, sem trecho cantado.
+- **Frame de capa (thumbnail):** escolhe um still de 0:00-0:02 (seu rosto, olhar direto, sem boca aberta no meio da palavra) — é o que aparece parado no feed antes do play.
+
+### 6.4 Legenda e variações de gancho pra testar
 
 **Legenda sugerida:**
 > Começando uma série nova aqui: Naruto, episódio por episódio, do 1 até onde a gente conseguir. Episódio 1 sai essa semana. Comenta qual episódio marcou você 👇
 > #naruto #anime #shonen #fyp #naruto20anos
 
-**Notas de produção:**
+**Se quiser gravar 2 versões da frase de abertura pra ver qual prende mais** (mesmo roteiro daqui pra frente, só troca a primeira frase):
+- A: "Você lembra do episódio 1 de Naruto? Eu vou te fazer lembrar." (nostalgia)
+- B: "Eu vou resumir Naruto inteiro, episódio por episódio, começando agora." (promessa direta, sem pergunta)
+
+### 6.5 Notas gerais
+
 - 60s é o teto, mas se ficar em 45-50s falando no ritmo natural, não force pra completar o minuto — vídeo mais curto e direto retém melhor que um esticado.
-- Primeiros 3-4s sem overlay de marca/perfil — mesma regra que já funciona nos posts de texto (gancho imediato, sem intro).
-- Se quiser, os prints do próprio carrossel do episódio 1 (seção 5) servem de b-roll no trecho 0:24–0:36.
+- Primeiros 2-4s sem overlay de marca/perfil — mesma regra que já funciona nos posts de texto (gancho imediato, sem intro).
+- Grava pelo menos 2 takes inteiros — TikTok não permite corte por trecho isolado sem ferramenta de edição externa, então ter uma segunda versão completa evita ter que regravar tudo se travar em algum ponto.
 
 ## 7. Próximos passos
 
