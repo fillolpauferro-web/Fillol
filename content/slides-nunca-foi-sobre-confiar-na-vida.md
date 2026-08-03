@@ -8,7 +8,7 @@ Formato: imagem do personagem em tela cheia + texto bold/alto contraste sobrepos
 
 ## Slide 1 — Gojo Satoru (Jujutsu Kaisen) — CAPA/HOOK
 **Imagem local:** `Gojo1.png`
-**Referência Pinterest:** https://www.pinterest.com/pin/the-strongest-satoru-gojomanga-panel-edit-jjk-youtube--633459503858395282/
+**Referência Pinterest:** https://www.pinterest.com/ideas/gojo-satoru-black-and-white/944110674746/
 
 **Texto principal (grande, ocupando boa parte da tela):** VOCÊ TÁ CONFIANDO NA VIDA ERRADO.
 **Linha de apoio (menor, embaixo):** 5 personagens shonen pararam de fazer isso. Foi aí que deram certo. 👉
