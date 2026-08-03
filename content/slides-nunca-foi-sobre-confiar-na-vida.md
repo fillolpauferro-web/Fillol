@@ -6,12 +6,14 @@ Formato: imagem do personagem em tela cheia + texto bold/alto contraste sobrepos
 
 ---
 
-## Slide 1 — Levi Ackerman (Attack on Titan)
+## Slide 1 — Levi Ackerman (Attack on Titan) — CAPA/HOOK
 **Imagem local:** `Levi.jpg`
 **Referência Pinterest:** https://www.pinterest.com/pin/658370039303006121/
 
-**Texto principal:** PRA TER A CORAGEM DO LEVI, VOCÊ PRECISA PARAR DE CONFIAR NA VIDA.
-**Linha de apoio:** Ele nunca teve garantia de voltar vivo de uma missão. Agia mesmo assim.
+**Texto principal (grande, topo):** PARE DE CONFIAR NA VIDA.
+**Linha de apoio (menor, embaixo, cria curiosidade):** Isso não é desistência. É o segredo por trás da coragem do Levi. 👉
+
+*Por que essa é a capa: frase curta, seca e contraintuitiva = quebra o scroll (mesmo padrão do vídeo de 100K views: "ANIME NÃO É SÓ PORRADA"). Ninguém espera uma frase "negativa" assim, então para pra entender — e só entende ao ler o slide 2. Edição: zoom lento no rosto do Levi, corte seco, texto entra em menos de 0,5s, sem intro de marca.*
 
 *(trecho original 00:00–00:32: "Pra ter coragem de fazer o que você precisa fazer você vai precisar parar de confiar na vida")*
 
@@ -74,8 +76,13 @@ Formato: imagem do personagem em tela cheia + texto bold/alto contraste sobrepos
 
 ## Legenda sugerida para o post
 
-> Ninguém te disse isso, mas confiar na vida nunca foi o ponto. Levi, Itachi, Luffy, Naruto e Jiraiya nunca tiveram garantia de nada — só confiaram que dariam conta do que viesse depois. Qual desses 5 doeu mais pra você? Comenta aqui embaixo 👇
-> #anime #otaku #animeedit #naruto #onepiece #aot #shonen #fyp
+**Opção 1 (direta):**
+> Pare de confiar na vida. Levi, Itachi, Luffy, Naruto e Jiraiya nunca tiveram garantia de nada — só confiaram que dariam conta do que viesse depois. Qual desses 5 doeu mais pra você? Comenta aqui embaixo 👇
+> #anime #otaku #animeedit #naruto #onepiece #attackontitan #bleach #shonen #animebrasil #fyp #paravoce
+
+**Opção 2 (pergunta como gancho):**
+> Você tá esperando ter certeza pra agir? Esses 5 personagens shonen nunca tiveram. E foi exatamente por isso que deram certo. Comenta qual frase mais pesou 👇
+> #anime #otaku #animeedit #naruto #onepiece #attackontitan #bleach #shonen #animebrasil #fyp #paravoce
 
 ## Observações
 - Todas as 6 imagens já existem na raiz do repo (baixadas anteriormente) — os links do Pinterest acima são referências alternativas/em maior resolução para o mesmo personagem, caso queira reeditar ou trocar o still usado.
