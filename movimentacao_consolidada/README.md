@@ -84,6 +84,22 @@ O Excel nunca mais abre as 800k linhas brutas -- só a tabela já agregada.
 5. Abrir `consolidado.xlsx`, escolher o cliente no dropdown da aba
    **Painel Cliente** e pronto.
 
+## Nome de cliente inconsistente (mesmo CNPJ, grafias diferentes)
+
+Às vezes o mesmo CNPJ aparece no export com grafias diferentes de `Client
+Name` (ex.: `PANPHARMA DIST MEDIC LTDA` vs `PANPHARMA DISTR MEDICAMENTOS
+LTDA`). Isso quebraria o Painel Cliente (dropdown duplicado, saldo dividido
+entre os dois nomes). O ETL resolve isso sozinho: detecta automaticamente
+todo CNPJ com mais de uma grafia, avisa no terminal, e consolida usando a
+grafia mais frequente.
+
+Se o automático escolher a grafia errada, force o nome certo em
+`client_name_overrides.csv`:
+```
+cnpj_raiz,cliente
+01206820,PANPHARMA DIST MEDIC LTDA
+```
+
 ## Saldo Inicial (âncora de um mês específico)
 
 Por padrão, o Saldo Inicial do primeiro mês de cada cliente começa em 0,00

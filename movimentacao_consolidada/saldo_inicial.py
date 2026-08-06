@@ -32,6 +32,10 @@ def read_saldo_inicial(path: Path, ler_arquivo) -> pd.DataFrame:
         "Reimbursement Load": "valor_reembolso",
     })
     df["cnpj_raiz"] = df["cnpj_raiz"].astype(str).str.strip().str.zfill(8)
+
+    from nomes import aplicar_overrides
+    df = aplicar_overrides(df)
+
     resumo = (
         df.groupby("cnpj_raiz")
         .agg(cliente=("cliente", "first"), saldo_inicial_externo=("valor_reembolso", "sum"))

@@ -30,3 +30,9 @@ DTYPE_OVERRIDES = {"Root CNPJ": str}
 # category_rules.csv, e não aqui, porque é o dado que você (que conhece a
 # regra de negócio) precisa calibrar e revisar com frequência.
 CATEGORY_RULES_FILE = BASE_DIR / "category_rules.csv"
+
+# Mesmo CNPJ pode aparecer no export com grafias diferentes de Client Name
+# (ex.: "PANPHARMA DIST MEDIC LTDA" com espaçamento/acento diferente). O ETL
+# já consolida automaticamente pelo nome mais frequente; esse arquivo força
+# um nome específico quando o automático não for o certo.
+CLIENT_NAME_OVERRIDES_FILE = BASE_DIR / "client_name_overrides.csv"

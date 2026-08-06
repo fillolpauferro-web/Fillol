@@ -1,0 +1,10 @@
+# CNPJ raiz -> nome canônico do cliente.
+#
+# O mesmo CNPJ às vezes aparece no export com grafias diferentes de Client
+# Name (espaço, acento, abreviação). O ETL já resolve isso sozinho, usando a
+# grafia mais frequente por CNPJ -- mas se o automático escolher a grafia
+# errada, força aqui o nome certo.
+#
+# Linhas que começam com # são comentário e são ignoradas.
+cnpj_raiz,cliente
+01206820,PANPHARMA DIST MEDIC LTDA

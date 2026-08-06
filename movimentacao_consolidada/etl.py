@@ -60,6 +60,9 @@ def read_raw(files: list) -> pd.DataFrame:
     df["cnpj_raiz"] = df["cnpj_raiz"].astype(str).str.strip().str.zfill(8)
     df["data"] = pd.to_datetime(df["data"])
     df["mes"] = df["data"].values.astype("datetime64[M]")
+
+    from nomes import normalizar_nomes
+    df = normalizar_nomes(df)
     return df
 
 
