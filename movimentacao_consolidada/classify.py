@@ -21,7 +21,20 @@ def load_rules() -> pd.DataFrame:
     return rules
 
 
+def linhas_sem_tipo(df: pd.DataFrame) -> pd.Series:
+    """Linhas com Document Type vazio (linha em branco/rodapé do export)."""
+    return df["tipo_documento"].isna() | (df["tipo_documento"].astype(str).str.strip() == "")
+
+
 def classify(df: pd.DataFrame) -> pd.DataFrame:
+    vazios = linhas_sem_tipo(df)
+    if vazios.any():
+        print(
+            f"Aviso: {vazios.sum():,} linha(s) sem Document Type foram ignoradas "
+            "(provavelmente linha em branco/rodapé do export)."
+        )
+        df = df.loc[~vazios].copy()
+
     rules = load_rules()
     out = df.merge(rules, on="tipo_documento", how="left")
 

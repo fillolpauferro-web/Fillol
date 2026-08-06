@@ -63,6 +63,17 @@ def read_raw(raw_dir: Path) -> pd.DataFrame:
 
 
 def audit(df: pd.DataFrame) -> None:
+    from classify import linhas_sem_tipo
+
+    vazios = linhas_sem_tipo(df)
+    if vazios.any():
+        print(
+            f"{vazios.sum():,} linha(s) com Document Type vazio -- serão "
+            "ignoradas ao rodar sem --audit (provavelmente linha em "
+            "branco/rodapé do export).\n"
+        )
+        df = df.loc[~vazios]
+
     rules = load_rules().set_index("tipo_documento")
     resumo = df.groupby("tipo_documento").agg(
         linhas=("valor_confirmado", "count"),
