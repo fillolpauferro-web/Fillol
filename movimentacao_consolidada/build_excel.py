@@ -8,13 +8,15 @@
 - "Fato (base Python)": granularidade cliente x mês x categoria, caso precise
   auditar ou construir outra visão direto no Excel.
 """
+from pathlib import Path
+
 import pandas as pd
 from openpyxl import Workbook
 from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.datavalidation import DataValidation
 from openpyxl.worksheet.table import Table, TableStyleInfo
 
-from config import EXCEL_OUTPUT
+import config
 
 NUM_FMT = "#,##0"
 VALUE_COLS_HINT = ("Saldo Inicial", "Saldo Final", "Valor")
@@ -57,7 +59,9 @@ def write_workbook(
     geral: pd.DataFrame,
     por_cliente: pd.DataFrame,
     categorias: list,
+    excel_path: Path = None,
 ) -> None:
+    excel_path = Path(excel_path) if excel_path else config.EXCEL_OUTPUT
     geral = geral.copy()
     por_cliente = por_cliente.copy()
     fato = fato.copy()
@@ -134,4 +138,4 @@ def write_workbook(
         ws_painel.column_dimensions[get_column_letter(col_idx)].width = 16
     ws_painel.freeze_panes = "A4"
 
-    wb.save(EXCEL_OUTPUT)
+    wb.save(excel_path)

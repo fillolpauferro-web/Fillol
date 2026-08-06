@@ -11,7 +11,8 @@ from pathlib import Path
 
 import pandas as pd
 
-from config import RAW_DIR, OUTPUT_DIR, COLUMN_MAP
+import config
+from config import COLUMN_MAP
 from classify import classify, load_rules
 
 EXTENSOES_SUPORTADAS = (".csv", ".xlsx", ".xlsm")
@@ -32,13 +33,13 @@ def _read_one(path: Path) -> pd.DataFrame:
     raise ValueError(f"Formato não suportado: {path.name}")
 
 
-def read_raw() -> pd.DataFrame:
+def read_raw(raw_dir: Path) -> pd.DataFrame:
     files = sorted(
-        f for ext in EXTENSOES_SUPORTADAS for f in RAW_DIR.glob(f"*{ext}")
+        f for ext in EXTENSOES_SUPORTADAS for f in raw_dir.glob(f"*{ext}")
     )
     if not files:
         raise FileNotFoundError(
-            f"Nenhum arquivo {EXTENSOES_SUPORTADAS} em {RAW_DIR}. Coloque o "
+            f"Nenhum arquivo {EXTENSOES_SUPORTADAS} em {raw_dir}. Coloque o "
             "export do Movimentação (xlsx ou csv) nessa pasta -- pode ser um "
             "arquivo por mês."
         )
@@ -121,10 +122,22 @@ def main() -> None:
         "--audit", action="store_true",
         help="Lista Document Type x linhas x soma, sem gravar nada (use pra calibrar category_rules.csv)",
     )
+    parser.add_argument(
+        "--raw-dir", type=str, default=None,
+        help=r'Pasta com o(s) export(s) do SAP. Ex: --raw-dir "C:\Users\...\OL Robo". '
+             "Se omitido, usa RAW_DIR de config.py (data/raw/).",
+    )
+    parser.add_argument(
+        "--output-dir", type=str, default=None,
+        help="Pasta de saída (parquet + consolidado.xlsx). Se omitido, usa OUTPUT_DIR de config.py.",
+    )
     args = parser.parse_args()
 
-    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-    df = read_raw()
+    raw_dir = Path(args.raw_dir) if args.raw_dir else config.RAW_DIR
+    output_dir = Path(args.output_dir) if args.output_dir else config.OUTPUT_DIR
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    df = read_raw(raw_dir)
 
     if args.audit:
         audit(df)
@@ -136,15 +149,16 @@ def main() -> None:
     geral = build_waterfall(fato, por_cliente=False, categorias=categorias)
     por_cliente = build_waterfall(fato, por_cliente=True, categorias=categorias)
 
-    fato.to_parquet(OUTPUT_DIR / "fato_movimentacao.parquet", index=False)
-    geral.to_parquet(OUTPUT_DIR / "consolidado_geral.parquet", index=False)
-    por_cliente.to_parquet(OUTPUT_DIR / "consolidado_por_cliente.parquet", index=False)
+    fato.to_parquet(output_dir / "fato_movimentacao.parquet", index=False)
+    geral.to_parquet(output_dir / "consolidado_geral.parquet", index=False)
+    por_cliente.to_parquet(output_dir / "consolidado_por_cliente.parquet", index=False)
 
+    excel_path = output_dir / "consolidado.xlsx"
     from build_excel import write_workbook
-    write_workbook(fato, geral, por_cliente, categorias)
+    write_workbook(fato, geral, por_cliente, categorias, excel_path)
 
     print(f"OK: {len(df):,} linhas brutas -> {len(por_cliente):,} linhas na tabela fato consolidada.")
-    print(f"Excel gerado em: {(OUTPUT_DIR / 'consolidado.xlsx').resolve()}")
+    print(f"Excel gerado em: {excel_path.resolve()}")
 
 
 if __name__ == "__main__":

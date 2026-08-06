@@ -59,6 +59,16 @@ O Excel nunca mais abre as 800k linhas brutas -- só a tabela já agregada.
    ```
    Gera `data/output/consolidado.xlsx` e os `.parquet` intermediários.
 
+   Se preferir apontar direto pra outra pasta (ex.: uma pasta do OneDrive
+   onde você deposita o export), sem mexer em `config.py` nem mover
+   arquivo nenhum:
+   ```
+   python etl.py --raw-dir "C:\Users\I0507867.FARMA\OneDrive - Sanofi\Desktop\OL Robo" --audit
+   python etl.py --raw-dir "C:\Users\I0507867.FARMA\OneDrive - Sanofi\Desktop\OL Robo"
+   ```
+   Por padrão o `.xlsx` sai em `data/output/`; use `--output-dir` pra mudar
+   isso também.
+
 5. Abrir `consolidado.xlsx`, escolher o cliente no dropdown da aba
    **Painel Cliente** e pronto.
 
