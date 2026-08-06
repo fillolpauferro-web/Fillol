@@ -12,7 +12,7 @@ from pathlib import Path
 import pandas as pd
 
 import config
-from config import COLUMN_MAP
+from config import COLUMN_MAP, DTYPE_OVERRIDES
 from classify import classify, load_rules
 
 EXTENSOES_SUPORTADAS = (".csv", ".xlsx", ".xlsm")
@@ -21,15 +21,15 @@ EXTENSOES_SUPORTADAS = (".csv", ".xlsx", ".xlsm")
 def _read_one(path: Path) -> pd.DataFrame:
     suf = path.suffix.lower()
     if suf == ".csv":
-        return pd.read_csv(path)
+        return pd.read_csv(path, dtype=DTYPE_OVERRIDES)
     if suf in (".xlsx", ".xlsm"):
         # 'calamine' (python-calamine) lê xlsx grande muito mais rápido que o
         # engine padrão do pandas/openpyxl -- importante pros 800k+ linhas do
         # export do SAP. Se não estiver instalado, cai pro openpyxl mesmo.
         try:
-            return pd.read_excel(path, engine="calamine")
+            return pd.read_excel(path, engine="calamine", dtype=DTYPE_OVERRIDES)
         except (ImportError, ValueError):
-            return pd.read_excel(path, engine="openpyxl")
+            return pd.read_excel(path, engine="openpyxl", dtype=DTYPE_OVERRIDES)
     raise ValueError(f"Formato não suportado: {path.name}")
 
 
@@ -53,24 +53,38 @@ def read_raw(raw_dir: Path) -> pd.DataFrame:
             "Confira o cabeçalho do arquivo ou ajuste COLUMN_MAP em config.py."
         )
     df = df.rename(columns=COLUMN_MAP)
+    # Reforço além do dtype na leitura: CNPJ raiz é sempre 8 dígitos. Se em
+    # algum arquivo ele ainda vier como número (perdendo zero à esquerda),
+    # zfill restaura -- se já vier certo, zfill não muda nada.
+    df["cnpj_raiz"] = df["cnpj_raiz"].astype(str).str.strip().str.zfill(8)
     df["data"] = pd.to_datetime(df["data"])
     df["mes"] = df["data"].values.astype("datetime64[M]")
     return df
 
 
 def audit(df: pd.DataFrame) -> None:
-    rules = load_rules().set_index("tipo_documento")["categoria"]
-    resumo = (
-        df.groupby("tipo_documento")["valor"]
-        .agg(linhas="count", soma="sum")
-        .sort_values("linhas", ascending=False)
-    )
+    rules = load_rules().set_index("tipo_documento")
+    resumo = df.groupby("tipo_documento").agg(
+        linhas=("valor_confirmado", "count"),
+        soma_confirmado=("valor_confirmado", "sum"),
+        soma_reservado=("valor_reservado", "sum"),
+    ).sort_values("linhas", ascending=False)
+
     resumo["categoria_atual"] = [
-        rules.get(t, "<<< SEM REGRA -- adicionar no category_rules.csv")
+        rules["categoria"].get(t, "<<< SEM REGRA -- adicionar no category_rules.csv")
+        for t in resumo.index
+    ]
+    resumo["coluna_valor_atual"] = [
+        rules["coluna_valor"].get(t) if t in rules.index and pd.notna(rules["coluna_valor"].get(t)) else "valor_confirmado (padrão)"
         for t in resumo.index
     ]
     with pd.option_context("display.float_format", "{:,.2f}".format):
         print(resumo.to_string())
+    print(
+        "\nDica: se soma_confirmado vier 0,00 mas soma_reservado não, esse "
+        "Document Type provavelmente deve usar coluna_valor=valor_reservado "
+        "no category_rules.csv (foi o caso do ZOR)."
+    )
 
 
 def build_fact_table(df: pd.DataFrame) -> pd.DataFrame:

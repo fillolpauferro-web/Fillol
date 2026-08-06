@@ -6,11 +6,11 @@ Esqueleto do pipeline que troca "800k+ linhas dentro do Excel com SUMIFS" por
 ## Como funciona
 
 ```
-data/raw/*.csv (export bruto do SAP, 800k+ linhas)
+data/raw/*.xlsx (export bruto do SAP, 800k+ linhas)
         |
         v
    etl.py + classify.py   -> aplica category_rules.csv, agrega por
-   (DuckDB + pandas)          Cliente x Mês x Categoria
+   (pandas)                  Cliente x Mês x Categoria
         |
         v
 data/output/*.parquet   (cache rápido, poucos milhares de linhas)
@@ -42,16 +42,28 @@ O Excel nunca mais abre as 800k linhas brutas -- só a tabela já agregada.
 3. **Calibrar `category_rules.csv`** (só na primeira vez / quando aparecer
    Document Type novo):
    ```
-   python etl.py --audit
+   python etl.py --raw-dir "<sua pasta>" --audit
    ```
-   Isso lista cada `Document Type` do export, quantas linhas e a soma de
-   valor, e mostra se já tem categoria mapeada. Edite o CSV até não sobrar
-   nenhum "SEM REGRA".
+   Isso lista cada `Document Type` do export, quantas linhas, a soma em
+   `Value Confirmed` **e** em `Value Reserved` lado a lado, e mostra se já
+   tem categoria mapeada. Edite o CSV até não sobrar nenhum "SEM REGRA".
 
-   > O `category_rules.csv` deste esqueleto vem com um mapeamento de
-   > **exemplo** (ZTO/ZRE/ZCA/ZRC/ZOF/ZFT), porque a amostra que embasou este
-   > projeto só tinha um Document Type nas 27 linhas visíveis -- não dava pra
-   > inferir a regra real. Substitua pelas regras verdadeiras do seu negócio.
+   Cada linha do `category_rules.csv` tem 3 colunas:
+   ```
+   tipo_documento,categoria,coluna_valor
+   ZTO,Ressarcimento SAP,valor_confirmado
+   ZOR,Reserva,valor_reservado
+   ```
+   `coluna_valor` diz de onde tirar o valor daquele Document Type --
+   `valor_confirmado` (= `Value Confirmed`, padrão se deixar em branco) ou
+   `valor_reservado` (= `Value Reserved`). Precisa disso porque alguns tipos
+   (ex.: `ZOR`, `ZREA`) vêm com `Value Confirmed` sempre zerado -- o audit
+   deixa isso óbvio comparando as duas somas.
+
+   > O `category_rules.csv` já vem calibrado com os Document Type
+   > confirmados em produção (`ZTO`, `ZOR`, `ZF2`, `ZG2`, `ZREA`). Se
+   > aparecer um tipo novo no seu export, o audit vai mostrar "SEM REGRA" e
+   > você só adiciona a linha.
 
 4. **Rodar o pipeline**:
    ```

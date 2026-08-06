@@ -17,8 +17,14 @@ COLUMN_MAP = {
     "Root CNPJ": "cnpj_raiz",
     "Transaction Date": "data",
     "Document Type": "tipo_documento",
-    "Value Confirmed": "valor",
+    "Value Confirmed": "valor_confirmado",
+    "Value Reserved": "valor_reservado",
 }
+
+# Colunas que precisam ser lidas como texto (não número) pra não perder zero
+# à esquerda -- CNPJ raiz sempre tem 8 dígitos, e vira número errado se o
+# pandas/Excel inferir tipo numérico.
+DTYPE_OVERRIDES = {"Root CNPJ": str}
 
 # Regras de categoria (Document Type -> categoria do waterfall) ficam em
 # category_rules.csv, e não aqui, porque é o dado que você (que conhece a

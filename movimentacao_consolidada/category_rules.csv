@@ -1,22 +1,17 @@
 # Regra de classificação: Document Type (coluna Z do export SAP) -> categoria
-# do waterfall (as colunas que aparecem no "Geral" e no "Por Cliente").
+# do waterfall, e de qual coluna tirar o valor.
 #
-# ISSO AQUI E UM EXEMPLO, NAO A REGRA REAL DO SEU NEGOCIO.
-# O arquivo de amostra que você me passou só tinha Document Type = "ZTO" em
-# todas as linhas, então não dava pra descobrir sozinho o mapeamento completo
-# (Ressarcimento SAP, Reserva, Canc./Devol, Recálculo, OFF, Faturado em Nota
-# etc.). Rode:
+# coluna_valor pode ser:
+#   valor_confirmado  (= Value Confirmed do SAP -- é o padrão, pode deixar em branco)
+#   valor_reservado   (= Value Reserved do SAP -- use quando valor_confirmado vier
+#                        sempre 0,00 pra esse Document Type, como no ZOR)
 #
-#     python etl.py --audit
-#
-# com o export real na pasta data/raw/ -- isso lista cada Document Type que
-# aparece, quantas linhas e a soma de valor, pra você mapear rapidinho.
-# Depois só editar as linhas abaixo (uma por Document Type). Linhas que
-# começam com # são comentário e são ignoradas.
-tipo_documento,categoria
-ZTO,Reserva
-ZRE,Ressarcimento SAP
-ZCA,Canc./Devol
-ZRC,Recálculo
-ZOF,OFF
-ZFT,Faturado Em Nota
+# Rode `python etl.py --audit` pra ver todo Document Type do seu export, com
+# a soma nas duas colunas lado a lado -- ajuda a decidir qual usar.
+# Linhas que começam com # são comentário e são ignoradas.
+tipo_documento,categoria,coluna_valor
+ZTO,Ressarcimento SAP,valor_confirmado
+ZOR,Reserva,valor_reservado
+ZF2,Faturado Em Nota,valor_confirmado
+ZG2,Faturado Em Nota,valor_confirmado
+ZREA,Reserva,valor_reservado
