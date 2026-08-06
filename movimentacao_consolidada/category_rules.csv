@@ -1,0 +1,22 @@
+# Regra de classificação: Document Type (coluna Z do export SAP) -> categoria
+# do waterfall (as colunas que aparecem no "Geral" e no "Por Cliente").
+#
+# ISSO AQUI E UM EXEMPLO, NAO A REGRA REAL DO SEU NEGOCIO.
+# O arquivo de amostra que você me passou só tinha Document Type = "ZTO" em
+# todas as linhas, então não dava pra descobrir sozinho o mapeamento completo
+# (Ressarcimento SAP, Reserva, Canc./Devol, Recálculo, OFF, Faturado em Nota
+# etc.). Rode:
+#
+#     python etl.py --audit
+#
+# com o export real na pasta data/raw/ -- isso lista cada Document Type que
+# aparece, quantas linhas e a soma de valor, pra você mapear rapidinho.
+# Depois só editar as linhas abaixo (uma por Document Type). Linhas que
+# começam com # são comentário e são ignoradas.
+tipo_documento,categoria
+ZTO,Reserva
+ZRE,Ressarcimento SAP
+ZCA,Canc./Devol
+ZRC,Recálculo
+ZOF,OFF
+ZFT,Faturado Em Nota
