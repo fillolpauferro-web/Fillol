@@ -84,6 +84,32 @@ O Excel nunca mais abre as 800k linhas brutas -- só a tabela já agregada.
 5. Abrir `consolidado.xlsx`, escolher o cliente no dropdown da aba
    **Painel Cliente** e pronto.
 
+## Saldo Inicial (âncora de um mês específico)
+
+Por padrão, o Saldo Inicial do primeiro mês de cada cliente começa em 0,00
+(o ETL só conhece o que está no export de Movimentação). Pra ancorar isso
+num saldo real, coloque na mesma pasta um arquivo cujo nome contenha "Saldo
+Inicial" (ex.: `Saldo Inicial 01-05-2026.xlsx`) -- o ETL detecta esse nome
+automaticamente e não mistura com os arquivos de Movimentação.
+
+Esse arquivo usa **o mesmo formato de colunas do export de Movimentação**
+(`Root CNPJ`, `Client Name`, `Reimbursement Load`, etc.), mas o ETL soma só
+a coluna `Reimbursement Load` por cliente -- não classifica por Document
+Type. Rode informando a que mês esse saldo se refere:
+```
+python etl.py --raw-dir "<sua pasta>" --saldo-inicial-data 2026-05-01
+```
+Isso substitui o Saldo Inicial calculado de maio/26 (de todo cliente que
+aparecer no arquivo) pelo valor do arquivo, e os meses seguintes continuam
+encadeando normalmente a partir daí. Meses anteriores (ex.: abr/26) não são
+afetados. Se um cliente do arquivo de Saldo Inicial não tiver nenhum
+movimento em maio/26, o ETL ainda cria a linha dele nesse mês (senão o saldo
+"sumiria" até ele voltar a ter movimentação).
+
+Sem `--saldo-inicial-data`, se houver um arquivo de Saldo Inicial na pasta o
+ETL para com um erro claro pedindo a data -- pra nunca aplicar a âncora no
+mês errado por engano.
+
 ## Testar com dados de exemplo (sem precisar do export real)
 
 ```

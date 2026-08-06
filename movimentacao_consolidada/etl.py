@@ -33,15 +33,16 @@ def _read_one(path: Path) -> pd.DataFrame:
     raise ValueError(f"Formato não suportado: {path.name}")
 
 
-def read_raw(raw_dir: Path) -> pd.DataFrame:
-    files = sorted(
-        f for ext in EXTENSOES_SUPORTADAS for f in raw_dir.glob(f"*{ext}")
-    )
+def listar_arquivos(raw_dir: Path) -> list:
+    return sorted(f for ext in EXTENSOES_SUPORTADAS for f in raw_dir.glob(f"*{ext}"))
+
+
+def read_raw(files: list) -> pd.DataFrame:
     if not files:
         raise FileNotFoundError(
-            f"Nenhum arquivo {EXTENSOES_SUPORTADAS} em {raw_dir}. Coloque o "
-            "export do Movimentação (xlsx ou csv) nessa pasta -- pode ser um "
-            "arquivo por mês."
+            f"Nenhum arquivo de Movimentação {EXTENSOES_SUPORTADAS} encontrado. "
+            "Coloque o export do Movimentação (xlsx ou csv) na pasta -- pode ser "
+            "um arquivo por mês."
         )
     partes = [_read_one(f) for f in files]
     df = pd.concat(partes, ignore_index=True, sort=False)
@@ -108,7 +109,39 @@ def build_fact_table(df: pd.DataFrame) -> pd.DataFrame:
     return fato
 
 
-def build_waterfall(fato: pd.DataFrame, por_cliente: bool, categorias: list) -> pd.DataFrame:
+def _garantir_linhas_ancora(
+    tabela: pd.DataFrame, grupo: list, por_cliente: bool, categorias: list,
+    saldo_externo: dict, saldo_externo_mes, nomes_extra: dict,
+) -> pd.DataFrame:
+    """Garante que todo cliente do saldo_externo tenha uma linha no mês âncora,
+    mesmo sem movimento nesse mês -- senão o saldo dele "some" até o próximo
+    mês em que ele voltar a ter movimentação."""
+    if not saldo_externo or saldo_externo_mes is None:
+        return tabela
+
+    if por_cliente:
+        existentes = set(tabela.loc[tabela["mes"] == saldo_externo_mes, "cnpj_raiz"])
+        faltando = [c for c in saldo_externo if c not in existentes]
+        if not faltando:
+            return tabela
+        novas = pd.DataFrame({
+            "cnpj_raiz": faltando,
+            "cliente": [nomes_extra.get(c, "") for c in faltando],
+            "mes": saldo_externo_mes,
+            **{c: 0.0 for c in categorias},
+        })
+    else:
+        if (tabela["mes"] == saldo_externo_mes).any():
+            return tabela
+        novas = pd.DataFrame({"mes": [saldo_externo_mes], **{c: [0.0] for c in categorias}})
+
+    return pd.concat([tabela, novas], ignore_index=True).sort_values(grupo).reset_index(drop=True)
+
+
+def build_waterfall(
+    fato: pd.DataFrame, por_cliente: bool, categorias: list,
+    saldo_externo: dict = None, saldo_externo_mes=None, nomes_extra: dict = None,
+) -> pd.DataFrame:
     if por_cliente:
         grupo = ["cnpj_raiz", "cliente", "mes"]
         fato_grupo = fato
@@ -124,12 +157,23 @@ def build_waterfall(fato: pd.DataFrame, por_cliente: bool, categorias: list) -> 
             tabela[c] = 0.0
     tabela = tabela.sort_values(grupo).reset_index(drop=True)
 
+    tabela = _garantir_linhas_ancora(
+        tabela, grupo, por_cliente, categorias, saldo_externo, saldo_externo_mes, nomes_extra or {}
+    )
+
     chave_cols = ["cnpj_raiz"] if por_cliente else []
     saldo_inicial, saldo_final = [], []
     saldo_anterior: dict = {}
     for _, row in tabela.iterrows():
         chave = tuple(row[c] for c in chave_cols)
-        inicial = saldo_anterior.get(chave, 0.0)
+        eh_mes_ancora = saldo_externo and saldo_externo_mes is not None and row["mes"] == saldo_externo_mes
+        if eh_mes_ancora:
+            if por_cliente:
+                inicial = saldo_externo.get(row["cnpj_raiz"], saldo_anterior.get(chave, 0.0))
+            else:
+                inicial = float(sum(saldo_externo.values()))
+        else:
+            inicial = saldo_anterior.get(chave, 0.0)
         final = inicial + float(sum(row[c] for c in categorias))
         saldo_inicial.append(inicial)
         saldo_final.append(final)
@@ -156,23 +200,65 @@ def main() -> None:
         "--output-dir", type=str, default=None,
         help="Pasta de saída (parquet + consolidado.xlsx). Se omitido, usa OUTPUT_DIR de config.py.",
     )
+    parser.add_argument(
+        "--saldo-inicial-data", type=str, default=None,
+        help='Mês (YYYY-MM-DD) que o arquivo de Saldo Inicial representa -- o '
+             '"dia zero" do waterfall (ex.: 2026-05-01 = saldo em 01/05/2026). '
+             "Obrigatório se houver algum arquivo com 'Saldo Inicial' no nome "
+             "dentro da pasta.",
+    )
     args = parser.parse_args()
 
     raw_dir = Path(args.raw_dir) if args.raw_dir else config.RAW_DIR
     output_dir = Path(args.output_dir) if args.output_dir else config.OUTPUT_DIR
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    df = read_raw(raw_dir)
+    from saldo_inicial import eh_arquivo_saldo_inicial, read_saldo_inicial
+
+    todos = listar_arquivos(raw_dir)
+    arquivos_saldo = [f for f in todos if eh_arquivo_saldo_inicial(f.name)]
+    arquivos_movimento = [f for f in todos if f not in arquivos_saldo]
+
+    df = read_raw(arquivos_movimento)
 
     if args.audit:
         audit(df)
         return
 
+    saldo_externo = None
+    saldo_externo_mes = None
+    nomes_extra = None
+    if arquivos_saldo:
+        if not args.saldo_inicial_data:
+            raise ValueError(
+                f"Encontrei arquivo(s) de Saldo Inicial ({[f.name for f in arquivos_saldo]}) "
+                "mas falta informar --saldo-inicial-data (ex.: 2026-05-01) pra saber "
+                "a que mês eles se referem."
+            )
+        partes_saldo = [read_saldo_inicial(f, _read_one) for f in arquivos_saldo]
+        saldo_df = pd.concat(partes_saldo, ignore_index=True)
+        saldo_df = saldo_df.groupby("cnpj_raiz", as_index=False).agg(
+            cliente=("cliente", "first"), saldo_inicial_externo=("saldo_inicial_externo", "sum")
+        )
+        saldo_externo = dict(zip(saldo_df["cnpj_raiz"], saldo_df["saldo_inicial_externo"]))
+        nomes_extra = dict(zip(saldo_df["cnpj_raiz"], saldo_df["cliente"]))
+        saldo_externo_mes = pd.Timestamp(args.saldo_inicial_data).to_period("M").to_timestamp()
+        print(
+            f"Saldo Inicial externo: {len(saldo_externo)} cliente(s), "
+            f"ancorado em {saldo_externo_mes.strftime('%Y-%m')}."
+        )
+
     fato = build_fact_table(df)
     categorias = sorted(fato["categoria"].unique().tolist())
 
-    geral = build_waterfall(fato, por_cliente=False, categorias=categorias)
-    por_cliente = build_waterfall(fato, por_cliente=True, categorias=categorias)
+    geral = build_waterfall(
+        fato, por_cliente=False, categorias=categorias,
+        saldo_externo=saldo_externo, saldo_externo_mes=saldo_externo_mes,
+    )
+    por_cliente = build_waterfall(
+        fato, por_cliente=True, categorias=categorias,
+        saldo_externo=saldo_externo, saldo_externo_mes=saldo_externo_mes, nomes_extra=nomes_extra,
+    )
 
     fato.to_parquet(output_dir / "fato_movimentacao.parquet", index=False)
     geral.to_parquet(output_dir / "consolidado_geral.parquet", index=False)
