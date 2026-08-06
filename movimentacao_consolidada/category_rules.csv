@@ -12,6 +12,9 @@
 tipo_documento,categoria,coluna_valor
 ZTO,Ressarcimento SAP,valor_confirmado
 ZOR,Reserva,valor_reservado
+ZF1,Faturado Em Nota,valor_confirmado
 ZF2,Faturado Em Nota,valor_confirmado
+ZG1,Faturado Em Nota,valor_confirmado
 ZG2,Faturado Em Nota,valor_confirmado
 ZREA,Reserva,valor_reservado
+ZREB,Reserva,valor_reservado
