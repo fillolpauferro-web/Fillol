@@ -84,6 +84,29 @@ O Excel nunca mais abre as 800k linhas brutas -- só a tabela já agregada.
 5. Abrir `consolidado.xlsx`, escolher o cliente no dropdown da aba
    **Painel Cliente** e pronto.
 
+## Rodar com duplo clique (sem abrir console)
+
+`Rodar_Movimentacao.bat` e `Rodar_Audit.bat` fazem o mesmo que os comandos
+acima, só que com duplo clique. Ficam na raiz do projeto, ao lado do
+`etl.py`. Antes de usar:
+
+1. Abra `Rodar_Movimentacao.bat` num editor de texto (botão direito >
+   Editar, não dá duplo clique nele pra isso) e confira/ajuste as duas
+   variáveis do topo:
+   ```
+   set RAW_DIR=C:\Users\...\OL Robo
+   set SALDO_INICIAL_DATA=2026-05-01
+   ```
+2. Salve e dê duplo clique. Uma janela preta abre, mostra o progresso e
+   pausa no final -- lê o resultado antes de fechar.
+
+Se aparecer "Não encontrei o Python nesta máquina", abra o IPython que você
+já usa e rode `import sys; print(sys.executable)`; copia o caminho que
+aparecer e cola na linha `SPYDER_PY=` dentro do `.bat`.
+
+`Rodar_Audit.bat` faz a mesma coisa, mas só roda o `--audit` (não grava
+nada) -- útil quando aparecer Document Type novo no export.
+
 ## Nome de cliente inconsistente (mesmo CNPJ, grafias diferentes)
 
 Às vezes o mesmo CNPJ aparece no export com grafias diferentes de `Client
