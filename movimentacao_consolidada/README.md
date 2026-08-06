@@ -33,9 +33,11 @@ O Excel nunca mais abre as 800k linhas brutas -- só a tabela já agregada.
    pip install -r requirements.txt
    ```
 
-2. **Exportar o Movimentação do SAP como CSV** (não .xlsx -- CSV é muito mais
-   rápido pra ler/escrever nesse volume) e colocar o(s) arquivo(s) em
-   `data/raw/`. Pode ser um arquivo por mês, o ETL lê todos juntos.
+2. **Exportar o Movimentação do SAP** (xlsx ou csv, o que o seu SAP permitir)
+   e colocar o(s) arquivo(s) em `data/raw/`. Pode ser um arquivo por mês, o
+   ETL lê todos juntos. Para `.xlsx` grande (800k+ linhas), o ETL usa o
+   engine `calamine` (instalado via `requirements.txt`), que é bem mais
+   rápido que o padrão do Excel/openpyxl para leitura.
 
 3. **Calibrar `category_rules.csv`** (só na primeira vez / quando aparecer
    Document Type novo):
@@ -64,7 +66,7 @@ O Excel nunca mais abre as 800k linhas brutas -- só a tabela já agregada.
 
 ```
 python sample_data/gerar_exemplo.py
-cp sample_data/exemplo_movimentacao.csv data/raw/
+cp sample_data/exemplo_movimentacao.xlsx data/raw/    # ou .csv, tanto faz
 python etl.py --audit
 python etl.py
 ```

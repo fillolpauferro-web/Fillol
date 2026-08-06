@@ -2,13 +2,12 @@ from pathlib import Path
 
 BASE_DIR = Path(__file__).parent
 
-# Pasta onde ficam os exports brutos do SAP (CSV). Um ou vários arquivos,
-# inclusive um por mês -- o ETL le todos juntos.
+# Pasta onde ficam os exports brutos do SAP (.xlsx ou .csv). Um ou vários
+# arquivos, inclusive um por mês -- o ETL lê todos juntos.
 RAW_DIR = BASE_DIR / "data" / "raw"
 
 # Onde o resultado processado é gravado.
 OUTPUT_DIR = BASE_DIR / "data" / "output"
-DUCKDB_FILE = OUTPUT_DIR / "movimentacao.duckdb"
 EXCEL_OUTPUT = OUTPUT_DIR / "consolidado.xlsx"
 
 # Nome das colunas no export bruto do SAP -> nome interno usado no ETL.

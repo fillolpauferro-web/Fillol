@@ -7,32 +7,49 @@ Uso:
                               # category_rules.csv (não escreve nada)
 """
 import argparse
+from pathlib import Path
 
-import duckdb
 import pandas as pd
 
-from config import RAW_DIR, OUTPUT_DIR, DUCKDB_FILE, COLUMN_MAP
+from config import RAW_DIR, OUTPUT_DIR, COLUMN_MAP
 from classify import classify, load_rules
 
+EXTENSOES_SUPORTADAS = (".csv", ".xlsx", ".xlsm")
 
-def read_raw(con: duckdb.DuckDBPyConnection) -> pd.DataFrame:
-    files = sorted(RAW_DIR.glob("*.csv"))
+
+def _read_one(path: Path) -> pd.DataFrame:
+    suf = path.suffix.lower()
+    if suf == ".csv":
+        return pd.read_csv(path)
+    if suf in (".xlsx", ".xlsm"):
+        # 'calamine' (python-calamine) lê xlsx grande muito mais rápido que o
+        # engine padrão do pandas/openpyxl -- importante pros 800k+ linhas do
+        # export do SAP. Se não estiver instalado, cai pro openpyxl mesmo.
+        try:
+            return pd.read_excel(path, engine="calamine")
+        except (ImportError, ValueError):
+            return pd.read_excel(path, engine="openpyxl")
+    raise ValueError(f"Formato não suportado: {path.name}")
+
+
+def read_raw() -> pd.DataFrame:
+    files = sorted(
+        f for ext in EXTENSOES_SUPORTADAS for f in RAW_DIR.glob(f"*{ext}")
+    )
     if not files:
         raise FileNotFoundError(
-            f"Nenhum .csv em {RAW_DIR}. Exporte o Movimentação do SAP como CSV "
-            "e coloque o(s) arquivo(s) nessa pasta (pode ser um por mês)."
+            f"Nenhum arquivo {EXTENSOES_SUPORTADAS} em {RAW_DIR}. Coloque o "
+            "export do Movimentação (xlsx ou csv) nessa pasta -- pode ser um "
+            "arquivo por mês."
         )
-    pattern = str(RAW_DIR / "*.csv")
-    # DuckDB lê todos os CSV da pasta em uma única passada, sem estourar
-    # memória -- é isso que substitui abrir 800k linhas dentro do Excel.
-    df = con.execute(
-        f"SELECT * FROM read_csv_auto('{pattern}', union_by_name=True)"
-    ).df()
+    partes = [_read_one(f) for f in files]
+    df = pd.concat(partes, ignore_index=True, sort=False)
+
     faltando = [c for c in COLUMN_MAP if c not in df.columns]
     if faltando:
         raise KeyError(
             f"Coluna(s) esperada(s) não encontrada(s) no export: {faltando}. "
-            "Confira o cabeçalho do CSV ou ajuste COLUMN_MAP em config.py."
+            "Confira o cabeçalho do arquivo ou ajuste COLUMN_MAP em config.py."
         )
     df = df.rename(columns=COLUMN_MAP)
     df["data"] = pd.to_datetime(df["data"])
@@ -107,8 +124,7 @@ def main() -> None:
     args = parser.parse_args()
 
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-    con = duckdb.connect(str(DUCKDB_FILE))
-    df = read_raw(con)
+    df = read_raw()
 
     if args.audit:
         audit(df)

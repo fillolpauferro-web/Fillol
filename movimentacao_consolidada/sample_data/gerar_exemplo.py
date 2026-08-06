@@ -38,6 +38,8 @@ for cnpj, nome in clientes:
             )
 
 df = pd.DataFrame(linhas)
-out = Path(__file__).parent / "exemplo_movimentacao.csv"
-df.to_csv(out, index=False)
-print(f"Gerado {out} com {len(df)} linhas.")
+out_csv = Path(__file__).parent / "exemplo_movimentacao.csv"
+out_xlsx = Path(__file__).parent / "exemplo_movimentacao.xlsx"
+df.to_csv(out_csv, index=False)
+df.to_excel(out_xlsx, index=False)
+print(f"Gerado {out_csv} e {out_xlsx} com {len(df)} linhas cada.")
