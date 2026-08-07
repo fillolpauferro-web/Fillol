@@ -15,26 +15,45 @@ import config
 from config import COLUMN_MAP, DTYPE_OVERRIDES
 from classify import classify, load_rules
 
-EXTENSOES_SUPORTADAS = (".csv", ".xlsx", ".xlsm")
+EXTENSOES_SUPORTADAS = (".csv", ".xlsx", ".xlsm", ".xls")
 
 
 def _read_one(path: Path) -> pd.DataFrame:
     suf = path.suffix.lower()
     if suf == ".csv":
         return pd.read_csv(path, dtype=DTYPE_OVERRIDES)
-    if suf in (".xlsx", ".xlsm"):
-        # 'calamine' (python-calamine) lê xlsx grande muito mais rápido que o
-        # engine padrão do pandas/openpyxl -- importante pros 800k+ linhas do
-        # export do SAP. Se não estiver instalado, cai pro openpyxl mesmo.
+    if suf in (".xlsx", ".xlsm", ".xls"):
+        # 'calamine' (python-calamine) lê xlsx/xls grande muito mais rápido
+        # que o engine padrão do pandas -- importante pros 800k+ linhas do
+        # export do SAP. Se não estiver instalado ou não conseguir ler, cai
+        # pro openpyxl (xlsx/xlsm) ou xlrd (.xls antigo).
         try:
             return pd.read_excel(path, engine="calamine", dtype=DTYPE_OVERRIDES)
         except (ImportError, ValueError):
-            return pd.read_excel(path, engine="openpyxl", dtype=DTYPE_OVERRIDES)
+            engine_fallback = "xlrd" if suf == ".xls" else "openpyxl"
+            return pd.read_excel(path, engine=engine_fallback, dtype=DTYPE_OVERRIDES)
     raise ValueError(f"Formato não suportado: {path.name}")
 
 
 def listar_arquivos(raw_dir: Path) -> list:
     return sorted(f for ext in EXTENSOES_SUPORTADAS for f in raw_dir.glob(f"*{ext}"))
+
+
+def avisar_arquivos_ignorados(raw_dir: Path, encontrados: list) -> None:
+    """Sem isso, um arquivo com extensão não suportada (ex.: .xls antigo)
+    some da pasta sem nenhum aviso -- foi o caso do arquivo de Junho."""
+    encontrados_nomes = {f.name for f in encontrados}
+    todos = [
+        f for f in raw_dir.iterdir()
+        if f.is_file() and not f.name.startswith("~$") and f.name not in encontrados_nomes
+    ]
+    if todos:
+        print(
+            f"Aviso: {len(todos)} arquivo(s) na pasta foram IGNORADOS "
+            f"(extensão não suportada -- só leio {EXTENSOES_SUPORTADAS}):"
+        )
+        for f in todos:
+            print(f"  {f.name}")
 
 
 def read_raw(files: list) -> pd.DataFrame:
@@ -229,8 +248,13 @@ def main() -> None:
     from saldo_inicial import eh_arquivo_saldo_inicial, read_saldo_inicial
 
     todos = listar_arquivos(raw_dir)
+    avisar_arquivos_ignorados(raw_dir, todos)
     arquivos_saldo = [f for f in todos if eh_arquivo_saldo_inicial(f.name)]
     arquivos_movimento = [f for f in todos if f not in arquivos_saldo]
+
+    print(f"Arquivos de Movimentação lidos ({len(arquivos_movimento)}): {[f.name for f in arquivos_movimento]}")
+    if arquivos_saldo:
+        print(f"Arquivo(s) de Saldo Inicial detectado(s): {[f.name for f in arquivos_saldo]}")
 
     df = read_raw(arquivos_movimento)
 
