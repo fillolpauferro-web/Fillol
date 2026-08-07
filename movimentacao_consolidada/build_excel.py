@@ -20,6 +20,7 @@ from pathlib import Path
 import pandas as pd
 from openpyxl import Workbook
 from openpyxl.utils import get_column_letter
+from openpyxl.workbook.defined_name import DefinedName
 from openpyxl.worksheet.datavalidation import DataValidation
 from openpyxl.worksheet.table import Table, TableStyleInfo
 
@@ -44,13 +45,17 @@ def _fmt_geral(df: pd.DataFrame) -> pd.DataFrame:
     return df.rename(columns={"mes": "Data"})
 
 
-def _write_table(ws, df: pd.DataFrame, table_name: str, valor_cols: set, start_row: int = 1) -> int:
+def _write_table(ws, df: pd.DataFrame, table_name: str, valor_cols: set, start_row: int = 1) -> tuple:
     """Escreve df como Excel Table a partir de start_row (coluna A).
-    Retorna a próxima linha livre depois da tabela."""
+    Retorna (última linha de dados, próxima linha livre depois da tabela)."""
     for j, col_name in enumerate(df.columns, start=1):
         ws.cell(row=start_row, column=j, value=col_name)
     for i, row in enumerate(df.itertuples(index=False), start=1):
         for j, val in enumerate(row, start=1):
+            # NaN (célula vazia do pandas) grava errado no xlsx e pode gerar
+            # "arquivo corrompido" no Excel -- vira célula em branco.
+            if isinstance(val, float) and pd.isna(val):
+                val = None
             ws.cell(row=start_row + i, column=j, value=val)
 
     n_rows, n_cols = df.shape
@@ -70,7 +75,7 @@ def _write_table(ws, df: pd.DataFrame, table_name: str, valor_cols: set, start_r
 
     if start_row == 1:
         ws.freeze_panes = "A2"
-    return last_row + 2  # deixa 1 linha de folga antes da próxima tabela
+    return last_row, last_row + 2  # deixa 1 linha de folga antes da próxima tabela
 
 
 def _sref(table_name: str, col_name: str) -> str:
@@ -79,15 +84,19 @@ def _sref(table_name: str, col_name: str) -> str:
     return f"{table_name}[{col_name}]"
 
 
-def _write_painel_sheet(ws, por_cliente_painel: pd.DataFrame, categorias: list, tabela_fonte: str) -> None:
+def _write_painel_sheet(
+    ws, por_cliente_painel: pd.DataFrame, categorias: list, tabela_fonte: str, nome_lista_clientes: str
+) -> None:
     ws["A1"] = "Cliente:"
     clientes_ordenados = sorted(por_cliente_painel["Cliente"].dropna().unique().tolist())
     ws["B1"] = clientes_ordenados[0] if clientes_ordenados else ""
     ws["A1"].font = ws["B1"].font.copy(bold=True)
 
-    # Referência estruturada (=Tabela[Coluna]) funciona como fonte de lista
-    # de validação em qualquer aba, sem precisar saber a linha exata.
-    dv = DataValidation(type="list", formula1=f"={_sref(tabela_fonte, 'Cliente')}", allow_blank=True)
+    # A fonte da lista precisa ser um Intervalo Nomeado (não uma referência
+    # estruturada tipo Tabela[Coluna]) porque a validação de dados fica numa
+    # aba diferente de onde a tabela vive -- referência estruturada
+    # entre abas em Data Validation corrompe o arquivo em alguns Excel.
+    dv = DataValidation(type="list", formula1=f"={nome_lista_clientes}", allow_blank=True)
     ws.add_data_validation(dv)
     dv.add(ws["B1"])
 
@@ -152,6 +161,7 @@ def write_workbook(
     # --- Por Cliente: tabela principal (painel principal) + tabela(s) auxiliares ---
     ws_cli = wb.create_sheet("Por Cliente")
     tabelas_fonte = {}  # chave do painel -> nome da Excel Table que o alimenta
+    nomes_lista_clientes = {}  # chave do painel -> nome do Intervalo Nomeado (coluna Cliente)
     proxima_linha = 1
     for painel in paineis:
         df_pc = _fmt_por_cliente(por_cliente_por_painel[painel["chave"]])
@@ -160,8 +170,14 @@ def write_workbook(
         if painel["chave"] != principal["chave"]:
             ws_cli.cell(row=proxima_linha, column=1, value=f"Base para o painel \"{painel['aba']}\" (uso interno das fórmulas):")
             proxima_linha += 1
-        proxima_linha = _write_table(ws_cli, df_pc, nome_tabela, valor_cols, start_row=proxima_linha)
+        start_row = proxima_linha
+        last_row, proxima_linha = _write_table(ws_cli, df_pc, nome_tabela, valor_cols, start_row=start_row)
         tabelas_fonte[painel["chave"]] = nome_tabela
+
+        nome_lista = f"ListaClientes_{painel['chave']}"
+        ref = f"'Por Cliente'!$B${start_row + 1}:$B${last_row}"
+        wb.defined_names[nome_lista] = DefinedName(nome_lista, attr_text=ref)
+        nomes_lista_clientes[painel["chave"]] = nome_lista
 
     # --- Geral: painel principal ---
     ws_geral = wb.create_sheet("Geral")
@@ -181,7 +197,10 @@ def write_workbook(
     for painel in reversed(paineis):  # reversed: create_sheet(..., 0) empilha, então o 1º da lista fica em 1º
         ws_painel = wb.create_sheet(painel["aba"], 0)
         df_pc = _fmt_por_cliente(por_cliente_por_painel[painel["chave"]])
-        _write_painel_sheet(ws_painel, df_pc, painel["categorias"], tabelas_fonte[painel["chave"]])
+        _write_painel_sheet(
+            ws_painel, df_pc, painel["categorias"],
+            tabelas_fonte[painel["chave"]], nomes_lista_clientes[painel["chave"]],
+        )
 
     try:
         wb.save(excel_path)
