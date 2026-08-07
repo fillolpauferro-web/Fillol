@@ -183,4 +183,10 @@ def write_workbook(
         df_pc = _fmt_por_cliente(por_cliente_por_painel[painel["chave"]])
         _write_painel_sheet(ws_painel, df_pc, painel["categorias"], tabelas_fonte[painel["chave"]])
 
-    wb.save(excel_path)
+    try:
+        wb.save(excel_path)
+    except PermissionError:
+        raise PermissionError(
+            f"Não consegui salvar {excel_path.name} porque o arquivo está aberto "
+            "no Excel (ou outro programa). Feche o Excel e rode de novo."
+        ) from None

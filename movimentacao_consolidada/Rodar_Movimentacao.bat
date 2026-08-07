@@ -3,14 +3,17 @@ setlocal
 
 REM ============================================================
 REM Rodar_Movimentacao.bat
-REM Duplo clique roda o pipeline completo: le o export do SAP na
-REM pasta RAW_DIR e gera data\output\consolidado.xlsx.
+REM Duplo clique le TODOS os arquivos que estiverem em RAW_DIR
+REM (Movimentacao + Saldo Inicial) e grava o resultado dentro da
+REM propria pasta, em RAW_DIR\output\consolidado.xlsx -- tudo num
+REM lugar so, sem depender da pasta do projeto.
 REM
 REM Edite as duas linhas abaixo se a pasta do export ou o mes de
 REM ancoragem do Saldo Inicial mudar.
 REM ============================================================
 
 set RAW_DIR=C:\Users\I0507867.FARMA\OneDrive - Sanofi\Desktop\OL Robo
+set OUTPUT_DIR=%RAW_DIR%\output
 set SALDO_INICIAL_DATA=2026-05-01
 
 REM --- localizar o Python (tenta o do Spyder primeiro, depois o do PATH) ---
@@ -39,10 +42,11 @@ if exist "%SPYDER_PY%" (
 
 cd /d "%~dp0"
 
-"%PYTHON_EXE%" etl.py --raw-dir "%RAW_DIR%" --saldo-inicial-data %SALDO_INICIAL_DATA%
+"%PYTHON_EXE%" etl.py --raw-dir "%RAW_DIR%" --output-dir "%OUTPUT_DIR%" --saldo-inicial-data %SALDO_INICIAL_DATA%
 
 echo.
 echo ============================================================
-echo Terminado. Confira o resultado em data\output\consolidado.xlsx
+echo Terminado. Confira o resultado em:
+echo %OUTPUT_DIR%\consolidado.xlsx
 echo ============================================================
 pause
