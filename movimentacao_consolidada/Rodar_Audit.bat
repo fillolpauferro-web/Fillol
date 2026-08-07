@@ -11,7 +11,7 @@ REM ============================================================
 set RAW_DIR=C:\Users\I0507867.FARMA\OneDrive - Sanofi\Desktop\OL Robo
 
 REM --- localizar o Python (tenta o do Spyder primeiro, depois o do PATH) ---
-set SPYDER_PY=C:\Users\I0507867.FARMA\AppData\Local\Programs\spyder-6\envs\spyder-runtime\python.exe
+set SPYDER_PY=C:\Users\I0507867.FARMA\AppData\Local\spyder-6\envs\spyder-runtime\python.exe
 
 if exist "%SPYDER_PY%" (
     set "PYTHON_EXE=%SPYDER_PY%"
