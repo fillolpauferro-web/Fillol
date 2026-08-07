@@ -252,26 +252,40 @@ def main() -> None:
         )
 
     fato = build_fact_table(df)
-    categorias = sorted(fato["categoria"].unique().tolist())
+    categorias_fato = sorted(fato["categoria"].unique().tolist())
 
-    geral = build_waterfall(
-        fato, por_cliente=False, categorias=categorias,
-        saldo_externo=saldo_externo, saldo_externo_mes=saldo_externo_mes,
-    )
-    por_cliente = build_waterfall(
-        fato, por_cliente=True, categorias=categorias,
-        saldo_externo=saldo_externo, saldo_externo_mes=saldo_externo_mes, nomes_extra=nomes_extra,
-    )
+    # Duas visões de saldo por cliente (Ressarcimento SAP / Reserva), cada
+    # uma com sua categoria própria + as 4 compartilhadas (config.py). Só a
+    # visão marcada com ancora_saldo_externo recebe o Saldo Inicial externo.
+    geral_por_grupo = {}
+    por_cliente_por_grupo = {}
+    for grupo in config.SALDO_GROUPS:
+        categorias_grupo = [grupo["categoria_propria"]] + config.CATEGORIAS_COMPARTILHADAS
+        usa_ancora = grupo["ancora_saldo_externo"]
+        geral_por_grupo[grupo["chave"]] = build_waterfall(
+            fato, por_cliente=False, categorias=categorias_grupo,
+            saldo_externo=saldo_externo if usa_ancora else None,
+            saldo_externo_mes=saldo_externo_mes if usa_ancora else None,
+        )
+        por_cliente_por_grupo[grupo["chave"]] = build_waterfall(
+            fato, por_cliente=True, categorias=categorias_grupo,
+            saldo_externo=saldo_externo if usa_ancora else None,
+            saldo_externo_mes=saldo_externo_mes if usa_ancora else None,
+            nomes_extra=nomes_extra,
+        )
 
     fato.to_parquet(output_dir / "fato_movimentacao.parquet", index=False)
-    geral.to_parquet(output_dir / "consolidado_geral.parquet", index=False)
-    por_cliente.to_parquet(output_dir / "consolidado_por_cliente.parquet", index=False)
+    for chave, tabela in geral_por_grupo.items():
+        tabela.to_parquet(output_dir / f"consolidado_geral_{chave}.parquet", index=False)
+    for chave, tabela in por_cliente_por_grupo.items():
+        tabela.to_parquet(output_dir / f"consolidado_por_cliente_{chave}.parquet", index=False)
 
     excel_path = output_dir / "consolidado.xlsx"
     from build_excel import write_workbook
-    write_workbook(fato, geral, por_cliente, categorias, excel_path)
+    write_workbook(fato, geral_por_grupo, por_cliente_por_grupo, config.SALDO_GROUPS, categorias_fato, excel_path)
 
-    print(f"OK: {len(df):,} linhas brutas -> {len(por_cliente):,} linhas na tabela fato consolidada.")
+    total_linhas_por_cliente = sum(len(t) for t in por_cliente_por_grupo.values())
+    print(f"OK: {len(df):,} linhas brutas -> {total_linhas_por_cliente:,} linhas na tabela fato consolidada (nas duas visões).")
     print(f"Excel gerado em: {excel_path.resolve()}")
 
 

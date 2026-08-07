@@ -17,14 +17,36 @@ data/output/*.parquet   (cache rápido, poucos milhares de linhas)
         |
         v
    build_excel.py  ->  data/output/consolidado.xlsx
-        - "Painel Cliente": dropdown de cliente + waterfall mensal
+        - "Painel Cliente": dropdown de cliente + 2 waterfalls lado a lado
           (fórmulas SUMIFS em cima da tabela pequena, instantâneo)
-        - "Geral": waterfall consolidado de todos os clientes
+        - "Geral": os 2 waterfalls consolidados de todos os clientes
         - "Por Cliente": tabela fato (fonte do Painel / de Tabela Dinâmica)
         - "Fato (base Python)": granularidade cliente x mês x categoria
 ```
 
 O Excel nunca mais abre as 800k linhas brutas -- só a tabela já agregada.
+
+## Dois saldos por cliente (Ressarcimento SAP e Reserva)
+
+Cada cliente tem dois saldos rastreados em paralelo, cada um com seu próprio
+Saldo Inicial/Final, definidos em `config.SALDO_GROUPS`:
+
+- **Ressarcimento SAP** (colunas A-H do Painel Cliente) -- é o único que
+  recebe o Saldo Inicial externo (arquivo com "Saldo Inicial" no nome,
+  `--saldo-inicial-data`).
+- **Reserva** (colunas K-R do Painel Cliente) -- sempre começa do zero no
+  primeiro mês em que o cliente aparecer.
+
+Os dois compartilham as mesmas 4 colunas de ajuste
+(`config.CATEGORIAS_COMPARTILHADAS`): Faturado em Nota, Canc. / Devolução,
+Recálculo, Off Invoice -- o mesmo valor de cada uma entra nos dois saldos
+(o mesmo evento afeta as duas visões). `Canc. / Devolução`, `Recálculo` e
+`Off Invoice` ficam zeradas até você mapear um Document Type real pra elas
+em `category_rules.csv` (veja os comentários no final do arquivo).
+
+Se essa lógica não for exatamente o que seu negócio precisa (ex.: os
+ajustes deveriam ser divididos entre os dois saldos em vez de duplicados),
+me avisa que eu ajusto.
 
 ## Passo a passo
 

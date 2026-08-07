@@ -36,3 +36,18 @@ CATEGORY_RULES_FILE = BASE_DIR / "category_rules.csv"
 # já consolida automaticamente pelo nome mais frequente; esse arquivo força
 # um nome específico quando o automático não for o certo.
 CLIENT_NAME_OVERRIDES_FILE = BASE_DIR / "client_name_overrides.csv"
+
+# Cada cliente tem DOIS saldos rastreados em paralelo -- Ressarcimento SAP e
+# Reserva -- cada um com seu próprio Saldo Inicial/Final. As categorias
+# abaixo são compartilhadas: o mesmo valor de Faturado em Nota/Canc. -
+# Devolução/Recálculo/Off Invoice aparece nos dois saldos.
+CATEGORIAS_COMPARTILHADAS = ["Faturado em Nota", "Canc. / Devolução", "Recálculo", "Off Invoice"]
+
+# "ancora_saldo_externo": True == esse saldo é o que recebe o valor do
+# arquivo de Saldo Inicial (Reimbursement Load) quando ele existir --
+# por enquanto só o Ressarcimento SAP. O Reserva sempre começa do zero no
+# primeiro mês em que o cliente aparecer.
+SALDO_GROUPS = [
+    {"chave": "ressarcimento", "categoria_propria": "Ressarcimento SAP", "ancora_saldo_externo": True},
+    {"chave": "reserva", "categoria_propria": "Reserva", "ancora_saldo_externo": False},
+]
