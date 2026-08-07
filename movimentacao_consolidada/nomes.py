@@ -10,7 +10,10 @@ from config import CLIENT_NAME_OVERRIDES_FILE
 
 
 def load_overrides() -> dict:
-    overrides = pd.read_csv(CLIENT_NAME_OVERRIDES_FILE, comment="#", dtype=str)
+    try:
+        overrides = pd.read_csv(CLIENT_NAME_OVERRIDES_FILE, comment="#", dtype=str, encoding="utf-8")
+    except UnicodeDecodeError:
+        overrides = pd.read_csv(CLIENT_NAME_OVERRIDES_FILE, comment="#", dtype=str, encoding="cp1252")
     if overrides.empty:
         return {}
     overrides["cnpj_raiz"] = overrides["cnpj_raiz"].str.strip().str.zfill(8)

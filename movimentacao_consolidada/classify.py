@@ -14,7 +14,12 @@ DEFAULT_VALUE_COLUMN = "valor_confirmado"
 
 
 def load_rules() -> pd.DataFrame:
-    rules = pd.read_csv(CATEGORY_RULES_FILE, comment="#")
+    # utf-8 primeiro; se o CSV foi salvo pelo Bloco de Notas em "ANSI"
+    # (comum no Windows/pt-BR ao colar acento), cai pro cp1252.
+    try:
+        rules = pd.read_csv(CATEGORY_RULES_FILE, comment="#", encoding="utf-8")
+    except UnicodeDecodeError:
+        rules = pd.read_csv(CATEGORY_RULES_FILE, comment="#", encoding="cp1252")
     if "coluna_valor" not in rules.columns:
         rules["coluna_valor"] = pd.NA
     rules["coluna_valor"] = rules["coluna_valor"].fillna(DEFAULT_VALUE_COLUMN)
