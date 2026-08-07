@@ -258,6 +258,9 @@ def main() -> None:
 
     df = read_raw(arquivos_movimento)
 
+    meses_encontrados = sorted(pd.Timestamp(m).strftime("%Y-%m") for m in df["mes"].dropna().unique())
+    print(f"Meses encontrados nos dados brutos: {meses_encontrados}")
+
     if args.audit:
         audit(df)
         return
