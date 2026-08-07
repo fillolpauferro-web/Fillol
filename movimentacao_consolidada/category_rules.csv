@@ -19,6 +19,12 @@ ZG2,Faturado em Nota,valor_confirmado
 ZREA,Reserva,valor_reservado
 ZREB,Reserva,valor_reservado
 #
+# ZS1/ZS2 só entram na aba "Notas Fiscais" (detalhe por nota) -- não entram
+# em nenhum waterfall/painel. "(fora do waterfall)" é um valor especial que
+# o ETL reconhece e simplesmente ignora na hora de somar os painéis.
+ZS1,(fora do waterfall),valor_confirmado
+ZS2,(fora do waterfall),valor_confirmado
+#
 # Ainda sem Document Type mapeado pra estas categorias (aparecem zeradas no
 # consolidado até você adicionar a linha real, se/quando surgir um tipo
 # novo no export):

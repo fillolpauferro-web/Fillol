@@ -19,6 +19,9 @@ COLUMN_MAP = {
     "Document Type": "tipo_documento",
     "Value Confirmed": "valor_confirmado",
     "Value Reserved": "valor_reservado",
+    "NFE Number": "nfe_number",
+    "NFE Item": "nfe_item",
+    "PO Number": "po_number",
 }
 
 # Colunas que precisam ser lidas como texto (não número) pra não perder zero
@@ -37,17 +40,34 @@ CATEGORY_RULES_FILE = BASE_DIR / "category_rules.csv"
 # um nome específico quando o automático não for o certo.
 CLIENT_NAME_OVERRIDES_FILE = BASE_DIR / "client_name_overrides.csv"
 
-# Cada cliente tem DOIS saldos rastreados em paralelo -- Ressarcimento SAP e
-# Reserva -- cada um com seu próprio Saldo Inicial/Final. As categorias
-# abaixo são compartilhadas: o mesmo valor de Faturado em Nota/Canc. -
-# Devolução/Recálculo/Off Invoice aparece nos dois saldos.
-CATEGORIAS_COMPARTILHADAS = ["Faturado em Nota", "Canc. / Devolução", "Recálculo", "Off Invoice"]
+# Categoria especial: Document Type marcado assim em category_rules.csv
+# tem regra válida (não dá erro de "sem categoria"), mas é ignorado na hora
+# de montar os painéis/waterfall -- usado pra Document Type que só interessa
+# na aba "Notas Fiscais" (ex.: ZS1/ZS2).
+CATEGORIA_FORA_DO_WATERFALL = "(fora do waterfall)"
 
-# "ancora_saldo_externo": True == esse saldo é o que recebe o valor do
-# arquivo de Saldo Inicial (Reimbursement Load) quando ele existir --
-# por enquanto só o Ressarcimento SAP. O Reserva sempre começa do zero no
-# primeiro mês em que o cliente aparecer.
-SALDO_GROUPS = [
-    {"chave": "ressarcimento", "categoria_propria": "Ressarcimento SAP", "ancora_saldo_externo": True},
-    {"chave": "reserva", "categoria_propria": "Reserva", "ancora_saldo_externo": False},
+# Cada painel é uma aba com seu próprio waterfall independente (Saldo
+# Inicial/Final próprios), somando a lista de categorias definida em
+# "categorias". "ancora_saldo_externo": True == recebe o valor do arquivo
+# de Saldo Inicial (Reimbursement Load) quando ele existir.
+PAINEIS = [
+    {
+        "chave": "faturado",
+        "aba": "Painel Cliente Faturado",
+        "categorias": ["Ressarcimento SAP", "Faturado em Nota", "Canc. / Devolução", "Recálculo", "Off Invoice"],
+        "ancora_saldo_externo": True,
+    },
+    {
+        "chave": "reservado",
+        "aba": "Painel Cliente Reservado",
+        "categorias": ["Ressarcimento SAP", "Reserva", "Canc. / Devolução", "Recálculo", "Off Invoice"],
+        "ancora_saldo_externo": True,
+    },
 ]
+
+# As abas "Geral" e "Por Cliente" mostram a visão do painel "faturado".
+PAINEL_PRINCIPAL = "faturado"
+
+# Aba "Notas Fiscais": detalhe (não agregado) por nota, só desses Document
+# Type -- independe de category_rules.csv, é um recorte direto do bruto.
+NOTAS_FISCAIS_TIPOS_DOCUMENTO = ["ZS1", "ZS2", "ZF1", "ZF2"]

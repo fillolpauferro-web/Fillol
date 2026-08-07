@@ -17,36 +17,37 @@ data/output/*.parquet   (cache rápido, poucos milhares de linhas)
         |
         v
    build_excel.py  ->  data/output/consolidado.xlsx
-        - "Painel Cliente": dropdown de cliente + 2 waterfalls lado a lado
-          (fórmulas SUMIFS em cima da tabela pequena, instantâneo)
-        - "Geral": os 2 waterfalls consolidados de todos os clientes
-        - "Por Cliente": tabela fato (fonte do Painel / de Tabela Dinâmica)
+        - "Painel Cliente Faturado" / "Painel Cliente Reservado": dropdown
+          de cliente + waterfall daquele painel (fórmulas SUMIFS em cima
+          da tabela pequena, instantâneo)
+        - "Geral": waterfall consolidado de todos os clientes (painel principal)
+        - "Por Cliente": tabela fato do painel principal + tabela auxiliar
+          do painel Reservado (fonte dos Painéis / de Tabela Dinâmica)
+        - "Notas Fiscais": detalhe por nota (ZS1/ZS2/ZF1/ZF2)
         - "Fato (base Python)": granularidade cliente x mês x categoria
 ```
 
 O Excel nunca mais abre as 800k linhas brutas -- só a tabela já agregada.
 
-## Dois saldos por cliente (Ressarcimento SAP e Reserva)
+## Dois painéis por cliente (Faturado e Reservado)
 
-Cada cliente tem dois saldos rastreados em paralelo, cada um com seu próprio
-Saldo Inicial/Final, definidos em `config.SALDO_GROUPS`:
+Cada cliente tem dois waterfalls independentes, cada um com seu próprio
+Saldo Inicial/Final, definidos em `config.PAINEIS`:
 
-- **Ressarcimento SAP** (colunas A-H do Painel Cliente) -- é o único que
-  recebe o Saldo Inicial externo (arquivo com "Saldo Inicial" no nome,
-  `--saldo-inicial-data`).
-- **Reserva** (colunas K-R do Painel Cliente) -- sempre começa do zero no
-  primeiro mês em que o cliente aparecer.
+- **Painel Cliente Faturado**: Ressarcimento SAP + Faturado em Nota +
+  Canc. / Devolução + Recálculo + Off Invoice.
+- **Painel Cliente Reservado**: Ressarcimento SAP + Reserva +
+  Canc. / Devolução + Recálculo + Off Invoice.
 
-Os dois compartilham as mesmas 4 colunas de ajuste
-(`config.CATEGORIAS_COMPARTILHADAS`): Faturado em Nota, Canc. / Devolução,
-Recálculo, Off Invoice -- o mesmo valor de cada uma entra nos dois saldos
-(o mesmo evento afeta as duas visões). `Canc. / Devolução`, `Recálculo` e
-`Off Invoice` ficam zeradas até você mapear um Document Type real pra elas
-em `category_rules.csv` (veja os comentários no final do arquivo).
+Os dois recebem o Saldo Inicial externo (arquivo com "Saldo Inicial" no
+nome, `--saldo-inicial-data`) quando ele existir. `Canc. / Devolução`,
+`Recálculo` e `Off Invoice` ficam zeradas até você mapear um Document Type
+real pra elas em `category_rules.csv`.
 
-Se essa lógica não for exatamente o que seu negócio precisa (ex.: os
-ajustes deveriam ser divididos entre os dois saldos em vez de duplicados),
-me avisa que eu ajusto.
+A aba **Geral** e a tabela principal da aba **Por Cliente** mostram o painel
+"Faturado" (`config.PAINEL_PRINCIPAL`); o painel "Reservado" tem sua própria
+tabela auxiliar mais abaixo na aba Por Cliente, só pra alimentar as fórmulas
+do Painel Cliente Reservado.
 
 ## Passo a passo
 
@@ -83,9 +84,10 @@ me avisa que eu ajusto.
    deixa isso óbvio comparando as duas somas.
 
    > O `category_rules.csv` já vem calibrado com os Document Type
-   > confirmados em produção (`ZTO`, `ZOR`, `ZF2`, `ZG2`, `ZREA`). Se
-   > aparecer um tipo novo no seu export, o audit vai mostrar "SEM REGRA" e
-   > você só adiciona a linha.
+   > confirmados em produção. Se aparecer um tipo novo no seu export, o
+   > audit vai mostrar "SEM REGRA" e você só adiciona a linha -- ou marca a
+   > categoria como `(fora do waterfall)` se ele não deve entrar em nenhum
+   > painel (é o caso de `ZS1`/`ZS2`, que só aparecem na aba Notas Fiscais).
 
 4. **Rodar o pipeline**:
    ```
@@ -103,8 +105,17 @@ me avisa que eu ajusto.
    Por padrão o `.xlsx` sai em `data/output/`; use `--output-dir` pra mudar
    isso também.
 
-5. Abrir `consolidado.xlsx`, escolher o cliente no dropdown da aba
-   **Painel Cliente** e pronto.
+5. Abrir `consolidado.xlsx`, escolher o cliente no dropdown de **Painel
+   Cliente Faturado** ou **Painel Cliente Reservado** e pronto.
+
+## Notas Fiscais
+
+Aba com o detalhe (não agregado) de cada nota dos Document Type em
+`config.NOTAS_FISCAIS_TIPOS_DOCUMENTO` (hoje `ZS1`, `ZS2`, `ZF1`, `ZF2`):
+Mês, Nome Cliente, CNPJ, NFE Number, NFE Item, PO Number, Value Confirmed.
+Esse recorte é direto do export bruto -- não passa pela classificação de
+`category_rules.csv`, então funciona mesmo pra Document Type que não
+entram em nenhum painel (`ZS1`/`ZS2`).
 
 ## Rodar com duplo clique (sem abrir console)
 

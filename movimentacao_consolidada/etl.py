@@ -104,12 +104,22 @@ def audit(df: pd.DataFrame) -> None:
 
 def build_fact_table(df: pd.DataFrame) -> pd.DataFrame:
     df = classify(df)
+    df = df[df["categoria"] != config.CATEGORIA_FORA_DO_WATERFALL]
     fato = (
         df.groupby(["cnpj_raiz", "cliente", "mes", "categoria"])["valor"]
         .sum()
         .reset_index()
     )
     return fato
+
+
+def build_notas_fiscais(df: pd.DataFrame, tipos_documento: list) -> pd.DataFrame:
+    """Detalhe (não agregado) por nota, só dos Document Type informados --
+    é um recorte direto do bruto, não passa por category_rules.csv."""
+    notas = df[df["tipo_documento"].isin(tipos_documento)].copy()
+    colunas = ["mes", "cliente", "cnpj_raiz", "nfe_number", "nfe_item", "po_number", "valor_confirmado"]
+    notas = notas[colunas].sort_values(["mes", "cliente", "nfe_number"]).reset_index(drop=True)
+    return notas
 
 
 def _garantir_linhas_ancora(
@@ -251,41 +261,47 @@ def main() -> None:
             f"ancorado em {saldo_externo_mes.strftime('%Y-%m')}."
         )
 
+    notas_fiscais = build_notas_fiscais(df, config.NOTAS_FISCAIS_TIPOS_DOCUMENTO)
+
     fato = build_fact_table(df)
     categorias_fato = sorted(fato["categoria"].unique().tolist())
 
-    # Duas visões de saldo por cliente (Ressarcimento SAP / Reserva), cada
-    # uma com sua categoria própria + as 4 compartilhadas (config.py). Só a
-    # visão marcada com ancora_saldo_externo recebe o Saldo Inicial externo.
-    geral_por_grupo = {}
-    por_cliente_por_grupo = {}
-    for grupo in config.SALDO_GROUPS:
-        categorias_grupo = [grupo["categoria_propria"]] + config.CATEGORIAS_COMPARTILHADAS
-        usa_ancora = grupo["ancora_saldo_externo"]
-        geral_por_grupo[grupo["chave"]] = build_waterfall(
-            fato, por_cliente=False, categorias=categorias_grupo,
+    # Um waterfall independente por painel (config.PAINEIS), cada um com sua
+    # própria lista de categorias e Saldo Inicial/Final.
+    geral_por_painel = {}
+    por_cliente_por_painel = {}
+    for painel in config.PAINEIS:
+        categorias_painel = painel["categorias"]
+        usa_ancora = painel["ancora_saldo_externo"]
+        geral_por_painel[painel["chave"]] = build_waterfall(
+            fato, por_cliente=False, categorias=categorias_painel,
             saldo_externo=saldo_externo if usa_ancora else None,
             saldo_externo_mes=saldo_externo_mes if usa_ancora else None,
         )
-        por_cliente_por_grupo[grupo["chave"]] = build_waterfall(
-            fato, por_cliente=True, categorias=categorias_grupo,
+        por_cliente_por_painel[painel["chave"]] = build_waterfall(
+            fato, por_cliente=True, categorias=categorias_painel,
             saldo_externo=saldo_externo if usa_ancora else None,
             saldo_externo_mes=saldo_externo_mes if usa_ancora else None,
             nomes_extra=nomes_extra,
         )
 
     fato.to_parquet(output_dir / "fato_movimentacao.parquet", index=False)
-    for chave, tabela in geral_por_grupo.items():
+    notas_fiscais.to_parquet(output_dir / "notas_fiscais.parquet", index=False)
+    for chave, tabela in geral_por_painel.items():
         tabela.to_parquet(output_dir / f"consolidado_geral_{chave}.parquet", index=False)
-    for chave, tabela in por_cliente_por_grupo.items():
+    for chave, tabela in por_cliente_por_painel.items():
         tabela.to_parquet(output_dir / f"consolidado_por_cliente_{chave}.parquet", index=False)
 
     excel_path = output_dir / "consolidado.xlsx"
     from build_excel import write_workbook
-    write_workbook(fato, geral_por_grupo, por_cliente_por_grupo, config.SALDO_GROUPS, categorias_fato, excel_path)
+    write_workbook(
+        fato, geral_por_painel, por_cliente_por_painel, config.PAINEIS,
+        categorias_fato, notas_fiscais, excel_path,
+    )
 
-    total_linhas_por_cliente = sum(len(t) for t in por_cliente_por_grupo.values())
-    print(f"OK: {len(df):,} linhas brutas -> {total_linhas_por_cliente:,} linhas na tabela fato consolidada (nas duas visões).")
+    total_linhas_por_cliente = sum(len(t) for t in por_cliente_por_painel.values())
+    print(f"OK: {len(df):,} linhas brutas -> {total_linhas_por_cliente:,} linhas na tabela fato consolidada (nos {len(config.PAINEIS)} painéis).")
+    print(f"Notas Fiscais: {len(notas_fiscais):,} linha(s) ({', '.join(config.NOTAS_FISCAIS_TIPOS_DOCUMENTO)}).")
     print(f"Excel gerado em: {excel_path.resolve()}")
 
 
