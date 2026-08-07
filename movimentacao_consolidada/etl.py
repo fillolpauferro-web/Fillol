@@ -86,7 +86,7 @@ def read_raw(files: list) -> pd.DataFrame:
 
 
 def audit(df: pd.DataFrame) -> None:
-    from classify import linhas_sem_tipo
+    from classify import linhas_sem_tipo, _dividir_zto_por_po_number
 
     vazios = linhas_sem_tipo(df)
     if vazios.any():
@@ -98,19 +98,24 @@ def audit(df: pd.DataFrame) -> None:
         df = df.loc[~vazios]
 
     rules = load_rules().set_index("tipo_documento")
-    resumo = df.groupby("tipo_documento").agg(
+    tmp = df.copy()
+    tmp["categoria"] = tmp["tipo_documento"].map(rules["categoria"])
+    # ZTO não vem do CSV -- simula a mesma divisão por PO Number que o
+    # classify() usa de verdade, pra já aparecer separado no audit.
+    tmp = _dividir_zto_por_po_number(tmp)
+    tmp["categoria"] = tmp["categoria"].fillna("<<< SEM REGRA -- adicionar no category_rules.csv")
+
+    resumo = tmp.groupby(["tipo_documento", "categoria"]).agg(
         linhas=("valor_confirmado", "count"),
         soma_confirmado=("valor_confirmado", "sum"),
         soma_reservado=("valor_reservado", "sum"),
     ).sort_values("linhas", ascending=False)
 
-    resumo["categoria_atual"] = [
-        rules["categoria"].get(t, "<<< SEM REGRA -- adicionar no category_rules.csv")
-        for t in resumo.index
-    ]
     resumo["coluna_valor_atual"] = [
-        rules["coluna_valor"].get(t) if t in rules.index and pd.notna(rules["coluna_valor"].get(t)) else "valor_confirmado (padrão)"
-        for t in resumo.index
+        "valor_confirmado (regra ZTO)" if tipo == "ZTO"
+        else rules["coluna_valor"].get(tipo) if tipo in rules.index and pd.notna(rules["coluna_valor"].get(tipo))
+        else "valor_confirmado (padrão)"
+        for tipo, _categoria in resumo.index
     ]
     with pd.option_context("display.float_format", "{:,.2f}".format):
         print(resumo.to_string())

@@ -10,7 +10,9 @@
 # a soma nas duas colunas lado a lado -- ajuda a decidir qual usar.
 # Linhas que começam com # são comentário e são ignoradas.
 tipo_documento,categoria,coluna_valor
-ZTO,Ressarcimento SAP,valor_confirmado
+# ZTO NÃO fica aqui -- a categoria dele depende do texto do PO Number
+# (regra em classify.py: contém "off invoice"/"off_invoice" -> Off Invoice,
+# senão -> Recálculo). Se colocar uma linha "ZTO,..." aqui, ela é ignorada.
 ZOR,Reserva,valor_reservado
 ZF1,Faturado em Nota,valor_confirmado
 ZF2,Faturado em Nota,valor_confirmado
@@ -25,9 +27,8 @@ ZREB,Reserva,valor_reservado
 ZS1,(fora do waterfall),valor_confirmado
 ZS2,(fora do waterfall),valor_confirmado
 #
-# Ainda sem Document Type mapeado pra estas categorias (aparecem zeradas no
-# consolidado até você adicionar a linha real, se/quando surgir um tipo
-# novo no export):
+# Recálculo e Off Invoice já são cobertas pela regra especial do ZTO acima
+# (classify.py). Ainda sem Document Type mapeado pra esta categoria
+# (aparece zerada no consolidado até você adicionar a linha real, se/quando
+# surgir um tipo novo no export):
 #   Canc. / Devolução
-#   Recálculo
-#   Off Invoice

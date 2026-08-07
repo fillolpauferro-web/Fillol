@@ -31,6 +31,31 @@ def linhas_sem_tipo(df: pd.DataFrame) -> pd.Series:
     return df["tipo_documento"].isna() | (df["tipo_documento"].astype(str).str.strip() == "")
 
 
+# ZTO não tem categoria fixa: depende do texto do PO Number.
+#   PO Number contém "off invoice"/"off_invoice" (qualquer caixa) -> Off Invoice
+#   caso contrário                                                -> Recálculo
+# Isso substitui totalmente o antigo mapeamento fixo ZTO -> Ressarcimento SAP.
+ZTO_OFF_INVOICE_MARCADORES = ("off invoice", "off_invoice")
+
+
+def _dividir_zto_por_po_number(out: pd.DataFrame) -> pd.DataFrame:
+    mask_zto = out["tipo_documento"] == "ZTO"
+    if not mask_zto.any():
+        return out
+
+    po = out.loc[mask_zto, "po_number"].astype(str).str.lower()
+    eh_off = pd.Series(False, index=po.index)
+    for marcador in ZTO_OFF_INVOICE_MARCADORES:
+        eh_off |= po.str.contains(marcador, regex=False)
+
+    categoria_zto = pd.Series("Recálculo", index=out.loc[mask_zto].index)
+    categoria_zto[eh_off] = "Off Invoice"
+
+    out.loc[mask_zto, "categoria"] = categoria_zto
+    out.loc[mask_zto, "coluna_valor"] = "valor_confirmado"
+    return out
+
+
 def classify(df: pd.DataFrame) -> pd.DataFrame:
     vazios = linhas_sem_tipo(df)
     if vazios.any():
@@ -42,6 +67,7 @@ def classify(df: pd.DataFrame) -> pd.DataFrame:
 
     rules = load_rules()
     out = df.merge(rules, on="tipo_documento", how="left")
+    out = _dividir_zto_por_po_number(out)
 
     sem_regra = out["categoria"].isna()
     if sem_regra.any():
