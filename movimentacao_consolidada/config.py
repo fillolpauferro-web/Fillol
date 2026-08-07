@@ -26,8 +26,9 @@ COLUMN_MAP = {
 
 # Colunas que precisam ser lidas como texto (não número) pra não perder zero
 # à esquerda -- CNPJ raiz sempre tem 8 dígitos, e vira número errado se o
-# pandas/Excel inferir tipo numérico.
-DTYPE_OVERRIDES = {"Root CNPJ": str}
+# pandas/Excel inferir tipo numérico. PO Number também precisa, porque a
+# regra do ZTO compara PO Number com CNPJ raiz caractere a caractere.
+DTYPE_OVERRIDES = {"Root CNPJ": str, "PO Number": str}
 
 # Regras de categoria (Document Type -> categoria do waterfall) ficam em
 # category_rules.csv, e não aqui, porque é o dado que você (que conhece a

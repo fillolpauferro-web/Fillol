@@ -31,11 +31,15 @@ def linhas_sem_tipo(df: pd.DataFrame) -> pd.Series:
     return df["tipo_documento"].isna() | (df["tipo_documento"].astype(str).str.strip() == "")
 
 
-# ZTO não tem categoria fixa: depende do texto do PO Number.
-#   PO Number contém "off invoice"/"off_invoice" (qualquer caixa) -> Off Invoice
-#   caso contrário                                                -> Recálculo
-# Isso substitui totalmente o antigo mapeamento fixo ZTO -> Ressarcimento SAP.
+# ZTO não tem categoria fixa: depende do PO Number, em ordem de prioridade:
+#   1) 8 primeiros caracteres do PO Number == CNPJ raiz do cliente -> Ressarcimento SAP
+#   2) contém "off invoice"/"off_invoice" (qualquer caixa)         -> Off Invoice
+#   3) nenhuma das anteriores                                      -> Recálculo
+#   4) em qualquer um dos casos acima, se contém "trans dívida ytd"
+#      (ignorando o mês/ano do final, ex.: "Trans Dívida YTD Abr26")
+#      o valor do lançamento é considerado 0 (não conta em nenhuma soma).
 ZTO_OFF_INVOICE_MARCADORES = ("off invoice", "off_invoice")
+ZTO_ZERAR_MARCADORES = ("trans dívida ytd", "trans divida ytd")
 
 
 def _dividir_zto_por_po_number(out: pd.DataFrame) -> pd.DataFrame:
@@ -43,16 +47,31 @@ def _dividir_zto_por_po_number(out: pd.DataFrame) -> pd.DataFrame:
     if not mask_zto.any():
         return out
 
-    po = out.loc[mask_zto, "po_number"].astype(str).str.lower()
-    eh_off = pd.Series(False, index=po.index)
+    idx = out.loc[mask_zto].index
+    po = out.loc[idx, "po_number"].astype(str).str.strip()
+    po_lower = po.str.lower()
+    cnpj = out.loc[idx, "cnpj_raiz"].astype(str)
+
+    eh_cnpj = po.str.slice(0, 8) == cnpj
+
+    eh_off = pd.Series(False, index=idx)
     for marcador in ZTO_OFF_INVOICE_MARCADORES:
-        eh_off |= po.str.contains(marcador, regex=False)
+        eh_off |= po_lower.str.contains(marcador, regex=False)
 
-    categoria_zto = pd.Series("Recálculo", index=out.loc[mask_zto].index)
+    eh_zerar = pd.Series(False, index=idx)
+    for marcador in ZTO_ZERAR_MARCADORES:
+        eh_zerar |= po_lower.str.contains(marcador, regex=False)
+
+    categoria_zto = pd.Series("Recálculo", index=idx)
     categoria_zto[eh_off] = "Off Invoice"
+    categoria_zto[eh_cnpj] = "Ressarcimento SAP"  # tem prioridade sobre Off Invoice
 
-    out.loc[mask_zto, "categoria"] = categoria_zto
-    out.loc[mask_zto, "coluna_valor"] = "valor_confirmado"
+    out.loc[idx, "categoria"] = categoria_zto
+    out.loc[idx, "coluna_valor"] = "valor_confirmado"
+
+    idx_zerar = idx[eh_zerar]
+    out.loc[idx_zerar, "valor_confirmado"] = 0.0
+    out.loc[idx_zerar, "valor_reservado"] = 0.0
     return out
 
 
