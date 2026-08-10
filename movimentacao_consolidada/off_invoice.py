@@ -8,8 +8,8 @@ fechados, prorateada por 75/60/45 dias conforme o cliente (config.py):
                    / dias corridos nos 3 meses
                    * dias do cliente (75 padrão, 60 ou 45 nas exceções)
 
-    Off Invoice a Pagar = Saldo Final de M-1, SE Saldo Final de M-1 > Limite
-                           Saldo, senão 0.
+    Off Invoice a Pagar = MAX(Saldo Final de M-1 - Limite Saldo, 0)
+                           (o excedente acima do limite; nunca negativo)
 
 M-1/M-2/M-3 são sempre os últimos 3 meses FECHADOS em relação à data de
 referência (hoje, por padrão) -- não o mês corrente. Em agosto, M-1 é
@@ -98,8 +98,7 @@ def build_off_invoice(
     resultado["Limite Saldo"] = soma_3_meses / dias_totais * resultado["Dias (limite)"]
 
     resultado[col_saldo_m1] = _saldo_final(m1)
-    resultado["Off Invoice a Pagar"] = resultado[col_saldo_m1].where(
-        resultado[col_saldo_m1] > resultado["Limite Saldo"], 0.0
-    )
+    excedente = resultado[col_saldo_m1] - resultado["Limite Saldo"]
+    resultado["Off Invoice a Pagar"] = excedente.clip(lower=0.0)
 
     return resultado
