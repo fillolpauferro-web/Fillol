@@ -126,9 +126,8 @@ def audit(df: pd.DataFrame) -> None:
     )
 
 
-def build_fact_table(df: pd.DataFrame) -> pd.DataFrame:
-    df = classify(df)
-    df = df[df["categoria"] != config.CATEGORIA_FORA_DO_WATERFALL]
+def build_fact_table(classificado: pd.DataFrame) -> pd.DataFrame:
+    df = classificado[classificado["categoria"] != config.CATEGORIA_FORA_DO_WATERFALL]
     fato = (
         df.groupby(["cnpj_raiz", "cliente", "mes", "categoria"])["valor"]
         .sum()
@@ -302,7 +301,8 @@ def main() -> None:
 
     notas_fiscais = build_notas_fiscais(df, config.NOTAS_FISCAIS_TIPOS_DOCUMENTO)
 
-    fato = build_fact_table(df)
+    classificado = classify(df)
+    fato = build_fact_table(classificado)
     categorias_fato = sorted(fato["categoria"].unique().tolist())
 
     # Um waterfall independente por painel (config.PAINEIS), cada um com sua
@@ -326,7 +326,7 @@ def main() -> None:
 
     data_referencia = pd.Timestamp(args.data_referencia) if args.data_referencia else pd.Timestamp.today()
     from off_invoice import build_off_invoice, meses_fechados
-    off_invoice = build_off_invoice(por_cliente_por_painel["faturado"], data_referencia)
+    off_invoice = build_off_invoice(por_cliente_por_painel["faturado"], classificado, data_referencia)
     m3, m2, m1 = meses_fechados(data_referencia)
     print(f"Off Invoice a Pagar: calculado com M-3/M-2/M-1 = {m3.strftime('%Y-%m')}/{m2.strftime('%Y-%m')}/{m1.strftime('%Y-%m')}.")
 
