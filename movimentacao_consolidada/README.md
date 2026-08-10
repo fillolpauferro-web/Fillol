@@ -24,10 +24,37 @@ data/output/*.parquet   (cache rápido, poucos milhares de linhas)
         - "Por Cliente": tabela fato do painel principal + tabela auxiliar
           do painel Reservado (fonte dos Painéis / de Tabela Dinâmica)
         - "Notas Fiscais": detalhe por nota (ZS1/ZS2/ZF1/ZF2)
+        - "Off Invoice a Pagar": quanto pagar por cliente (ver seção abaixo)
         - "Fato (base Python)": granularidade cliente x mês x categoria
 ```
 
 O Excel nunca mais abre as 800k linhas brutas -- só a tabela já agregada.
+
+## Off Invoice a Pagar
+
+Por cliente, compara o Saldo Final (painel Faturado) do último mês fechado
+contra um limite baseado na geração dos últimos 3 meses fechados:
+
+```
+Limite Saldo = (Ressarcimento SAP de M-3 + M-2 + M-1)
+               / dias corridos nos 3 meses
+               * dias do cliente (75 padrão -- 60 Santa Cruz/Panpharma, 45 Servimed)
+
+Off Invoice a Pagar = Saldo Final de M-1, SE > Limite Saldo, senão 0
+```
+
+M-1/M-2/M-3 são sempre os **3 últimos meses fechados** em relação à data de
+hoje (não o mês corrente, que ainda está em aberto) -- rodando em qualquer
+dia de agosto, M-1/M-2/M-3 = julho/junho/maio; em setembro, vira
+agosto/julho/junho, automaticamente. Pra testar com outra data de
+referência (sem depender da data de hoje da máquina):
+```
+python etl.py --raw-dir "<sua pasta>" --data-referencia 2026-08-15
+```
+
+As exceções de dias (`config.OFF_INVOICE_DIAS_EXCECOES`) casam por
+substring no nome do cliente, sem diferenciar maiúscula/minúscula. Pra
+adicionar/trocar uma exceção, edite esse dicionário em `config.py`.
 
 ## Dois painéis por cliente (Faturado e Reservado)
 

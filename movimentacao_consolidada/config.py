@@ -72,3 +72,13 @@ PAINEL_PRINCIPAL = "faturado"
 # Aba "Notas Fiscais": detalhe (não agregado) por nota, só desses Document
 # Type -- independe de category_rules.csv, é um recorte direto do bruto.
 NOTAS_FISCAIS_TIPOS_DOCUMENTO = ["ZS1", "ZS2", "ZF1", "ZF2"]
+
+# Aba "Off Invoice a Pagar": nº de dias usado no Limite Saldo por cliente.
+# Casamento por substring (sem diferenciar maiúscula/minúscula) no nome do
+# cliente; quem não bater com nenhuma exceção usa o padrão.
+OFF_INVOICE_DIAS_PADRAO = 75
+OFF_INVOICE_DIAS_EXCECOES = {
+    "SANTA CRUZ": 60,
+    "PANPHARMA": 60,
+    "SERVIMED": 45,
+}

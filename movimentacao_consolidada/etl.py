@@ -244,6 +244,13 @@ def main() -> None:
              "Obrigatório se houver algum arquivo com 'Saldo Inicial' no nome "
              "dentro da pasta.",
     )
+    parser.add_argument(
+        "--data-referencia", type=str, default=None,
+        help="Data (YYYY-MM-DD) usada como 'hoje' pra achar os 3 últimos meses "
+             "FECHADOS da aba Off Invoice a Pagar (M-1/M-2/M-3). Se omitido, "
+             "usa a data de hoje. Ex.: rodando em qualquer dia de agosto, "
+             "M-1/M-2/M-3 = julho/junho/maio.",
+    )
     args = parser.parse_args()
 
     raw_dir = Path(args.raw_dir) if args.raw_dir else config.RAW_DIR
@@ -317,8 +324,15 @@ def main() -> None:
             nomes_extra=nomes_extra,
         )
 
+    data_referencia = pd.Timestamp(args.data_referencia) if args.data_referencia else pd.Timestamp.today()
+    from off_invoice import build_off_invoice, meses_fechados
+    off_invoice = build_off_invoice(por_cliente_por_painel["faturado"], data_referencia)
+    m3, m2, m1 = meses_fechados(data_referencia)
+    print(f"Off Invoice a Pagar: calculado com M-3/M-2/M-1 = {m3.strftime('%Y-%m')}/{m2.strftime('%Y-%m')}/{m1.strftime('%Y-%m')}.")
+
     fato.to_parquet(output_dir / "fato_movimentacao.parquet", index=False)
     notas_fiscais.to_parquet(output_dir / "notas_fiscais.parquet", index=False)
+    off_invoice.to_parquet(output_dir / "off_invoice.parquet", index=False)
     for chave, tabela in geral_por_painel.items():
         tabela.to_parquet(output_dir / f"consolidado_geral_{chave}.parquet", index=False)
     for chave, tabela in por_cliente_por_painel.items():
@@ -328,7 +342,7 @@ def main() -> None:
     from build_excel import write_workbook
     write_workbook(
         fato, geral_por_painel, por_cliente_por_painel, config.PAINEIS,
-        categorias_fato, notas_fiscais, excel_path,
+        categorias_fato, notas_fiscais, off_invoice, excel_path,
     )
 
     total_linhas_por_cliente = sum(len(t) for t in por_cliente_por_painel.values())

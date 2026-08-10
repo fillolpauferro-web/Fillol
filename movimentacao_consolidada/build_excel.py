@@ -133,6 +133,7 @@ def write_workbook(
     paineis: list,
     categorias_fato: list,
     notas_fiscais: pd.DataFrame,
+    off_invoice: pd.DataFrame,
     excel_path: Path = None,
 ) -> None:
     excel_path = Path(excel_path) if excel_path else config.EXCEL_OUTPUT
@@ -188,6 +189,11 @@ def write_workbook(
     # --- Notas Fiscais ---
     ws_notas = wb.create_sheet("Notas Fiscais")
     _write_table(ws_notas, notas_fmt, "TabelaNotasFiscais", {"Value Confirmed"})
+
+    # --- Off Invoice a Pagar ---
+    ws_off = wb.create_sheet("Off Invoice a Pagar")
+    valor_cols_off = set(off_invoice.columns) - {"CNPJ", "Cliente", "Dias (limite)"}
+    _write_table(ws_off, off_invoice, "TabelaOffInvoice", valor_cols_off)
 
     # --- Fato (base Python) ---
     ws_fato = wb.create_sheet("Fato (base Python)")
