@@ -32,12 +32,15 @@ def linhas_sem_tipo(df: pd.DataFrame) -> pd.Series:
 
 
 # ZTO não tem categoria fixa: depende do PO Number, em ordem de prioridade:
-#   1) 8 primeiros caracteres do PO Number == CNPJ raiz do cliente -> Ressarcimento SAP
-#   2) contém "off invoice"/"off_invoice" (qualquer caixa)         -> Off Invoice
-#   3) nenhuma das anteriores                                      -> Recálculo
+#   1) 8 primeiros caracteres do PO Number == CNPJ raiz do cliente
+#      OU contém "carga divida"/"carga dívida" (carga inicial de migração,
+#      ex.: "Carga divida 01 a 28.05.26", "Carga Divida 29 Maio")   -> Ressarcimento SAP
+#   2) contém "off invoice"/"off_invoice" (qualquer caixa)          -> Off Invoice
+#   3) nenhuma das anteriores                                       -> Recálculo
 #   4) em qualquer um dos casos acima, se contém "trans dívida ytd"
 #      (ignorando o mês/ano do final, ex.: "Trans Dívida YTD Abr26")
 #      o valor do lançamento é considerado 0 (não conta em nenhuma soma).
+ZTO_RESSARCIMENTO_MARCADORES = ("carga divida", "carga dívida")
 ZTO_OFF_INVOICE_MARCADORES = ("off invoice", "off_invoice")
 ZTO_ZERAR_MARCADORES = ("trans dívida ytd", "trans divida ytd")
 
@@ -53,6 +56,8 @@ def _dividir_zto_por_po_number(out: pd.DataFrame) -> pd.DataFrame:
     cnpj = out.loc[idx, "cnpj_raiz"].astype(str)
 
     eh_cnpj = po.str.slice(0, 8) == cnpj
+    for marcador in ZTO_RESSARCIMENTO_MARCADORES:
+        eh_cnpj |= po_lower.str.contains(marcador, regex=False)
 
     eh_off = pd.Series(False, index=idx)
     for marcador in ZTO_OFF_INVOICE_MARCADORES:
