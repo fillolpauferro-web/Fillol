@@ -34,21 +34,34 @@ console mostra um resumo (contagem de `Check` e impacto financeiro total).
 
 ## Como rodar
 
+O `config.yaml` já vem apontando para caminhos absolutos dentro de:
+
+```
+C:\Users\I0507867.FARMA\OneDrive - Sanofi\Desktop\Analise Painel
+```
+
+Não importa de onde você execute o `pipeline.py` — os caminhos são fixos
+nessa pasta. Estrutura esperada:
+
+```
+Analise Painel\
+├── dados\
+│   ├── base_pedidos.xlsx        (a base grande de pedidos)
+│   ├── Controle_Feiras.xlsx     (aba "dados")
+│   ├── Controle_Campanhas.xlsx  (aba "dados", se for usar a matriz Campanha)
+│   └── Condicao_comercial.xlsx  (aba "dados")
+└── saida\                       (criada automaticamente pelo script)
+```
+
 ```bash
-cd analise_feiras
-python -m venv .venv && source .venv/bin/activate   # opcional
 pip install -r requirements.txt
 
-# 1. Coloque os arquivos em dados/:
-#    - dados/base_pedidos.xlsx      (a base grande de pedidos)
-#    - dados/Controle_Feiras.xlsx   (aba "dados")
-#    - dados/Condicao_comercial.xlsx (aba "dados")
-
-# 2. Rode:
 python pipeline.py
 ```
 
-Saída vai para `analise_feiras/saida/`.
+Se a pasta `Analise Painel` mudar de lugar, atualize o trecho
+`C:/Users/I0507867.FARMA/OneDrive - Sanofi/Desktop/Analise Painel` em todos os
+caminhos do `config.yaml` (find & replace no editor de texto).
 
 ## Selecionar quais matrizes analisar (recorrência)
 

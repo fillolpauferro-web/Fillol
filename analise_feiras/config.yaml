@@ -7,10 +7,17 @@
 # Não é preciso mexer no pipeline.py para isso.
 # =============================================================================
 
+# Todos os caminhos abaixo apontam para a pasta:
+#   C:\Users\I0507867.FARMA\OneDrive - Sanofi\Desktop\Analise Painel
+# Use barra normal "/" mesmo no Windows (funciona igual à contrabarra e evita
+# problemas de escape no YAML). Se a pasta mudar de lugar, substitua o trecho
+# "C:/Users/I0507867.FARMA/OneDrive - Sanofi/Desktop/Analise Painel" em todos
+# os caminhos deste arquivo (find & replace no editor).
+
 base:
   # Arquivo com a base grande de pedidos (exportação do ERP), tipo a planilha
   # com as colunas Tipo de cliente, CNPJ, Id pedido, EAN, Tabela de negociação...
-  arquivo: "dados/base_pedidos.xlsx"
+  arquivo: "C:/Users/I0507867.FARMA/OneDrive - Sanofi/Desktop/Analise Painel/dados/base_pedidos.xlsx"
   aba: null # null = primeira aba da planilha; ou informe o nome exato da aba
   colunas:
     tabela_negociacao: "Tabela de negociação"
@@ -24,7 +31,7 @@ base:
 # Arquivo usado no passo 4 (achar o desconto que deveria ter sido aplicado
 # quando um pedido é identificado como erro operacional).
 condicao_comercial:
-  arquivo: "dados/Condicao_comercial.xlsx"
+  arquivo: "C:/Users/I0507867.FARMA/OneDrive - Sanofi/Desktop/Analise Painel/dados/Condicao_comercial.xlsx"
   aba: "dados"
   # colunas usadas para casar (tipo PROCX) a base com a condição comercial correta
   chave: ["cnpj", "ean"] # nomes lógicos definidos em base.colunas acima
@@ -41,7 +48,7 @@ matrizes:
   - nome: "Feira"
     ativo: true
     palavra_chave: "FEIRA" # texto buscado em Tabela de negociação (sem acento/maiúsculas)
-    arquivo_controle: "dados/Controle_Feiras.xlsx"
+    arquivo_controle: "C:/Users/I0507867.FARMA/OneDrive - Sanofi/Desktop/Analise Painel/dados/Controle_Feiras.xlsx"
     aba_controle: "dados"
     # coluna do arquivo de controle usada para casar (PROCX) com a base
     chave_controle: "Tabela de negociação"
@@ -53,7 +60,7 @@ matrizes:
   - nome: "Campanha"
     ativo: false
     palavra_chave: "CAMPANHA"
-    arquivo_controle: "dados/Controle_Campanhas.xlsx"
+    arquivo_controle: "C:/Users/I0507867.FARMA/OneDrive - Sanofi/Desktop/Analise Painel/dados/Controle_Campanhas.xlsx"
     aba_controle: "dados"
     chave_controle: "Tabela de negociação"
     colunas_trazidas:
@@ -62,4 +69,4 @@ matrizes:
       vigencia: "Vigência"
 
 saida:
-  pasta: "saida"
+  pasta: "C:/Users/I0507867.FARMA/OneDrive - Sanofi/Desktop/Analise Painel/saida"
