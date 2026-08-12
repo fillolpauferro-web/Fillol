@@ -139,15 +139,25 @@ def to_datetime(series: pd.Series) -> pd.Series:
 
 
 def to_numeric(series: pd.Series) -> pd.Series:
-    """Converte texto numérico pt-BR (1.234,56 ou 1234,56) para float."""
+    """Converte texto numérico para float, aceitando dois formatos:
+
+    - pt-BR (texto digitado numa célula/CSV): "1.234,56" ou "56,87"
+      -> "." é separador de milhar, "," é decimal.
+    - internacional (célula Excel com número nativo, convertida pra string
+      pelo pandas): "0.3", "1234.56" -> "." já é decimal, sem vírgula.
+
+    Só remove o "." como milhar quando a string também tem vírgula — senão
+    "0.3" vira "03" (=3) por engano, que é o formato que sai quando o Excel
+    guarda um float nativo (ex.: célula formatada como %).
+    """
     if pd.api.types.is_numeric_dtype(series):
         return pd.to_numeric(series, errors="coerce")
 
-    limpo = (
-        series.astype(str)
-        .str.strip()
-        .str.replace(r"^'", "", regex=True)  # aspas de "número como texto" do Excel
-        .str.replace(".", "", regex=False)
-        .str.replace(",", ".", regex=False)
+    texto = series.astype(str).str.strip().str.replace(r"^'", "", regex=True)
+    tem_virgula = texto.str.contains(",", regex=False)
+
+    limpo = texto.copy()
+    limpo.loc[tem_virgula] = (
+        limpo.loc[tem_virgula].str.replace(".", "", regex=False).str.replace(",", ".", regex=False)
     )
     return pd.to_numeric(limpo, errors="coerce")

@@ -42,6 +42,9 @@ condicao_comercial:
   colunas:
     chave_ean: "EAN FORMATADO"
     desconto_correto_pct: "Desconto Atual"
+  # true porque a célula guarda 0.2398 (fração) e o Excel só EXIBE como
+  # "23,98%" — confirmado lendo o valor cru da planilha do usuário
+  desconto_em_fracao: true
 
 # Cada item da lista abaixo é uma "matriz" de análise: um recorte da coluna
 # "Tabela de negociação" (ex.: Feira, Campanha) cruzado com o respectivo

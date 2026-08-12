@@ -6,6 +6,22 @@ import pandas as pd
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from pipeline import CHECK_ERRO, CHECK_OK, carregar_base, rodar_matriz  # noqa: E402
+from utils import to_numeric  # noqa: E402
+
+
+def test_to_numeric_aceita_formato_brasileiro_e_internacional():
+    casos = pd.Series(
+        [
+            "56,87",  # pt-BR simples
+            "1.234,56",  # pt-BR com milhar
+            "0.3",  # float nativo do Excel convertido para string (decimal com ponto)
+            "1234.56",  # idem, sem milhar
+            "300",  # inteiro puro
+            "'42,5",  # aspas de "número como texto" do Excel
+        ]
+    )
+    resultado = to_numeric(casos).tolist()
+    assert resultado == [56.87, 1234.56, 0.3, 1234.56, 300.0, 42.5]
 
 
 def _montar_config(tmp_path: Path) -> dict:
@@ -30,6 +46,7 @@ def _montar_config(tmp_path: Path) -> dict:
                 "chave_ean": "EAN FORMATADO",
                 "desconto_correto_pct": "Desconto Atual",
             },
+            "desconto_em_fracao": True,
         },
         "matrizes": [
             {
@@ -79,7 +96,8 @@ def test_pipeline_end_to_end(tmp_path: Path):
     condicao_df = pd.DataFrame(
         {
             "EAN FORMATADO": ["7896422511865"],
-            "Desconto Atual": ["30"],
+            # armazenado como fração (célula formatada como % no Excel real)
+            "Desconto Atual": [0.30],
         }
     )
 

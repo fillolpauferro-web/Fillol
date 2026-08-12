@@ -55,7 +55,7 @@ def carregar_base(cfg: dict) -> pd.DataFrame:
         )
 
     df["_cnpj_norm"] = df[colunas["cnpj"]].map(normalize_cnpj)
-    df["_ean_norm"] = df[colunas["ean"]].astype(str).str.strip()
+    df["_ean_norm"] = df[colunas["ean"]].astype(str).str.strip().str.lstrip("'")
     df["_tabela_norm"] = df[colunas["tabela_negociacao"]].map(normalize_text)
     df["_data_pedido"] = to_datetime(df[colunas["data_pedido"]])
     df["_faturado_liquido"] = to_numeric(df[colunas["faturado_liquido"]])
@@ -136,8 +136,13 @@ def carregar_condicao_comercial(cfg: dict) -> pd.DataFrame:
             "Ajuste condicao_comercial.colunas no config.yaml."
         )
 
-    df["_ean_norm"] = df[col_ean].astype(str).str.strip()
+    df["_ean_norm"] = df[col_ean].astype(str).str.strip().str.lstrip("'")
     df["_desconto_correto_pct"] = to_numeric(df[col_desconto])
+
+    # a coluna vem formatada como % no Excel (célula guarda 0.2398, exibe
+    # "23,98%") — converte pra escala 0-100 igual ao desconto aplicado da base
+    if cc_cfg.get("desconto_em_fracao"):
+        df["_desconto_correto_pct"] = df["_desconto_correto_pct"] * 100
 
     return df[["_ean_norm", "_desconto_correto_pct"]].drop_duplicates(subset="_ean_norm", keep="first")
 
