@@ -63,10 +63,11 @@ matrizes:
     aba_controle: "dados"
     # coluna do arquivo de controle com o CNPJ ajustado (lista de quem
     # realmente participou/está autorizado na feira)
-    chave_controle: "CNPJ Ajustado"
+    chave_controle: "CNPJ AJUSTADO"
     colunas_trazidas:
-      inicio_real: "Início Real"
-      termino_real: "Término Real"
+      evento: "EVENTO"
+      inicio_real: "INÍCIO REAL"
+      termino_real: "TÉRMINO REAL"
     # colunas de colunas_trazidas (nome lógico, à esquerda) que devem ser
     # convertidas para data
     colunas_data: ["inicio_real", "termino_real"]
