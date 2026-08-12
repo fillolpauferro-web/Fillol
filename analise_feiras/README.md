@@ -10,27 +10,26 @@ Para cada **matriz** ativa no `config.yaml` (Feira, Campanha, ou outra que você
 cadastrar):
 
 1. **Filtra** a base grande de pedidos pela palavra-chave da matriz (ex.:
-   `"FEIRA"`) dentro da coluna `Tabela de negociação`, e salva esse recorte
-   limpo em `saida/<Matriz>_filtrado.xlsx`.
-2. **Traz (tipo PROCX)** do arquivo de controle da matriz (ex.:
-   `Controle_Feiras.xlsx`, aba `dados`) os campos `Feira`, `Data inicial` e
-   `Vigência`.
-3. **Compara** a data do pedido com o intervalo `[Data inicial, Vigência]` e
-   preenche a coluna `Check`:
-   - `OK` — pedido dentro da vigência
-   - `ERRO OPERACIONAL - pedido antes da vigência`
-   - `ERRO OPERACIONAL - pedido após a vigência`
-   - `SEM CADASTRO NA MATRIZ` — a tabela de negociação do pedido não foi
-     encontrada no arquivo de controle
-4. Para as linhas marcadas como erro operacional, **cruza com
+   `"FEIRA"`) dentro da coluna `Tabela de negociação`.
+2. **Verifica (tipo PROCX)** se o CNPJ do pedido existe na coluna de CNPJ
+   ajustado do arquivo de controle da matriz (ex.: `Controle_Feiras.xlsx`,
+   coluna `CNPJ Ajustado` — a lista de quem realmente participou da feira).
+3. Preenche a coluna `Check`:
+   - `OK` — o CNPJ do pedido está na lista de participantes; as colunas
+     `inicio_real` / `termino_real` são trazidas do controle com as datas
+     reais em que a feira aconteceu.
+   - `Erro Operacional` — o CNPJ do pedido **não** está na lista de
+     participantes (comprou com preço de feira sem ter ido/estar cadastrado).
+4. Para as linhas marcadas como `Erro Operacional`, **cruza com
    `Condicao_comercial.xlsx`** (por CNPJ + EAN) para achar o desconto que
    deveria ter sido aplicado, e calcula:
    - `preco_sem_desconto` = Faturado líquido / (1 − desconto aplicado)
    - `preco_liquido_desconto_correto` = preço sem desconto × (1 − desconto correto)
    - `diferenca_faturamento` = faturado líquido − preço líquido correto
 
-O resultado final de cada matriz é salvo em `saida/<Matriz>_analise.xlsx`, e o
-console mostra um resumo (contagem de `Check` e impacto financeiro total).
+O resultado de cada matriz sai num **único arquivo**:
+`saida/<Matriz>_analise.xlsx`. O console mostra um resumo (contagem de
+`Check` e impacto financeiro total).
 
 ## Como rodar
 
@@ -94,16 +93,18 @@ Copie um bloco em `matrizes:` no `config.yaml` e ajuste:
   palavra_chave: "CAMPANHA"
   arquivo_controle: "dados/Controle_Campanhas.xlsx"
   aba_controle: "dados"
-  chave_controle: "Tabela de negociação"
+  chave_controle: "CNPJ Ajustado"
   colunas_trazidas:
-    feira: "Campanha"
-    data_inicial: "Data inicial"
-    vigencia: "Vigência"
+    inicio_real: "Início Real"
+    termino_real: "Término Real"
+  colunas_data: ["inicio_real", "termino_real"]
 ```
 
-O arquivo de controle precisa ter, na aba indicada, uma coluna que bata com
-`Tabela de negociação` da base (o "PROCX"), mais as colunas de nome, data
-inicial e vigência.
+O arquivo de controle precisa ter, na aba indicada, uma coluna com o CNPJ
+ajustado (usada para o PROCX contra o CNPJ da base) mais as colunas listadas
+em `colunas_trazidas`. Você pode trazer quantas colunas extras quiser — não
+precisa ser só datas; qualquer coluna adicionada em `colunas_trazidas`
+aparece no arquivo de saída.
 
 ## Adaptando nomes de coluna
 
@@ -122,7 +123,7 @@ pytest tests/ -v
 
 O teste `tests/test_pipeline.py` gera planilhas de exemplo (mesma estrutura
 da base real) num diretório temporário e roda o pipeline de ponta a ponta,
-validando o filtro, o PROCX de vigência, o `Check` e o cálculo de desconto.
+validando o filtro, o PROCX por CNPJ, o `Check` e o cálculo de desconto.
 
 ## Observações sobre performance em bases grandes
 

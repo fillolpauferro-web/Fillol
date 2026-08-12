@@ -2,14 +2,16 @@
 
 Passos (para cada matriz ativa no config.yaml):
   1. Filtra a base grande pela palavra-chave da matriz na coluna
-     "Tabela de negociação" e exporta o recorte limpo.
-  2. Faz um PROCX (merge) com o arquivo de controle da matriz (aba "dados"),
-     trazendo feira/campanha, data inicial e vigência.
-  3. Compara a vigência com a data do pedido e marca a coluna "Check" como
-     OK ou ERRO OPERACIONAL (pedido antes/depois da vigência).
+     "Tabela de negociação".
+  2. Faz um PROCX (merge) com o arquivo de controle da matriz, comparando o
+     CNPJ do pedido com a coluna de CNPJ ajustado do controle.
+  3. Se o CNPJ existe no controle: marca "Check" = OK e traz as datas reais
+     (Início Real / Término Real) em que a feira aconteceu.
+     Se não existe: marca "Check" = "Erro Operacional".
   4. Para os pedidos com erro operacional, cruza com Condicao_comercial para
      achar o desconto correto, calcula o preço sem desconto e o preço
      líquido que deveria ter sido faturado.
+  5. Salva tudo num único arquivo de saída por matriz.
 
 Uso:
     python pipeline.py                       # roda as matrizes marcadas ativo: true
@@ -31,9 +33,7 @@ from utils import normalize_cnpj, normalize_text, read_table, read_table_or_glob
 BASE_DIR = Path(__file__).resolve().parent
 
 CHECK_OK = "OK"
-CHECK_ANTES = "ERRO OPERACIONAL - pedido antes da vigência"
-CHECK_DEPOIS = "ERRO OPERACIONAL - pedido após a vigência"
-CHECK_SEM_CADASTRO = "SEM CADASTRO NA MATRIZ"
+CHECK_ERRO = "Erro Operacional"
 
 
 def carregar_config(caminho: str | Path) -> dict:
@@ -69,11 +69,16 @@ def filtrar_matriz(df_base: pd.DataFrame, palavra_chave: str) -> pd.DataFrame:
 
 
 def carregar_controle(matriz_cfg: dict) -> pd.DataFrame:
+    """Lê o arquivo de controle da matriz (ex.: Controle_Feiras) e prepara a
+    coluna-chave (CNPJ ajustado) mais as colunas extras a trazer (ex.:
+    Início Real / Término Real).
+    """
     caminho = BASE_DIR / matriz_cfg["arquivo_controle"]
     df = read_table(caminho, matriz_cfg.get("aba_controle"))
 
     chave_col = matriz_cfg["chave_controle"]
     colunas_trazidas = matriz_cfg["colunas_trazidas"]
+    colunas_data = matriz_cfg.get("colunas_data", [])
 
     obrigatorias = [chave_col, *colunas_trazidas.values()]
     faltando = [c for c in obrigatorias if c not in df.columns]
@@ -84,35 +89,32 @@ def carregar_controle(matriz_cfg: dict) -> pd.DataFrame:
         )
 
     df = df.rename(columns={v: k for k, v in colunas_trazidas.items()})
-    df["_chave_controle_norm"] = df[chave_col].map(normalize_text)
-    df["data_inicial"] = to_datetime(df["data_inicial"])
-    df["vigencia"] = to_datetime(df["vigencia"])
+    df["_chave_controle_norm"] = df[chave_col].map(normalize_cnpj)
 
-    colunas_saida = ["_chave_controle_norm", "feira", "data_inicial", "vigencia"]
+    for col in colunas_data:
+        df[col] = to_datetime(df[col])
+
+    colunas_saida = ["_chave_controle_norm", *colunas_trazidas.keys()]
     df_controle = df[colunas_saida].drop_duplicates(subset="_chave_controle_norm", keep="first")
     return df_controle
 
 
-def aplicar_procx_vigencia(df_matriz: pd.DataFrame, df_controle: pd.DataFrame) -> pd.DataFrame:
-    """Traz feira/data_inicial/vigencia da tabela de controle (tipo PROCX)."""
+def aplicar_procx_cnpj(df_matriz: pd.DataFrame, df_controle: pd.DataFrame) -> pd.DataFrame:
+    """Verifica se o CNPJ do pedido existe no controle da feira (tipo PROCX)
+    e traz as colunas extras configuradas quando existir.
+    """
     return df_matriz.merge(
         df_controle,
         how="left",
-        left_on="_tabela_norm",
+        left_on="_cnpj_norm",
         right_on="_chave_controle_norm",
+        indicator="_encontrado_no_controle",
     )
 
 
 def calcular_check(df: pd.DataFrame) -> pd.Series:
-    sem_cadastro = df["data_inicial"].isna() | df["vigencia"].isna()
-    antes = df["_data_pedido"] < df["data_inicial"]
-    depois = df["_data_pedido"] > df["vigencia"]
-
-    check = pd.Series(CHECK_OK, index=df.index)
-    check = check.mask(depois, CHECK_DEPOIS)
-    check = check.mask(antes, CHECK_ANTES)
-    check = check.mask(sem_cadastro, CHECK_SEM_CADASTRO)
-    return check
+    encontrado = df["_encontrado_no_controle"] == "both"
+    return pd.Series(CHECK_OK, index=df.index).mask(~encontrado, CHECK_ERRO)
 
 
 def carregar_condicao_comercial(cfg: dict) -> pd.DataFrame:
@@ -154,7 +156,7 @@ def aplicar_condicao_correta(df: pd.DataFrame, df_condicao: pd.DataFrame) -> pd.
     df["diferenca_faturamento"] = df["_faturado_liquido"] - df["preco_liquido_desconto_correto"]
 
     # só faz sentido preencher esses cálculos para linhas de erro operacional
-    erro_operacional = df["Check"].isin([CHECK_ANTES, CHECK_DEPOIS])
+    erro_operacional = df["Check"] == CHECK_ERRO
     for col in (
         "_desconto_correto_pct",
         "preco_sem_desconto",
@@ -167,12 +169,10 @@ def aplicar_condicao_correta(df: pd.DataFrame, df_condicao: pd.DataFrame) -> pd.
     return df
 
 
-def montar_saida(df: pd.DataFrame, cfg: dict) -> pd.DataFrame:
+def montar_saida(df: pd.DataFrame, cfg: dict, matriz_cfg: dict) -> pd.DataFrame:
     colunas_base_originais = list(cfg["base"]["colunas"].values())
     colunas_novas = [
-        "feira",
-        "data_inicial",
-        "vigencia",
+        *matriz_cfg["colunas_trazidas"].keys(),
         "Check",
         "desconto_correto_pct",
         "preco_sem_desconto",
@@ -191,16 +191,8 @@ def rodar_matriz(nome_matriz: str, matriz_cfg: dict, df_base: pd.DataFrame, cfg:
         return None
     print(f"{len(df_filtrado)} linhas filtradas em 'Tabela de negociação'.")
 
-    pasta_saida = BASE_DIR / cfg["saida"]["pasta"]
-    pasta_saida.mkdir(parents=True, exist_ok=True)
-    caminho_filtrado = pasta_saida / f"{nome_matriz}_filtrado.xlsx"
-    df_filtrado.drop(columns=[c for c in df_filtrado.columns if c.startswith("_")]).to_excel(
-        caminho_filtrado, index=False
-    )
-    print(f"Recorte limpo salvo em {caminho_filtrado}")
-
     df_controle = carregar_controle(matriz_cfg)
-    df_merge = aplicar_procx_vigencia(df_filtrado, df_controle)
+    df_merge = aplicar_procx_cnpj(df_filtrado, df_controle)
 
     df_merge["Check"] = calcular_check(df_merge)
     print(df_merge["Check"].value_counts(dropna=False).to_string())
@@ -208,10 +200,13 @@ def rodar_matriz(nome_matriz: str, matriz_cfg: dict, df_base: pd.DataFrame, cfg:
     df_condicao = carregar_condicao_comercial(cfg)
     df_final = aplicar_condicao_correta(df_merge, df_condicao)
 
-    df_saida = montar_saida(df_final, cfg)
+    df_saida = montar_saida(df_final, cfg, matriz_cfg)
+
+    pasta_saida = BASE_DIR / cfg["saida"]["pasta"]
+    pasta_saida.mkdir(parents=True, exist_ok=True)
     caminho_final = pasta_saida / f"{nome_matriz}_analise.xlsx"
     df_saida.to_excel(caminho_final, index=False)
-    print(f"Análise completa salva em {caminho_final}")
+    print(f"Resultado salvo em {caminho_final}")
 
     impacto = df_saida["diferenca_faturamento"].sum(skipna=True)
     print(f"Impacto financeiro total dos erros operacionais: R$ {impacto:,.2f}")

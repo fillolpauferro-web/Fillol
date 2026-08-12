@@ -46,31 +46,41 @@ condicao_comercial:
 
 # Cada item da lista abaixo é uma "matriz" de análise: um recorte da coluna
 # "Tabela de negociação" (ex.: Feira, Campanha) cruzado com o respectivo
-# arquivo de controle de vigência. Adicione quantas quiser; marque
-# ativo: false para pular sem apagar a configuração.
+# arquivo de controle. Adicione quantas quiser; marque ativo: false para
+# pular sem apagar a configuração.
+#
+# A checagem (coluna Check) funciona por existência de CNPJ: se o CNPJ do
+# pedido (base.colunas.cnpj) existir na coluna "chave_controle" do arquivo
+# de controle, o pedido é considerado legítimo (Check = OK) e as colunas
+# em "colunas_trazidas" são copiadas para a saída (ex.: as datas reais em
+# que a feira aconteceu). Se o CNPJ não existir no controle, Check =
+# "Erro Operacional".
 matrizes:
   - nome: "Feira"
     ativo: true
     palavra_chave: "FEIRA" # texto buscado em Tabela de negociação (sem acento/maiúsculas)
     arquivo_controle: "C:/Users/I0507867.FARMA/OneDrive - Sanofi/Desktop/Analise Painel/dados/Controle_Feiras.xlsx"
     aba_controle: "dados"
-    # coluna do arquivo de controle usada para casar (PROCX) com a base
-    chave_controle: "Tabela de negociação"
+    # coluna do arquivo de controle com o CNPJ ajustado (lista de quem
+    # realmente participou/está autorizado na feira)
+    chave_controle: "CNPJ Ajustado"
     colunas_trazidas:
-      feira: "Feira"
-      data_inicial: "Data inicial"
-      vigencia: "Vigência"
+      inicio_real: "Início Real"
+      termino_real: "Término Real"
+    # colunas de colunas_trazidas (nome lógico, à esquerda) que devem ser
+    # convertidas para data
+    colunas_data: ["inicio_real", "termino_real"]
 
   - nome: "Campanha"
     ativo: false
     palavra_chave: "CAMPANHA"
     arquivo_controle: "C:/Users/I0507867.FARMA/OneDrive - Sanofi/Desktop/Analise Painel/dados/Controle_Campanhas.xlsx"
     aba_controle: "dados"
-    chave_controle: "Tabela de negociação"
+    chave_controle: "CNPJ Ajustado"
     colunas_trazidas:
-      feira: "Campanha"
-      data_inicial: "Data inicial"
-      vigencia: "Vigência"
+      inicio_real: "Início Real"
+      termino_real: "Término Real"
+    colunas_data: ["inicio_real", "termino_real"]
 
 saida:
   pasta: "C:/Users/I0507867.FARMA/OneDrive - Sanofi/Desktop/Analise Painel/saida"

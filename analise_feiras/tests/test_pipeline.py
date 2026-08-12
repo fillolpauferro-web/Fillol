@@ -2,11 +2,10 @@ import sys
 from pathlib import Path
 
 import pandas as pd
-import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from pipeline import CHECK_ANTES, CHECK_OK, carregar_base, carregar_config, rodar_matriz  # noqa: E402
+from pipeline import CHECK_ERRO, CHECK_OK, carregar_base, rodar_matriz  # noqa: E402
 
 
 def _montar_config(tmp_path: Path) -> dict:
@@ -40,12 +39,12 @@ def _montar_config(tmp_path: Path) -> dict:
                 "palavra_chave": "FEIRA",
                 "arquivo_controle": "Controle_Feiras.xlsx",
                 "aba_controle": "dados",
-                "chave_controle": "Tabela de negociação",
+                "chave_controle": "CNPJ Ajustado",
                 "colunas_trazidas": {
-                    "feira": "Feira",
-                    "data_inicial": "Data inicial",
-                    "vigencia": "Vigência",
+                    "inicio_real": "Início Real",
+                    "termino_real": "Término Real",
                 },
+                "colunas_data": ["inicio_real", "termino_real"],
             }
         ],
         "saida": {"pasta": "saida"},
@@ -53,16 +52,17 @@ def _montar_config(tmp_path: Path) -> dict:
 
 
 def test_pipeline_end_to_end(tmp_path: Path):
-    # pedido 1: dentro da vigência da feira -> OK
-    # pedido 2: antes da vigência -> erro operacional, com condição comercial correta cadastrada
+    # pedido 1: CNPJ está no CNPJ Ajustado do controle -> OK
+    # pedido 2: CNPJ não está cadastrado no controle -> Erro Operacional,
+    #           com condição comercial correta cadastrada para recalcular o preço
     base_df = pd.DataFrame(
         {
             "Tipo de cliente": ["ASSOCIATIVISMO", "ASSOCIATIVISMO", "REDE INDIRETA"],
-            "CNPJ": ["01.672.858/0001-65", "01.672.858/0001-65", "06.052.566/0001-43"],
+            "CNPJ": ["01.672.858/0001-65", "06.052.566/0001-43", "06.052.566/0001-43"],
             "Id pedido": ["17275", "17300", "17778"],
             "EAN": ["7896422511865", "7896422511865", "7896422514651"],
             "Tabela de negociação": ["FEIRA NEGOCIOS CA", "FEIRA NEGOCIOS CA", "DEFAULT GENERICO CA"],
-            "Data do pedido (original)": ["10/05/2026 18:34", "01/01/2026 10:00", "05/05/2026 19:16"],
+            "Data do pedido (original)": ["10/05/2026 18:34", "10/05/2026 10:00", "05/05/2026 19:16"],
             "Faturado líquido (R$)": ["27,3", "27,3", "53,42"],
             "Desconto comercial faturado (%)": ["56,87", "56,87", "69,36"],
         }
@@ -70,16 +70,15 @@ def test_pipeline_end_to_end(tmp_path: Path):
 
     controle_df = pd.DataFrame(
         {
-            "Tabela de negociação": ["FEIRA NEGOCIOS CA"],
-            "Feira": ["Feira de Negócios CA 2026"],
-            "Data inicial": ["01/05/2026"],
-            "Vigência": ["31/05/2026"],
+            "CNPJ Ajustado": ["01.672.858/0001-65"],
+            "Início Real": ["01/05/2026"],
+            "Término Real": ["31/05/2026"],
         }
     )
 
     condicao_df = pd.DataFrame(
         {
-            "CNPJ": ["01.672.858/0001-65"],
+            "CNPJ": ["06.052.566/0001-43"],
             "EAN": ["7896422511865"],
             "Desconto (%)": ["30"],
         }
@@ -106,13 +105,17 @@ def test_pipeline_end_to_end(tmp_path: Path):
 
     checks = dict(zip(resultado["Id pedido"], resultado["Check"]))
     assert checks["17275"] == CHECK_OK
-    assert checks["17300"] == CHECK_ANTES
+    assert checks["17300"] == CHECK_ERRO
+
+    linha_ok = resultado.loc[resultado["Id pedido"] == "17275"].iloc[0]
+    assert pd.Timestamp(linha_ok["inicio_real"]) == pd.Timestamp("2026-05-01")
+    assert pd.Timestamp(linha_ok["termino_real"]) == pd.Timestamp("2026-05-31")
+    assert pd.isna(linha_ok["diferenca_faturamento"])  # sem erro operacional, sem cálculo
 
     linha_erro = resultado.loc[resultado["Id pedido"] == "17300"].iloc[0]
-    assert round(linha_erro["preco_sem_desconto"], 2) == round(27.3 / (1 - 0.5687), 2)
     preco_sem_desconto_esperado = 27.3 / (1 - 0.5687)
     preco_correto_esperado = preco_sem_desconto_esperado * (1 - 0.30)
+    assert round(linha_erro["preco_sem_desconto"], 2) == round(preco_sem_desconto_esperado, 2)
     assert round(linha_erro["preco_liquido_desconto_correto"], 2) == round(preco_correto_esperado, 2)
 
-    assert (tmp_path / "saida" / "Feira_filtrado.xlsx").exists()
     assert (tmp_path / "saida" / "Feira_analise.xlsx").exists()
