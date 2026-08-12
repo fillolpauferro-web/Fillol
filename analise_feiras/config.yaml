@@ -51,12 +51,16 @@ condicao_comercial:
 # arquivo de controle. Adicione quantas quiser; marque ativo: false para
 # pular sem apagar a configuração.
 #
-# A checagem (coluna Check) funciona por existência de CNPJ: se o CNPJ do
-# pedido (base.colunas.cnpj) existir na coluna "chave_controle" do arquivo
-# de controle, o pedido é considerado legítimo (Check = OK) e as colunas
-# em "colunas_trazidas" são copiadas para a saída (ex.: as datas reais em
-# que a feira aconteceu). Se o CNPJ não existir no controle, Check =
-# "Erro Operacional".
+# Check = OK só quando as DUAS condições são verdadeiras:
+#   1. o CNPJ do pedido (base.colunas.cnpj) existe na coluna "chave_controle"
+#      do arquivo de controle;
+#   2. a data do pedido está dentro do período real da feira (comparando só
+#      a data, sem horário) — exige que colunas_trazidas tenha as chaves
+#      "inicio_real" e "termino_real" (como no exemplo abaixo).
+# Fora disso (CNPJ não cadastrado, ou cadastrado mas pedido fora do
+# período), Check = "Erro Operacional". As colunas em "colunas_trazidas"
+# são sempre copiadas pra saída quando o CNPJ é encontrado (ex.: as datas
+# reais em que a feira aconteceu), mesmo se o Check der erro por período.
 matrizes:
   - nome: "Feira"
     ativo: true

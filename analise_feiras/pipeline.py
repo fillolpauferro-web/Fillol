@@ -4,10 +4,11 @@ Passos (para cada matriz ativa no config.yaml):
   1. Filtra a base grande pela palavra-chave da matriz na coluna
      "Tabela de negociação".
   2. Faz um PROCX (merge) com o arquivo de controle da matriz, comparando o
-     CNPJ do pedido com a coluna de CNPJ ajustado do controle.
-  3. Se o CNPJ existe no controle: marca "Check" = OK e traz as datas reais
-     (Início Real / Término Real) em que a feira aconteceu.
-     Se não existe: marca "Check" = "Erro Operacional".
+     CNPJ do pedido com a coluna de CNPJ ajustado do controle, e traz as
+     datas reais (Início Real / Término Real) em que a feira aconteceu.
+  3. "Check" = OK só quando o CNPJ existe no controle E a data do pedido
+     está dentro do período Início Real / Término Real. Fora disso (CNPJ não
+     cadastrado, ou cadastrado mas pedido fora do período) = "Erro Operacional".
   4. Para os pedidos com erro operacional, cruza com Condicao_comercial (por
      EAN — o desconto correto é por produto, não depende do CNPJ) para achar
      o desconto correto, calcula o preço sem desconto e o preço líquido que
@@ -29,7 +30,7 @@ from pathlib import Path
 import pandas as pd
 import yaml
 
-from utils import normalize_cnpj, normalize_text, read_table, read_table_or_glob, to_datetime, to_numeric
+from utils import normalize_cnpj, normalize_ean, normalize_text, read_table, read_table_or_glob, to_datetime, to_numeric
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -55,7 +56,7 @@ def carregar_base(cfg: dict) -> pd.DataFrame:
         )
 
     df["_cnpj_norm"] = df[colunas["cnpj"]].map(normalize_cnpj)
-    df["_ean_norm"] = df[colunas["ean"]].astype(str).str.strip().str.lstrip("'")
+    df["_ean_norm"] = df[colunas["ean"]].map(normalize_ean)
     df["_tabela_norm"] = df[colunas["tabela_negociacao"]].map(normalize_text)
     df["_data_pedido"] = to_datetime(df[colunas["data_pedido"]])
     df["_faturado_liquido"] = to_numeric(df[colunas["faturado_liquido"]])
@@ -113,9 +114,26 @@ def aplicar_procx_cnpj(df_matriz: pd.DataFrame, df_controle: pd.DataFrame) -> pd
     )
 
 
-def calcular_check(df: pd.DataFrame) -> pd.Series:
+def calcular_check(df: pd.DataFrame, matriz_cfg: dict) -> pd.Series:
+    """Check = OK só quando o CNPJ existe no controle E o pedido foi feito
+    dentro do período real da feira (inicio_real a termino_real, comparando
+    só a data — sem o horário). Fora do período (mesmo com CNPJ cadastrado)
+    conta como Erro Operacional.
+    """
     encontrado = df["_encontrado_no_controle"] == "both"
-    return pd.Series(CHECK_OK, index=df.index).mask(~encontrado, CHECK_ERRO)
+
+    colunas_trazidas = matriz_cfg["colunas_trazidas"]
+    tem_periodo = "inicio_real" in colunas_trazidas and "termino_real" in colunas_trazidas
+    if tem_periodo:
+        data_pedido = df["_data_pedido"].dt.normalize()
+        inicio = df["inicio_real"].dt.normalize()
+        termino = df["termino_real"].dt.normalize()
+        dentro_periodo = (data_pedido >= inicio) & (data_pedido <= termino)
+        ok = encontrado & dentro_periodo
+    else:
+        ok = encontrado
+
+    return pd.Series(CHECK_OK, index=df.index).mask(~ok, CHECK_ERRO)
 
 
 def carregar_condicao_comercial(cfg: dict) -> pd.DataFrame:
@@ -136,7 +154,7 @@ def carregar_condicao_comercial(cfg: dict) -> pd.DataFrame:
             "Ajuste condicao_comercial.colunas no config.yaml."
         )
 
-    df["_ean_norm"] = df[col_ean].astype(str).str.strip().str.lstrip("'")
+    df["_ean_norm"] = df[col_ean].map(normalize_ean)
     df["_desconto_correto_pct"] = to_numeric(df[col_desconto])
 
     # a coluna vem formatada como % no Excel (célula guarda 0.2398, exibe
@@ -199,7 +217,7 @@ def rodar_matriz(nome_matriz: str, matriz_cfg: dict, df_base: pd.DataFrame, cfg:
     df_controle = carregar_controle(matriz_cfg)
     df_merge = aplicar_procx_cnpj(df_filtrado, df_controle)
 
-    df_merge["Check"] = calcular_check(df_merge)
+    df_merge["Check"] = calcular_check(df_merge, matriz_cfg)
     print(df_merge["Check"].value_counts(dropna=False).to_string())
 
     df_condicao = carregar_condicao_comercial(cfg)

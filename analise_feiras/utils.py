@@ -112,10 +112,23 @@ def normalize_text(valor) -> str:
 
 
 def normalize_cnpj(valor) -> str:
-    """Mantém só os dígitos do CNPJ, para casar bases com/sem máscara."""
+    """Mantém só os dígitos do CNPJ e preenche com zero à esquerda até 14
+    dígitos (equivalente a =TEXTO(CNPJ;"00000000000000") do Excel) — o Excel
+    costuma perder o zero à esquerda de CNPJ guardado como número.
+    """
     if valor is None or (isinstance(valor, float) and pd.isna(valor)):
         return ""
-    return re.sub(r"\D", "", str(valor))
+    digitos = re.sub(r"\D", "", str(valor))
+    return digitos.zfill(14) if digitos else ""
+
+
+def normalize_ean(valor) -> str:
+    """Remove aspas simples (marcador de "número como texto" do Excel/CSV,
+    que pode vir só no início ou nas duas pontas) e espaços nas pontas.
+    """
+    if valor is None or (isinstance(valor, float) and pd.isna(valor)):
+        return ""
+    return str(valor).strip().strip("'")
 
 
 def to_datetime(series: pd.Series) -> pd.Series:
