@@ -46,18 +46,20 @@ nessa pasta. Estrutura esperada:
 ```
 Analise Painel\
 ├── dados\
-│   ├── planilha_base_vendas_*.xlsx  (um ou vários arquivos com esse prefixo —
-│   │                                  o script lê e junta todos automaticamente)
-│   ├── Controle_Feiras.xlsx         (aba "dados")
-│   ├── Controle_Campanhas.xlsx      (aba "dados", se for usar a matriz Campanha)
-│   └── Condicao_comercial.xlsx      (aba "dados")
-└── saida\                           (criada automaticamente pelo script)
+│   ├── planilha_base_vendas_*.csv  (um ou vários arquivos com esse prefixo —
+│   │                                 o script lê e junta todos automaticamente)
+│   ├── Controle_Feiras.xlsx        (aba "dados")
+│   ├── Controle_Campanhas.xlsx     (aba "dados", se for usar a matriz Campanha)
+│   └── Condicao_comercial.xlsx     (aba "dados")
+└── saida\                          (criada automaticamente pelo script)
 ```
 
 A base pode estar dividida em vários arquivos (ex.: um por mês/exportação),
 desde que todos comecem com `planilha_base_vendas_`. O `pipeline.py` lê e
 empilha automaticamente todos os arquivos que baterem com esse padrão — não
-precisa juntar manualmente antes.
+precisa juntar manualmente antes. Cada CSV tem separador (`;` ou `,`) e
+encoding (utf-8/latin1/cp1252) detectados automaticamente, arquivo por
+arquivo — não precisa que todos estejam salvos do mesmo jeito.
 
 ```bash
 pip install -r requirements.txt

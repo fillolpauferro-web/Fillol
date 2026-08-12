@@ -10,10 +10,38 @@ from pathlib import Path
 import pandas as pd
 
 
+_ENCODINGS_CANDIDATAS = ("utf-8-sig", "utf-8", "cp1252", "latin1")
+
+
+def _detectar_encoding(caminho: Path) -> str:
+    """Tenta abrir o arquivo com cada encoding até uma que não quebre.
+    latin1 nunca falha, então sempre sobra alguma opção no fim da lista.
+    """
+    for encoding in _ENCODINGS_CANDIDATAS:
+        try:
+            with open(caminho, "r", encoding=encoding) as f:
+                f.readline()
+            return encoding
+        except UnicodeDecodeError:
+            continue
+    return "latin1"
+
+
+def _detectar_separador(caminho: Path, encoding: str) -> str:
+    """CSV exportado de Excel em português normalmente usa ';' (porque ','
+    é o separador decimal); CSV "internacional" usa ','. Decide pela
+    primeira linha do arquivo.
+    """
+    with open(caminho, "r", encoding=encoding, errors="replace") as f:
+        primeira_linha = f.readline()
+    return ";" if primeira_linha.count(";") > primeira_linha.count(",") else ","
+
+
 def read_table(caminho: str | Path, aba: str | None = None) -> pd.DataFrame:
     """Lê .xlsx/.xls/.csv de forma transparente.
 
     `aba=None` usa a primeira aba (comportamento padrão do pandas para Excel).
+    Para CSV/TSV, detecta automaticamente encoding e separador (';' ou ',').
     """
     caminho = Path(caminho)
     if not caminho.exists():
@@ -22,8 +50,11 @@ def read_table(caminho: str | Path, aba: str | None = None) -> pd.DataFrame:
         )
 
     if caminho.suffix.lower() in (".csv", ".tsv"):
-        sep = "\t" if caminho.suffix.lower() == ".tsv" else ","
-        return pd.read_csv(caminho, sep=sep, dtype=str, keep_default_na=False, na_values=[""])
+        encoding = _detectar_encoding(caminho)
+        sep = "\t" if caminho.suffix.lower() == ".tsv" else _detectar_separador(caminho, encoding)
+        return pd.read_csv(
+            caminho, sep=sep, dtype=str, keep_default_na=False, na_values=[""], encoding=encoding
+        )
 
     return pd.read_excel(caminho, sheet_name=aba or 0, dtype=str)
 

@@ -18,9 +18,10 @@ base:
   # Arquivo(s) com a base grande de pedidos (exportação do ERP), com colunas
   # Tipo de cliente, CNPJ, Id pedido, EAN, Tabela de negociação...
   # Use * para juntar automaticamente vários arquivos que começam com o
-  # mesmo prefixo (ex.: planilha_base_vendas_jan.xlsx, _fev.xlsx, ...).
+  # mesmo prefixo (ex.: planilha_base_vendas_jan.csv, _fev.csv, ...).
   # Todos são lidos e empilhados num único DataFrame antes da análise.
-  arquivo: "C:/Users/I0507867.FARMA/OneDrive - Sanofi/Desktop/Analise Painel/dados/planilha_base_vendas_*.xlsx"
+  # Separador (';' ou ',') e encoding são detectados automaticamente.
+  arquivo: "C:/Users/I0507867.FARMA/OneDrive - Sanofi/Desktop/Analise Painel/dados/planilha_base_vendas_*.csv"
   aba: null # null = primeira aba da planilha; ou informe o nome exato da aba
   colunas:
     tabela_negociacao: "Tabela de negociação"
