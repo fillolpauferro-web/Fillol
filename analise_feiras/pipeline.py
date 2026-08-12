@@ -26,7 +26,7 @@ from pathlib import Path
 import pandas as pd
 import yaml
 
-from utils import normalize_cnpj, normalize_text, read_table, to_datetime, to_numeric
+from utils import normalize_cnpj, normalize_text, read_table, read_table_or_glob, to_datetime, to_numeric
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -43,7 +43,7 @@ def carregar_config(caminho: str | Path) -> dict:
 
 def carregar_base(cfg: dict) -> pd.DataFrame:
     caminho = BASE_DIR / cfg["base"]["arquivo"]
-    df = read_table(caminho, cfg["base"].get("aba"))
+    df = read_table_or_glob(caminho, cfg["base"].get("aba"))
 
     colunas = cfg["base"]["colunas"]
     faltando = [c for c in colunas.values() if c not in df.columns]

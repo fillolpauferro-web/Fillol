@@ -15,9 +15,12 @@
 # os caminhos deste arquivo (find & replace no editor).
 
 base:
-  # Arquivo com a base grande de pedidos (exportação do ERP), tipo a planilha
-  # com as colunas Tipo de cliente, CNPJ, Id pedido, EAN, Tabela de negociação...
-  arquivo: "C:/Users/I0507867.FARMA/OneDrive - Sanofi/Desktop/Analise Painel/dados/base_pedidos.xlsx"
+  # Arquivo(s) com a base grande de pedidos (exportação do ERP), com colunas
+  # Tipo de cliente, CNPJ, Id pedido, EAN, Tabela de negociação...
+  # Use * para juntar automaticamente vários arquivos que começam com o
+  # mesmo prefixo (ex.: planilha_base_vendas_jan.xlsx, _fev.xlsx, ...).
+  # Todos são lidos e empilhados num único DataFrame antes da análise.
+  arquivo: "C:/Users/I0507867.FARMA/OneDrive - Sanofi/Desktop/Analise Painel/dados/planilha_base_vendas_*.xlsx"
   aba: null # null = primeira aba da planilha; ou informe o nome exato da aba
   colunas:
     tabela_negociacao: "Tabela de negociação"

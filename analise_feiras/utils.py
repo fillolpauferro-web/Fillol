@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import glob
 import re
 import unicodedata
 from pathlib import Path
@@ -25,6 +26,32 @@ def read_table(caminho: str | Path, aba: str | None = None) -> pd.DataFrame:
         return pd.read_csv(caminho, sep=sep, dtype=str, keep_default_na=False, na_values=[""])
 
     return pd.read_excel(caminho, sheet_name=aba or 0, dtype=str)
+
+
+def read_table_or_glob(padrao: str | Path, aba: str | None = None) -> pd.DataFrame:
+    """Lê um arquivo único, ou vários arquivos de uma vez se `padrao` tiver
+    curinga (* ? []) — nesse caso empilha todos num único DataFrame.
+
+    Ex.: "dados/planilha_base_vendas_*.xlsx" lê e junta todos os arquivos
+    que começam com esse prefixo.
+    """
+    padrao_str = str(padrao)
+    if not any(ch in padrao_str for ch in "*?["):
+        return read_table(padrao_str, aba)
+
+    arquivos = sorted(glob.glob(padrao_str))
+    if not arquivos:
+        raise FileNotFoundError(
+            f"Nenhum arquivo encontrado para o padrão: {padrao_str}. "
+            "Verifique o caminho/prefixo no config.yaml."
+        )
+
+    print(f"{len(arquivos)} arquivo(s) encontrado(s) para '{Path(padrao_str).name}':")
+    for arq in arquivos:
+        print(f"  - {Path(arq).name}")
+
+    partes = [read_table(arq, aba) for arq in arquivos]
+    return pd.concat(partes, ignore_index=True)
 
 
 def normalize_text(valor) -> str:
