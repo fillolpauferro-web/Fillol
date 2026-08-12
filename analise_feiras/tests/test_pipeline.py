@@ -6,7 +6,7 @@ import pandas as pd
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from pipeline import CHECK_ERRO, CHECK_OK, carregar_base, rodar_matriz  # noqa: E402
-from utils import to_numeric  # noqa: E402
+from utils import to_datetime, to_numeric  # noqa: E402
 
 
 def test_to_numeric_aceita_formato_brasileiro_e_internacional():
@@ -22,6 +22,18 @@ def test_to_numeric_aceita_formato_brasileiro_e_internacional():
     )
     resultado = to_numeric(casos).tolist()
     assert resultado == [56.87, 1234.56, 0.3, 1234.56, 300.0, 42.5]
+
+
+def test_to_datetime_aceita_data_muito_no_futuro():
+    # "31/12/9999" (ou similar) é usado como marcador de "sem prazo definido"
+    # em algumas planilhas de controle; datetime64[ns] estoura em ~2262, então
+    # isso não pode quebrar o parsing das outras datas da mesma coluna.
+    casos = pd.Series(["05/05/2026", "31/12/9999", "2026-05-10 09:00:00", None])
+    resultado = to_datetime(casos)
+    assert resultado.iloc[0] == pd.Timestamp("2026-05-05")
+    assert resultado.iloc[1] == pd.Timestamp("9999-12-31")
+    assert resultado.iloc[2] == pd.Timestamp("2026-05-10 09:00:00")
+    assert pd.isna(resultado.iloc[3])
 
 
 def _montar_config(tmp_path: Path) -> dict:

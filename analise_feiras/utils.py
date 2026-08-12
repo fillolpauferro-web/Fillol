@@ -125,17 +125,27 @@ def to_datetime(series: pd.Series) -> pd.Series:
     Usar dayfirst=True direto com format="mixed" faz o pandas inverter dia/mês
     também em timestamps ISO (bug observado: "2026-05-10" virava 10/10 em vez
     de 10/05), então cada formato é tratado separadamente.
+
+    As duas partes são combinadas com pd.concat (não com atribuição num
+    Series datetime64[ns] pré-criado) porque forçar dtype "ns" de antemão
+    estoura (OutOfBoundsDatetime) em datas tipo "31/12/9999" usadas como
+    "sem prazo definido" — o pandas sabe lidar com essas datas usando uma
+    resolução mais larga (us/s), só não quando o dtype de destino já está
+    travado em nanossegundos.
     """
     texto = series.astype(str).str.strip()
-    resultado = pd.Series(pd.NaT, index=series.index, dtype="datetime64[ns]")
-
     eh_iso = texto.str.match(r"^\d{4}-\d{2}-\d{2}")
-    if eh_iso.any():
-        resultado.loc[eh_iso] = pd.to_datetime(texto.loc[eh_iso], errors="coerce")
-    if (~eh_iso).any():
-        resultado.loc[~eh_iso] = pd.to_datetime(texto.loc[~eh_iso], errors="coerce", dayfirst=True)
 
-    return resultado
+    partes = []
+    if eh_iso.any():
+        partes.append(pd.to_datetime(texto[eh_iso], errors="coerce"))
+    if (~eh_iso).any():
+        partes.append(pd.to_datetime(texto[~eh_iso], errors="coerce", dayfirst=True))
+
+    if not partes:
+        return pd.Series(pd.NaT, index=series.index, dtype="datetime64[ns]")
+
+    return pd.concat(partes).reindex(series.index)
 
 
 def to_numeric(series: pd.Series) -> pd.Series:
