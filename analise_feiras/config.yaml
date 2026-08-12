@@ -1,0 +1,65 @@
+# =============================================================================
+# Configuração da análise recorrente de matrizes (Feira, Campanha, etc.)
+#
+# Este arquivo é o único lugar que você precisa editar toda vez que for rodar
+# a análise: ligue/desligue matrizes em "ativo", aponte os caminhos dos
+# arquivos e ajuste os nomes de coluna se a planilha de origem mudar.
+# Não é preciso mexer no pipeline.py para isso.
+# =============================================================================
+
+base:
+  # Arquivo com a base grande de pedidos (exportação do ERP), tipo a planilha
+  # com as colunas Tipo de cliente, CNPJ, Id pedido, EAN, Tabela de negociação...
+  arquivo: "dados/base_pedidos.xlsx"
+  aba: null # null = primeira aba da planilha; ou informe o nome exato da aba
+  colunas:
+    tabela_negociacao: "Tabela de negociação"
+    cnpj: "CNPJ"
+    ean: "EAN"
+    id_pedido: "Id pedido"
+    data_pedido: "Data do pedido (original)"
+    faturado_liquido: "Faturado líquido (R$)"
+    desconto_aplicado_pct: "Desconto comercial faturado (%)"
+
+# Arquivo usado no passo 4 (achar o desconto que deveria ter sido aplicado
+# quando um pedido é identificado como erro operacional).
+condicao_comercial:
+  arquivo: "dados/Condicao_comercial.xlsx"
+  aba: "dados"
+  # colunas usadas para casar (tipo PROCX) a base com a condição comercial correta
+  chave: ["cnpj", "ean"] # nomes lógicos definidos em base.colunas acima
+  colunas:
+    chave_cnpj: "CNPJ"
+    chave_ean: "EAN"
+    desconto_correto_pct: "Desconto (%)"
+
+# Cada item da lista abaixo é uma "matriz" de análise: um recorte da coluna
+# "Tabela de negociação" (ex.: Feira, Campanha) cruzado com o respectivo
+# arquivo de controle de vigência. Adicione quantas quiser; marque
+# ativo: false para pular sem apagar a configuração.
+matrizes:
+  - nome: "Feira"
+    ativo: true
+    palavra_chave: "FEIRA" # texto buscado em Tabela de negociação (sem acento/maiúsculas)
+    arquivo_controle: "dados/Controle_Feiras.xlsx"
+    aba_controle: "dados"
+    # coluna do arquivo de controle usada para casar (PROCX) com a base
+    chave_controle: "Tabela de negociação"
+    colunas_trazidas:
+      feira: "Feira"
+      data_inicial: "Data inicial"
+      vigencia: "Vigência"
+
+  - nome: "Campanha"
+    ativo: false
+    palavra_chave: "CAMPANHA"
+    arquivo_controle: "dados/Controle_Campanhas.xlsx"
+    aba_controle: "dados"
+    chave_controle: "Tabela de negociação"
+    colunas_trazidas:
+      feira: "Campanha"
+      data_inicial: "Data inicial"
+      vigencia: "Vigência"
+
+saida:
+  pasta: "saida"
