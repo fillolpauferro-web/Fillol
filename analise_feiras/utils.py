@@ -119,7 +119,23 @@ def normalize_cnpj(valor) -> str:
 
 
 def to_datetime(series: pd.Series) -> pd.Series:
-    return pd.to_datetime(series, errors="coerce", dayfirst=True)
+    """Converte para data aceitando formatos mistos: aaaa-mm-dd (ISO, sem
+    ambiguidade) e dd/mm/aaaa (padrão BR, dayfirst=True).
+
+    Usar dayfirst=True direto com format="mixed" faz o pandas inverter dia/mês
+    também em timestamps ISO (bug observado: "2026-05-10" virava 10/10 em vez
+    de 10/05), então cada formato é tratado separadamente.
+    """
+    texto = series.astype(str).str.strip()
+    resultado = pd.Series(pd.NaT, index=series.index, dtype="datetime64[ns]")
+
+    eh_iso = texto.str.match(r"^\d{4}-\d{2}-\d{2}")
+    if eh_iso.any():
+        resultado.loc[eh_iso] = pd.to_datetime(texto.loc[eh_iso], errors="coerce")
+    if (~eh_iso).any():
+        resultado.loc[~eh_iso] = pd.to_datetime(texto.loc[~eh_iso], errors="coerce", dayfirst=True)
+
+    return resultado
 
 
 def to_numeric(series: pd.Series) -> pd.Series:

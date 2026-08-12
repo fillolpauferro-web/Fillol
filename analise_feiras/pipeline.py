@@ -8,9 +8,10 @@ Passos (para cada matriz ativa no config.yaml):
   3. Se o CNPJ existe no controle: marca "Check" = OK e traz as datas reais
      (Início Real / Término Real) em que a feira aconteceu.
      Se não existe: marca "Check" = "Erro Operacional".
-  4. Para os pedidos com erro operacional, cruza com Condicao_comercial para
-     achar o desconto correto, calcula o preço sem desconto e o preço
-     líquido que deveria ter sido faturado.
+  4. Para os pedidos com erro operacional, cruza com Condicao_comercial (por
+     EAN — o desconto correto é por produto, não depende do CNPJ) para achar
+     o desconto correto, calcula o preço sem desconto e o preço líquido que
+     deveria ter sido faturado.
   5. Salva tudo num único arquivo de saída por matriz.
 
 Uso:
@@ -118,32 +119,31 @@ def calcular_check(df: pd.DataFrame) -> pd.Series:
 
 
 def carregar_condicao_comercial(cfg: dict) -> pd.DataFrame:
+    """Condicao_comercial traz o desconto correto por produto (EAN) — não
+    depende do CNPJ do cliente.
+    """
     cc_cfg = cfg["condicao_comercial"]
     caminho = BASE_DIR / cc_cfg["arquivo"]
     df = read_table(caminho, cc_cfg.get("aba"))
 
-    col_cnpj = cc_cfg["colunas"]["chave_cnpj"]
     col_ean = cc_cfg["colunas"]["chave_ean"]
     col_desconto = cc_cfg["colunas"]["desconto_correto_pct"]
 
-    faltando = [c for c in (col_cnpj, col_ean, col_desconto) if c not in df.columns]
+    faltando = [c for c in (col_ean, col_desconto) if c not in df.columns]
     if faltando:
         raise KeyError(
             f"Colunas ausentes em Condicao_comercial ({caminho.name}): {faltando}. "
             "Ajuste condicao_comercial.colunas no config.yaml."
         )
 
-    df["_cnpj_norm"] = df[col_cnpj].map(normalize_cnpj)
     df["_ean_norm"] = df[col_ean].astype(str).str.strip()
     df["_desconto_correto_pct"] = to_numeric(df[col_desconto])
 
-    return df[["_cnpj_norm", "_ean_norm", "_desconto_correto_pct"]].drop_duplicates(
-        subset=["_cnpj_norm", "_ean_norm"], keep="first"
-    )
+    return df[["_ean_norm", "_desconto_correto_pct"]].drop_duplicates(subset="_ean_norm", keep="first")
 
 
 def aplicar_condicao_correta(df: pd.DataFrame, df_condicao: pd.DataFrame) -> pd.DataFrame:
-    df = df.merge(df_condicao, how="left", on=["_cnpj_norm", "_ean_norm"])
+    df = df.merge(df_condicao, how="left", on="_ean_norm")
 
     # preço sem desconto = líquido faturado / (1 - desconto aplicado)
     fator_aplicado = 1 - (df["_desconto_aplicado_pct"] / 100)

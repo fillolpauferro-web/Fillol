@@ -24,12 +24,11 @@ def _montar_config(tmp_path: Path) -> dict:
             },
         },
         "condicao_comercial": {
-            "arquivo": "Condicao_comercial.xlsx",
-            "aba": "dados",
+            "arquivo": "condicao_comercial.xlsx",
+            "aba": "Dados",
             "colunas": {
-                "chave_cnpj": "CNPJ",
-                "chave_ean": "EAN",
-                "desconto_correto_pct": "Desconto (%)",
+                "chave_ean": "EAN FORMATADO",
+                "desconto_correto_pct": "Desconto Atual",
             },
         },
         "matrizes": [
@@ -39,7 +38,7 @@ def _montar_config(tmp_path: Path) -> dict:
                 "palavra_chave": "FEIRA",
                 "arquivo_controle": "Controle_Feiras.xlsx",
                 "aba_controle": "dados",
-                "chave_controle": "CNPJ Ajustado",
+                "chave_controle": "CNPJ AJUSTADO",
                 "colunas_trazidas": {
                     "inicio_real": "Início Real",
                     "termino_real": "Término Real",
@@ -52,9 +51,10 @@ def _montar_config(tmp_path: Path) -> dict:
 
 
 def test_pipeline_end_to_end(tmp_path: Path):
-    # pedido 1: CNPJ está no CNPJ Ajustado do controle -> OK
-    # pedido 2: CNPJ não está cadastrado no controle -> Erro Operacional,
-    #           com condição comercial correta cadastrada para recalcular o preço
+    # pedido 1: CNPJ está no CNPJ AJUSTADO do controle -> OK
+    # pedido 2: CNPJ não cadastrado no controle -> Erro Operacional,
+    #           desconto correto vem de condicao_comercial por EAN
+    # pedido 3: fora da matriz Feira (Tabela de negociação não é feira)
     base_df = pd.DataFrame(
         {
             "Tipo de cliente": ["ASSOCIATIVISMO", "ASSOCIATIVISMO", "REDE INDIRETA"],
@@ -70,7 +70,7 @@ def test_pipeline_end_to_end(tmp_path: Path):
 
     controle_df = pd.DataFrame(
         {
-            "CNPJ Ajustado": ["01.672.858/0001-65"],
+            "CNPJ AJUSTADO": ["01.672.858/0001-65"],
             "Início Real": ["01/05/2026"],
             "Término Real": ["31/05/2026"],
         }
@@ -78,9 +78,8 @@ def test_pipeline_end_to_end(tmp_path: Path):
 
     condicao_df = pd.DataFrame(
         {
-            "CNPJ": ["06.052.566/0001-43"],
-            "EAN": ["7896422511865"],
-            "Desconto (%)": ["30"],
+            "EAN FORMATADO": ["7896422511865"],
+            "Desconto Atual": ["30"],
         }
     )
 
@@ -88,8 +87,8 @@ def test_pipeline_end_to_end(tmp_path: Path):
     base_df.to_excel(tmp_path / "base_pedidos.xlsx", index=False)
     with pd.ExcelWriter(tmp_path / "Controle_Feiras.xlsx") as w:
         controle_df.to_excel(w, sheet_name="dados", index=False)
-    with pd.ExcelWriter(tmp_path / "Condicao_comercial.xlsx") as w:
-        condicao_df.to_excel(w, sheet_name="dados", index=False)
+    with pd.ExcelWriter(tmp_path / "condicao_comercial.xlsx") as w:
+        condicao_df.to_excel(w, sheet_name="Dados", index=False)
 
     cfg = _montar_config(tmp_path)
     import pipeline
@@ -97,7 +96,7 @@ def test_pipeline_end_to_end(tmp_path: Path):
     pipeline.BASE_DIR = tmp_path
 
     df_base = carregar_base(cfg)
-    assert len(df_base) == 3  # a linha REDE INDIRETA existe na base mas não é da matriz Feira
+    assert len(df_base) == 3
 
     resultado = rodar_matriz("Feira", cfg["matrizes"][0], df_base, cfg)
     assert resultado is not None

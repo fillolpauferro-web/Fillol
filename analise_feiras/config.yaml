@@ -28,21 +28,20 @@ base:
     cnpj: "CNPJ"
     ean: "EAN"
     id_pedido: "Id pedido"
+    tipo_cliente: "Tipo de cliente"
     data_pedido: "Data do pedido (original)"
     faturado_liquido: "Faturado líquido (R$)"
     desconto_aplicado_pct: "Desconto comercial faturado (%)"
 
 # Arquivo usado no passo 4 (achar o desconto que deveria ter sido aplicado
-# quando um pedido é identificado como erro operacional).
+# quando um pedido é identificado como erro operacional). O desconto correto
+# é por produto (EAN) — não depende do CNPJ do cliente.
 condicao_comercial:
-  arquivo: "C:/Users/I0507867.FARMA/OneDrive - Sanofi/Desktop/Analise Painel/dados/Condicao_comercial.xlsx"
-  aba: "dados"
-  # colunas usadas para casar (tipo PROCX) a base com a condição comercial correta
-  chave: ["cnpj", "ean"] # nomes lógicos definidos em base.colunas acima
+  arquivo: "C:/Users/I0507867.FARMA/OneDrive - Sanofi/Desktop/Analise Painel/dados/condicao_comercial.xlsx"
+  aba: "Dados"
   colunas:
-    chave_cnpj: "CNPJ"
-    chave_ean: "EAN"
-    desconto_correto_pct: "Desconto (%)"
+    chave_ean: "EAN FORMATADO"
+    desconto_correto_pct: "Desconto Atual"
 
 # Cada item da lista abaixo é uma "matriz" de análise: um recorte da coluna
 # "Tabela de negociação" (ex.: Feira, Campanha) cruzado com o respectivo
