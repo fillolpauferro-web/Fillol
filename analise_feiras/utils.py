@@ -56,7 +56,22 @@ def read_table(caminho: str | Path, aba: str | None = None) -> pd.DataFrame:
             caminho, sep=sep, dtype=str, keep_default_na=False, na_values=[""], encoding=encoding
         )
 
-    return pd.read_excel(caminho, sheet_name=aba or 0, dtype=str)
+    aba_real = _resolver_aba(caminho, aba) if aba else 0
+    return pd.read_excel(caminho, sheet_name=aba_real, dtype=str)
+
+
+def _resolver_aba(caminho: Path, aba: str) -> str:
+    """Acha o nome exato da aba ignorando maiúsculas/minúsculas e espaços
+    nas pontas (ex.: config.yaml pede "dados" mas a planilha tem "DADOS").
+    """
+    nomes_abas = pd.ExcelFile(caminho).sheet_names
+    aba_normalizada = aba.strip().lower()
+    for nome in nomes_abas:
+        if nome.strip().lower() == aba_normalizada:
+            return nome
+    raise ValueError(
+        f"Aba '{aba}' não encontrada em {caminho.name}. Abas disponíveis: {nomes_abas}"
+    )
 
 
 def read_table_or_glob(padrao: str | Path, aba: str | None = None) -> pd.DataFrame:
