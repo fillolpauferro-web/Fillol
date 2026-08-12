@@ -197,7 +197,7 @@ def rodar_matriz(nome_matriz: str, matriz_cfg: dict, df_base: pd.DataFrame, cfg:
     df_filtrado.drop(columns=[c for c in df_filtrado.columns if c.startswith("_")]).to_excel(
         caminho_filtrado, index=False
     )
-    print(f"Recorte limpo salvo em {caminho_filtrado.relative_to(BASE_DIR)}")
+    print(f"Recorte limpo salvo em {caminho_filtrado}")
 
     df_controle = carregar_controle(matriz_cfg)
     df_merge = aplicar_procx_vigencia(df_filtrado, df_controle)
@@ -211,7 +211,7 @@ def rodar_matriz(nome_matriz: str, matriz_cfg: dict, df_base: pd.DataFrame, cfg:
     df_saida = montar_saida(df_final, cfg)
     caminho_final = pasta_saida / f"{nome_matriz}_analise.xlsx"
     df_saida.to_excel(caminho_final, index=False)
-    print(f"Análise completa salva em {caminho_final.relative_to(BASE_DIR)}")
+    print(f"Análise completa salva em {caminho_final}")
 
     impacto = df_saida["diferenca_faturamento"].sum(skipna=True)
     print(f"Impacto financeiro total dos erros operacionais: R$ {impacto:,.2f}")
