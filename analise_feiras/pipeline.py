@@ -420,7 +420,15 @@ def main() -> None:
     print(f"Base carregada: {len(df_base)} linhas.")
 
     for matriz_cfg in matrizes_a_rodar:
-        rodar_matriz(matriz_cfg["nome"], matriz_cfg, df_base, cfg)
+        try:
+            rodar_matriz(matriz_cfg["nome"], matriz_cfg, df_base, cfg)
+        except Exception as e:
+            # um erro numa matriz (ex.: coluna ausente por causa de outra
+            # planilha) não pode impedir as demais de rodar e salvar seu
+            # resultado — sem isso, uma matriz travada escondia até o
+            # arquivo mais recente da matriz seguinte da lista.
+            print(f"\n!!! Erro ao rodar a matriz '{matriz_cfg['nome']}': {e}")
+            print("Seguindo para a próxima matriz...\n")
 
 
 if __name__ == "__main__":

@@ -3,6 +3,7 @@ import sys
 from pathlib import Path
 
 import pandas as pd
+import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
@@ -405,3 +406,91 @@ def test_matriz_tipo_consolidacao_bandeira(tmp_path: Path):
 
     assert (tmp_path / "saida" / "historico_bandeiras.xlsx").exists()
     assert not (tmp_path / "saida" / "Bandeira_analise.xlsx").exists()
+
+
+def test_main_continua_apos_erro_em_uma_matriz(tmp_path: Path, monkeypatch):
+    # Uma matriz mal configurada (arquivo de controle inexistente) não pode
+    # travar o resto: a matriz seguinte da lista ainda precisa rodar e
+    # salvar seu resultado.
+    base_df = pd.DataFrame(
+        {
+            "Tipo de cliente": ["ASSOCIATIVISMO", "ASSOCIATIVISMO"],
+            "CNPJ": ["11.111.111/0001-11", "22.222.222/0001-22"],
+            "Id pedido": ["1", "2"],
+            "EAN": ["1111111111111", "2222222222222"],
+            "Tabela de negociação": ["FEIRA NEGOCIOS CA", "DEFAULT GENERICO CA"],
+            "Data do pedido (original)": ["10/05/2026 10:00", "11/05/2026 10:00"],
+            "Faturado líquido (R$)": ["27,3", "40,0"],
+            "Desconto comercial faturado (%)": ["56,87", "20"],
+        }
+    )
+    painel_bandeira_df = pd.DataFrame(
+        {
+            "CNPJ Ajustado": ["11.111.111/0001-11"],
+            "desc_bandeira": ["REDE A"],
+        }
+    )
+
+    (tmp_path / "saida").mkdir()
+    base_df.to_excel(tmp_path / "base_pedidos.xlsx", index=False)
+    with pd.ExcelWriter(tmp_path / "Painel_Bandeira_2026.xlsx") as w:
+        painel_bandeira_df.to_excel(w, sheet_name="Dados", index=False)
+
+    cfg = {
+        "base": {
+            "arquivo": "base_pedidos.xlsx",
+            "aba": None,
+            "colunas": {
+                "tabela_negociacao": "Tabela de negociação",
+                "cnpj": "CNPJ",
+                "ean": "EAN",
+                "id_pedido": "Id pedido",
+                "data_pedido": "Data do pedido (original)",
+                "faturado_liquido": "Faturado líquido (R$)",
+                "desconto_aplicado_pct": "Desconto comercial faturado (%)",
+            },
+        },
+        "condicao_comercial": {
+            "arquivo": "condicao_comercial.xlsx",
+            "aba": "Dados",
+            "colunas": {"chave_ean": "EAN FORMATADO", "desconto_correto_pct": "Desconto Atual"},
+            "desconto_em_fracao": True,
+        },
+        "matrizes": [
+            {
+                "nome": "Quebrada",
+                "tipo": "tabela",
+                "ativo": True,
+                "palavra_chave": "FEIRA",
+                "arquivo_controle": "nao_existe.xlsx",
+                "aba_controle": None,
+                "chave_controle": "CNPJ",
+                "colunas_trazidas": {},
+                "colunas_data": [],
+            },
+            {
+                "nome": "Bandeira",
+                "tipo": "consolidacao",
+                "ativo": True,
+                "arquivo_controle": "Painel_Bandeira_*.xlsx",
+                "aba_controle": "Dados",
+                "chave_controle": "CNPJ Ajustado",
+                "colunas_trazidas": {"bandeira": "desc_bandeira"},
+                "colunas_data": [],
+                "nome_arquivo_saida": "historico_bandeiras.xlsx",
+            },
+        ],
+        "saida": {"pasta": "saida"},
+    }
+
+    config_path = tmp_path / "config.yaml"
+    config_path.write_text(yaml.dump(cfg), encoding="utf-8")
+
+    import pipeline
+
+    pipeline.BASE_DIR = tmp_path
+    monkeypatch.setattr(sys, "argv", ["pipeline.py", "--config", str(config_path), "--todas"])
+
+    pipeline.main()
+
+    assert (tmp_path / "saida" / "historico_bandeiras.xlsx").exists()
