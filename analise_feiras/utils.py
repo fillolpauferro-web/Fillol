@@ -146,6 +146,18 @@ def normalize_cnpj(valor) -> str:
     return digitos.zfill(14) if digitos else ""
 
 
+def normalize_cnpj_raiz(valor) -> str:
+    """Mantém só os dígitos e preenche com zero à esquerda até 8 dígitos —
+    a raiz do CNPJ (os 8 primeiros dígitos, sem filial/dígitos verificadores).
+    Não reaproveita normalize_cnpj porque ali o preenchimento é até 14
+    dígitos (CNPJ completo), não 8.
+    """
+    if valor is None or (isinstance(valor, float) and pd.isna(valor)):
+        return ""
+    digitos = re.sub(r"\D", "", str(valor))
+    return digitos.zfill(8) if digitos else ""
+
+
 def normalize_ean(valor) -> str:
     """Remove aspas simples (marcador de "número como texto" do Excel/CSV,
     que pode vir só no início ou nas duas pontas) e espaços nas pontas.

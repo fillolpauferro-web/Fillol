@@ -27,8 +27,13 @@ define como a base é filtrada e o que sai no resultado:
   tipo: "consolidacao" (ex.: Bandeira) — sem Check e sem cruzamento de
   desconto: só filtra a base pelos CNPJs do arquivo de controle (ex.:
   Painel_Bandeira) e consolida essas vendas num único arquivo, trazendo as
-  colunas configuradas em colunas_trazidas (ex.: Bandeira) pra permitir
-  agrupar/analisar depois.
+  colunas configuradas em colunas_trazidas (ex.: Bandeira). Se a matriz
+  também tiver "regra" configurado, roda uma segunda camada reaproveitando
+  esse histórico em memória: cruza cada venda com o Rotulo esperado no
+  arquivo de regra (por Raiz CNPJ — os 8 primeiros dígitos do CNPJ), marca
+  Check = OK só quando a Tabela de negociação bate com esse Rotulo, e faz o
+  mesmo cálculo de desconto/preço dos tipos "tabela"/"cnpj" pros erros — o
+  resultado sai num segundo arquivo (regra.nome_arquivo_saida).
 
   Um arquivo de saída é salvo por matriz (nome_arquivo_saida no config, ou
   "{nome}_analise.xlsx" por padrão).
@@ -51,6 +56,7 @@ import yaml
 
 from utils import (
     normalize_cnpj,
+    normalize_cnpj_raiz,
     normalize_ean,
     normalize_text,
     read_table,
@@ -240,8 +246,14 @@ def carregar_condicao_comercial(cfg: dict) -> pd.DataFrame:
 
 def aplicar_condicao_correta(df: pd.DataFrame, df_condicao: pd.DataFrame, matriz_cfg: dict) -> pd.DataFrame:
     if "_tabela_condicao_norm" in df_condicao.columns:
-        palavra = normalize_text(matriz_cfg["palavra_chave"])
-        df_condicao = df_condicao[df_condicao["_tabela_condicao_norm"].str.contains(palavra, na=False)]
+        # matrizes sem uma única palavra_chave fixa (ex.: Bandeira, onde a
+        # tabela "correta" varia por linha via regra) não conseguem filtrar
+        # a condição comercial por Tabela aqui — cai pra manter só a
+        # primeira condição cadastrada por EAN, em vez de quebrar.
+        palavra = matriz_cfg.get("palavra_chave")
+        if palavra:
+            palavra_norm = normalize_text(palavra)
+            df_condicao = df_condicao[df_condicao["_tabela_condicao_norm"].str.contains(palavra_norm, na=False)]
         df_condicao = df_condicao[["_ean_norm", "_desconto_correto_pct"]].drop_duplicates(
             subset="_ean_norm", keep="first"
         )
@@ -298,6 +310,76 @@ def montar_saida_consolidacao(df: pd.DataFrame, cfg: dict, matriz_cfg: dict) -> 
     return df[colunas_base_originais + colunas_novas].copy()
 
 
+def carregar_regra(matriz_cfg: dict) -> pd.DataFrame | None:
+    """Segunda camada de análise da matriz tipo "consolidacao" (ex.:
+    Bandeira): lê o arquivo de regra, que traz o Rotulo (a Tabela de
+    negociação esperada) por Raiz CNPJ — os 8 primeiros dígitos do CNPJ,
+    mais confiável que casar por nome da bandeira (que pode ter grafias
+    diferentes pro mesmo grupo, ex.: "DROGARIA TAMOIO" vs "DROGARIATAMOIO").
+    Retorna None se a matriz não tiver "regra" configurado.
+    """
+    regra_cfg = matriz_cfg.get("regra")
+    if not regra_cfg:
+        return None
+
+    caminho = BASE_DIR / regra_cfg["arquivo"]
+    df = read_table_mais_recente(caminho, regra_cfg.get("aba"))
+
+    col_raiz = regra_cfg["colunas"]["chave_raiz_cnpj"]
+    col_rotulo = regra_cfg["colunas"]["rotulo"]
+    faltando = [c for c in (col_raiz, col_rotulo) if c not in df.columns]
+    if faltando:
+        raise KeyError(
+            f"Colunas ausentes no arquivo de regra ({caminho.name}): {faltando}. "
+            "Ajuste matriz.regra.colunas no config.yaml."
+        )
+
+    df["_raiz_cnpj_norm"] = df[col_raiz].map(normalize_cnpj_raiz)
+    # "GENERICO_D1000" (regra) -> "GENERICO D1000", pra comparar com o texto
+    # real da Tabela de negociação (que usa espaço, não underscore)
+    df["_rotulo_norm"] = df[col_rotulo].map(
+        lambda v: normalize_text(str(v).replace("_", " ")) if not pd.isna(v) else ""
+    )
+
+    return df[["_raiz_cnpj_norm", "_rotulo_norm"]].drop_duplicates(subset="_raiz_cnpj_norm", keep="first")
+
+
+def aplicar_regra_bandeira(df_historico: pd.DataFrame, matriz_cfg: dict, cfg: dict) -> pd.DataFrame:
+    """A partir do histórico já consolidado (ainda em memória, sem re-ler
+    nada), cruza cada venda com o Rotulo esperado no arquivo de regra
+    (por Raiz CNPJ) e marca Check = OK só quando a Tabela de negociação
+    real contém esse Rotulo. Erro Operacional é cruzado com
+    Condicao_comercial pro cálculo de desconto/preço, igual às outras
+    matrizes (Feira, Canal Autorizador).
+    """
+    df = df_historico.copy()
+    df["_raiz_cnpj_norm"] = df["_cnpj_norm"].str[:8]
+
+    df_regra = carregar_regra(matriz_cfg)
+    df = df.merge(df_regra, how="left", on="_raiz_cnpj_norm", indicator="_encontrado_regra")
+
+    encontrado = df["_encontrado_regra"] == "both"
+    bate_tabela = pd.Series(
+        [bool(rot) and rot in tab for rot, tab in zip(df["_rotulo_norm"], df["_tabela_norm"])],
+        index=df.index,
+    )
+    ok = encontrado & bate_tabela
+    df["Check"] = pd.Series(CHECK_OK, index=df.index).mask(~ok, CHECK_ERRO)
+
+    df_condicao = carregar_condicao_comercial(cfg)
+    return aplicar_condicao_correta(df, df_condicao, matriz_cfg)
+
+
+def _salvar_saida(df_saida: pd.DataFrame, pasta_saida: Path, nome_arquivo: str) -> None:
+    caminho_final = pasta_saida / nome_arquivo
+    df_saida.to_excel(caminho_final, index=False)
+    print(f"Resultado salvo em {caminho_final}")
+
+    if "diferenca_faturamento" in df_saida.columns:
+        impacto = df_saida["diferenca_faturamento"].sum(skipna=True)
+        print(f"Impacto financeiro total dos erros operacionais: R$ {impacto:,.2f}")
+
+
 def rodar_matriz(nome_matriz: str, matriz_cfg: dict, df_base: pd.DataFrame, cfg: dict) -> pd.DataFrame | None:
     print(f"\n=== Matriz: {nome_matriz} ===")
     tipo = matriz_cfg.get("tipo", "tabela")
@@ -319,31 +401,38 @@ def rodar_matriz(nome_matriz: str, matriz_cfg: dict, df_base: pd.DataFrame, cfg:
         print(f"{len(df_filtrado)} linhas filtradas em 'Tabela de negociação'.")
 
     df_merge = aplicar_procx_cnpj(df_filtrado, df_controle)
+    pasta_saida = BASE_DIR / cfg["saida"]["pasta"]
+    pasta_saida.mkdir(parents=True, exist_ok=True)
 
     if tipo == "consolidacao":
         # sem Check, sem cruzamento de desconto — só consolida as vendas
         # encontradas com as colunas trazidas do controle (ex.: Bandeira)
         df_saida = montar_saida_consolidacao(df_merge, cfg, matriz_cfg)
-    else:
-        df_merge["Check"] = calcular_check(df_merge, matriz_cfg)
-        print(df_merge["Check"].value_counts(dropna=False).to_string())
+        nome_arquivo = matriz_cfg.get("nome_arquivo_saida") or f"{nome_matriz}_analise.xlsx"
+        _salvar_saida(df_saida, pasta_saida, nome_arquivo)
 
-        df_condicao = carregar_condicao_comercial(cfg)
-        df_final = aplicar_condicao_correta(df_merge, df_condicao, matriz_cfg)
+        if not matriz_cfg.get("regra"):
+            return df_saida
 
-        df_saida = montar_saida(df_final, cfg, matriz_cfg)
+        # segunda camada: cruza o histórico consolidado acima (ainda em
+        # memória) com o arquivo de regra e gera um segundo resultado com
+        # Check + cálculo de desconto/preço, igual Feira/Canal Autorizador
+        df_check = aplicar_regra_bandeira(df_merge, matriz_cfg, cfg)
+        print(df_check["Check"].value_counts(dropna=False).to_string())
+        df_saida_regra = montar_saida(df_check, cfg, matriz_cfg)
+        nome_regra = matriz_cfg["regra"].get("nome_arquivo_saida") or f"{nome_matriz}_Analise.xlsx"
+        _salvar_saida(df_saida_regra, pasta_saida, nome_regra)
+        return df_saida_regra
 
-    pasta_saida = BASE_DIR / cfg["saida"]["pasta"]
-    pasta_saida.mkdir(parents=True, exist_ok=True)
+    df_merge["Check"] = calcular_check(df_merge, matriz_cfg)
+    print(df_merge["Check"].value_counts(dropna=False).to_string())
+
+    df_condicao = carregar_condicao_comercial(cfg)
+    df_final = aplicar_condicao_correta(df_merge, df_condicao, matriz_cfg)
+
+    df_saida = montar_saida(df_final, cfg, matriz_cfg)
     nome_arquivo = matriz_cfg.get("nome_arquivo_saida") or f"{nome_matriz}_analise.xlsx"
-    caminho_final = pasta_saida / nome_arquivo
-    df_saida.to_excel(caminho_final, index=False)
-    print(f"Resultado salvo em {caminho_final}")
-
-    if "diferenca_faturamento" in df_saida.columns:
-        impacto = df_saida["diferenca_faturamento"].sum(skipna=True)
-        print(f"Impacto financeiro total dos erros operacionais: R$ {impacto:,.2f}")
-
+    _salvar_saida(df_saida, pasta_saida, nome_arquivo)
     return df_saida
 
 

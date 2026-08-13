@@ -83,7 +83,11 @@ condicao_comercial:
 #   Condicao_comercial. Filtra a base pelos CNPJs do arquivo de controle
 #   (ex.: Painel_Bandeira) e só consolida essas vendas num arquivo único,
 #   trazendo as colunas de colunas_trazidas (ex.: Bandeira) pra dar pra
-#   agrupar/analisar depois.
+#   agrupar/analisar depois. Se tiver "regra" configurado (ver exemplo da
+#   Bandeira abaixo), roda uma segunda camada em cima desse mesmo histórico:
+#   Check = OK/Erro Operacional comparando a Tabela de negociação com o
+#   Rotulo esperado por Raiz CNPJ, com o mesmo cálculo de desconto/preço
+#   dos outros tipos — sai num segundo arquivo (regra.nome_arquivo_saida).
 #
 # Em todos os tipos, "colunas_trazidas" são copiadas pra saída sempre que o
 # CNPJ é encontrado no controle (mesmo se o Check der erro, quando aplicável).
@@ -162,6 +166,22 @@ matrizes:
     colunas_data: []
     # nome do arquivo de resultado consolidado (em vez de "Bandeira_analise.xlsx")
     nome_arquivo_saida: "historico_bandeiras.xlsx"
+    # Segunda camada: reaproveita o histórico consolidado acima (em memória,
+    # sem reler nada) e cruza com o arquivo de regra pra gerar Check +
+    # cálculo de desconto/preço, igual Feira/CanalAutorizador.
+    # O cruzamento é por Raiz CNPJ (8 primeiros dígitos do CNPJ) — mais
+    # confiável que casar pelo nome da bandeira, que pode ter grafias
+    # diferentes pro mesmo grupo (ex.: "DROGARIA TAMOIO" vs "DROGARIATAMOIO").
+    # O Rotulo do arquivo de regra (ex.: "GENERICO_D1000") é comparado com a
+    # Tabela de negociação trocando "_" por espaço — AJUSTAR/confirmar se
+    # esse Rotulo não corresponder literalmente ao texto real da Tabela.
+    regra:
+      arquivo: "C:/Users/I0507867.FARMA/OneDrive - Sanofi/Desktop/Analise Painel/dados/regra.xlsx"
+      aba: null
+      colunas:
+        chave_raiz_cnpj: "Raiz CNPJ"
+        rotulo: "Rotulo"
+      nome_arquivo_saida: "Bandeiras_Analise.xlsx"
 
 saida:
   pasta: "C:/Users/I0507867.FARMA/OneDrive - Sanofi/Desktop/Analise Painel/saida"

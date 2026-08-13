@@ -408,6 +408,101 @@ def test_matriz_tipo_consolidacao_bandeira(tmp_path: Path):
     assert not (tmp_path / "saida" / "Bandeira_analise.xlsx").exists()
 
 
+def test_matriz_bandeira_com_regra(tmp_path: Path):
+    # pedido 9101: CNPJ 11.111.111/0001-11 (raiz 11111111), Tabela de
+    #              negociação bate com o Rotulo esperado (GENERICO_D1000) -> OK
+    # pedido 9102: CNPJ 22.222.222/0001-22 (raiz 22222222), Tabela NÃO bate
+    #              com o Rotulo esperado (GENERICO_D500) -> Erro Operacional,
+    #              com desconto correto calculado via EAN
+    base_df = pd.DataFrame(
+        {
+            "Tipo de cliente": ["ASSOCIATIVISMO", "ASSOCIATIVISMO"],
+            "CNPJ": ["11.111.111/0001-11", "22.222.222/0001-22"],
+            "Id pedido": ["9101", "9102"],
+            "EAN": ["1111111111111", "2222222222222"],
+            "Tabela de negociação": ["GENERICO D1000 CA", "FEIRA NEGOCIOS CA"],
+            "Data do pedido (original)": ["10/05/2026 10:00", "11/05/2026 10:00"],
+            "Faturado líquido (R$)": ["27,3", "40,0"],
+            "Desconto comercial faturado (%)": ["56,87", "20"],
+        }
+    )
+
+    painel_bandeira_df = pd.DataFrame(
+        {
+            "CNPJ Ajustado": ["11.111.111/0001-11", "22.222.222/0001-22"],
+            "desc_bandeira": ["REDE A", "REDE B"],
+        }
+    )
+
+    regra_df = pd.DataFrame(
+        {
+            "Raiz CNPJ": ["11111111", "22222222"],
+            "Rotulo": ["GENERICO_D1000", "GENERICO_D500"],
+        }
+    )
+
+    condicao_df = pd.DataFrame(
+        {
+            "EAN FORMATADO": ["2222222222222"],
+            "Desconto Atual": [0.25],
+        }
+    )
+
+    (tmp_path / "saida").mkdir()
+    base_df.to_excel(tmp_path / "base_pedidos.xlsx", index=False)
+    with pd.ExcelWriter(tmp_path / "Painel_Bandeira_2026_08.xlsx") as w:
+        painel_bandeira_df.to_excel(w, sheet_name="Dados", index=False)
+    with pd.ExcelWriter(tmp_path / "regra.xlsx") as w:
+        regra_df.to_excel(w, sheet_name="Dados", index=False)
+    with pd.ExcelWriter(tmp_path / "condicao_comercial.xlsx") as w:
+        condicao_df.to_excel(w, sheet_name="Dados", index=False)
+
+    cfg = _montar_config(tmp_path)
+    matriz_cfg = {
+        "nome": "Bandeira",
+        "tipo": "consolidacao",
+        "ativo": True,
+        "arquivo_controle": "Painel_Bandeira_*.xlsx",
+        "aba_controle": "Dados",
+        "chave_controle": "CNPJ Ajustado",
+        "colunas_trazidas": {"bandeira": "desc_bandeira"},
+        "colunas_data": [],
+        "nome_arquivo_saida": "historico_bandeiras.xlsx",
+        "regra": {
+            "arquivo": "regra.xlsx",
+            "aba": "Dados",
+            "colunas": {"chave_raiz_cnpj": "Raiz CNPJ", "rotulo": "Rotulo"},
+            "nome_arquivo_saida": "Bandeiras_Analise.xlsx",
+        },
+    }
+    cfg["matrizes"].append(matriz_cfg)
+
+    import pipeline
+
+    pipeline.BASE_DIR = tmp_path
+
+    df_base = carregar_base(cfg)
+    resultado = rodar_matriz("Bandeira", matriz_cfg, df_base, cfg)
+
+    assert resultado is not None
+    assert (tmp_path / "saida" / "historico_bandeiras.xlsx").exists()
+    assert (tmp_path / "saida" / "Bandeiras_Analise.xlsx").exists()
+
+    # o resultado retornado é o da segunda camada (com Check)
+    assert "Check" in resultado.columns
+    checks = dict(zip(resultado["Id pedido"], resultado["Check"]))
+    assert checks["9101"] == CHECK_OK
+    assert checks["9102"] == CHECK_ERRO
+
+    linha_erro = resultado.loc[resultado["Id pedido"] == "9102"].iloc[0]
+    preco_sem_desconto = 40.0 / (1 - 0.20)
+    preco_correto = preco_sem_desconto * (1 - 0.25)
+    assert round(linha_erro["preco_liquido_desconto_correto"], 2) == round(preco_correto, 2)
+
+    linha_ok = resultado.loc[resultado["Id pedido"] == "9101"].iloc[0]
+    assert pd.isna(linha_ok["diferenca_faturamento"])
+
+
 def test_main_continua_apos_erro_em_uma_matriz(tmp_path: Path, monkeypatch):
     # Uma matriz mal configurada (arquivo de controle inexistente) não pode
     # travar o resto: a matriz seguinte da lista ainda precisa rodar e
