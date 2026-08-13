@@ -129,7 +129,7 @@ matrizes:
     # negociação real na base é "Canal Autorizador" — por isso são dois
     # campos separados (rotulo_valido_controle vs. palavra_chave acima) em
     # vez de comparar o texto direto.
-    coluna_rotulo_controle: "Rótulo"
+    coluna_rotulo_controle: "Rotulo"
     rotulo_valido_controle: "CANAL_AUT"
     colunas_trazidas: {}
     colunas_data: []

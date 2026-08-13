@@ -134,31 +134,42 @@ def test_pipeline_end_to_end(tmp_path: Path):
     # pedido 3: CNPJ cadastrado, mas pedido feito FORA do período
     #           inicio_real/termino_real -> Erro Operacional mesmo cadastrado
     # pedido 4: fora da matriz Feira (Tabela de negociação não é feira)
+    # pedido 5: CNPJ não cadastrado (Erro Operacional) mas desconto comercial
+    #           faturado = 0 -> mantém Erro Operacional, sem calcular preço/desconto
     base_df = pd.DataFrame(
         {
-            "Tipo de cliente": ["ASSOCIATIVISMO", "ASSOCIATIVISMO", "ASSOCIATIVISMO", "REDE INDIRETA"],
+            "Tipo de cliente": [
+                "ASSOCIATIVISMO",
+                "ASSOCIATIVISMO",
+                "ASSOCIATIVISMO",
+                "REDE INDIRETA",
+                "ASSOCIATIVISMO",
+            ],
             "CNPJ": [
                 "01.672.858/0001-65",
                 "'06052566000143'",
                 "01.672.858/0001-65",
                 "06.052.566/0001-43",
+                "06.052.566/0001-43",
             ],
-            "Id pedido": ["17275", "17300", "17400", "17778"],
-            "EAN": ["7896422511865", "'7896422511865'", "7896422511865", "7896422514651"],
+            "Id pedido": ["17275", "17300", "17400", "17778", "17500"],
+            "EAN": ["7896422511865", "'7896422511865'", "7896422511865", "7896422514651", "7896422511865"],
             "Tabela de negociação": [
                 "FEIRA NEGOCIOS CA",
                 "FEIRA NEGOCIOS CA",
                 "FEIRA NEGOCIOS CA",
                 "DEFAULT GENERICO CA",
+                "FEIRA NEGOCIOS CA",
             ],
             "Data do pedido (original)": [
                 "10/05/2026 18:34",
                 "10/05/2026 10:00",
                 "15/07/2026 09:00",  # fora do período do controle (maio)
                 "05/05/2026 19:16",
+                "10/05/2026 10:00",
             ],
-            "Faturado líquido (R$)": ["27,3", "27,3", "27,3", "53,42"],
-            "Desconto comercial faturado (%)": ["56,87", "56,87", "56,87", "69,36"],
+            "Faturado líquido (R$)": ["27,3", "27,3", "27,3", "53,42", "27,3"],
+            "Desconto comercial faturado (%)": ["56,87", "56,87", "56,87", "69,36", "0"],
         }
     )
 
@@ -191,16 +202,17 @@ def test_pipeline_end_to_end(tmp_path: Path):
     pipeline.BASE_DIR = tmp_path
 
     df_base = carregar_base(cfg)
-    assert len(df_base) == 4
+    assert len(df_base) == 5
 
     resultado = rodar_matriz("Feira", cfg["matrizes"][0], df_base, cfg)
     assert resultado is not None
-    assert len(resultado) == 3  # só as 3 linhas de FEIRA NEGOCIOS CA
+    assert len(resultado) == 4  # só as 4 linhas de FEIRA NEGOCIOS CA
 
     checks = dict(zip(resultado["Id pedido"], resultado["Check"]))
     assert checks["17275"] == CHECK_OK
     assert checks["17300"] == CHECK_ERRO
     assert checks["17400"] == CHECK_ERRO  # cadastrado, mas fora do período
+    assert checks["17500"] == CHECK_ERRO  # desconto aplicado = 0
 
     linha_ok = resultado.loc[resultado["Id pedido"] == "17275"].iloc[0]
     assert pd.Timestamp(linha_ok["inicio_real"]) == pd.Timestamp("2026-05-01")
@@ -217,6 +229,14 @@ def test_pipeline_end_to_end(tmp_path: Path):
     linha_fora_periodo = resultado.loc[resultado["Id pedido"] == "17400"].iloc[0]
     # mesmo fora do período, as datas do controle continuam vindo na saída
     assert pd.Timestamp(linha_fora_periodo["inicio_real"]) == pd.Timestamp("2026-05-01")
+
+    linha_desconto_zero = resultado.loc[resultado["Id pedido"] == "17500"].iloc[0]
+    # Erro Operacional continua valendo, mas sem calcular preço/desconto
+    assert linha_desconto_zero["Check"] == CHECK_ERRO
+    assert pd.isna(linha_desconto_zero["preco_sem_desconto"])
+    assert pd.isna(linha_desconto_zero["preco_liquido_desconto_correto"])
+    assert pd.isna(linha_desconto_zero["diferenca_faturamento"])
+    assert pd.isna(linha_desconto_zero["desconto_correto_pct"])
 
     assert (tmp_path / "saida" / "Feira_analise.xlsx").exists()
 
@@ -246,7 +266,7 @@ def test_matriz_tipo_cnpj_canal_autorizador(tmp_path: Path):
     painel_nv_df = pd.DataFrame(
         {
             "CNPJ ajustado": ["11.222.333/0001-81", "44.555.666/0001-92"],
-            "Rótulo": ["CANAL_AUT", "OUTRO_CANAL"],
+            "Rotulo": ["CANAL_AUT", "OUTRO_CANAL"],
         }
     )
 
@@ -275,7 +295,7 @@ def test_matriz_tipo_cnpj_canal_autorizador(tmp_path: Path):
         "arquivo_controle": "Painel_NV_*.xlsx",
         "aba_controle": "Dados",
         "chave_controle": "CNPJ ajustado",
-        "coluna_rotulo_controle": "Rótulo",
+        "coluna_rotulo_controle": "Rotulo",
         "rotulo_valido_controle": "CANAL_AUT",
         "colunas_trazidas": {},
         "colunas_data": [],

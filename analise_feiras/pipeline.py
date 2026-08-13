@@ -20,8 +20,10 @@ a base é filtrada e como o Check é calculado:
   Em ambos os tipos, pedidos com Check = Erro Operacional são cruzados com
   Condicao_comercial (por EAN, e por Tabela se a planilha tiver essa coluna)
   para achar o desconto correto, calcular o preço sem desconto e o preço
-  líquido que deveria ter sido faturado. Um arquivo de saída é salvo por
-  matriz.
+  líquido que deveria ter sido faturado — exceto quando o desconto comercial
+  faturado do pedido é 0 (indício de dado ausente/errado): o Check continua
+  Erro Operacional, mas o cálculo de preço/desconto fica em branco. Um
+  arquivo de saída é salvo por matriz.
 
 Uso:
     python pipeline.py                       # pergunta interativamente quais matrizes rodar
@@ -249,14 +251,18 @@ def aplicar_condicao_correta(df: pd.DataFrame, df_condicao: pd.DataFrame, matriz
     df["diferenca_faturamento"] = df["_faturado_liquido"] - df["preco_liquido_desconto_correto"]
 
     # só faz sentido preencher esses cálculos para linhas de erro operacional
+    # com desconto comercial faturado real (!= 0) — desconto aplicado 0
+    # normalmente indica dado ausente/errado na base, não "sem desconto de
+    # fato", então o pedido continua Erro Operacional mas sem o cálculo
     erro_operacional = df["Check"] == CHECK_ERRO
+    calcular = erro_operacional & (df["_desconto_aplicado_pct"] != 0)
     for col in (
         "_desconto_correto_pct",
         "preco_sem_desconto",
         "preco_liquido_desconto_correto",
         "diferenca_faturamento",
     ):
-        df[col] = df[col].where(erro_operacional)
+        df[col] = df[col].where(calcular)
 
     df = df.rename(columns={"_desconto_correto_pct": "desconto_correto_pct"})
     return df
