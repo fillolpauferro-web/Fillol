@@ -135,6 +135,16 @@ def normalize_text(valor) -> str:
     return texto
 
 
+def tokenizar(texto_normalizado: str) -> tuple[str, ...]:
+    """Quebra um texto já normalizado (normalize_text) em palavras, por
+    espaço, underscore ou hífen. Usado pra comparar rótulos internos com o
+    texto real da Tabela de negociação sem depender da ordem das palavras
+    nem do separador usado (ex.: "GENERICO_D1000" vs "Tabela Agregadora -
+    D1000_GENERICO" — mesmas palavras, ordem diferente, prefixo extra).
+    """
+    return tuple(t for t in re.split(r"[\s_\-]+", texto_normalizado) if t)
+
+
 def normalize_cnpj(valor) -> str:
     """Mantém só os dígitos do CNPJ e preenche com zero à esquerda até 14
     dígitos (equivalente a =TEXTO(CNPJ;"00000000000000") do Excel) — o Excel

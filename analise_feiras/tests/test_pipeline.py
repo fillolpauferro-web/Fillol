@@ -7,8 +7,35 @@ import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from pipeline import CHECK_ERRO, CHECK_OK, carregar_base, perguntar_quais_matrizes, rodar_matriz  # noqa: E402
-from utils import normalize_cnpj, normalize_ean, read_table_mais_recente, to_datetime, to_numeric  # noqa: E402
+from pipeline import (  # noqa: E402
+    CHECK_ERRO,
+    CHECK_OK,
+    _rotulo_bate_na_tabela,
+    carregar_base,
+    perguntar_quais_matrizes,
+    rodar_matriz,
+)
+from utils import normalize_cnpj, normalize_ean, normalize_text, read_table_mais_recente, to_datetime, to_numeric, tokenizar  # noqa: E402
+
+
+def test_rotulo_bate_na_tabela_ignora_ordem_e_aceita_abreviacao():
+    # caso real 1: mesmas palavras, ordem trocada, com prefixo extra
+    rot = tokenizar(normalize_text("GENERICO_D1000"))
+    tab = tokenizar(normalize_text("Tabela Agregadora - D1000_GENERICO"))
+    assert _rotulo_bate_na_tabela(rot, tab)
+
+    # caso real 2: abreviação (AUT é prefixo de AUTORIZADOR)
+    rot = tokenizar(normalize_text("CANAL_AUT"))
+    tab = tokenizar(normalize_text("Canal Autorizador"))
+    assert _rotulo_bate_na_tabela(rot, tab)
+
+    # não pode bater com uma tabela genérica que não tem a palavra específica
+    rot = tokenizar(normalize_text("GENERICO_D1000"))
+    tab = tokenizar(normalize_text("DEFAULT GENERICO CA"))
+    assert not _rotulo_bate_na_tabela(rot, tab)
+
+    # rótulo vazio nunca bate
+    assert not _rotulo_bate_na_tabela((), tab)
 
 
 def test_to_numeric_aceita_formato_brasileiro_e_internacional():
@@ -410,7 +437,9 @@ def test_matriz_tipo_consolidacao_bandeira(tmp_path: Path):
 
 def test_matriz_bandeira_com_regra(tmp_path: Path):
     # pedido 9101: CNPJ 11.111.111/0001-11 (raiz 11111111), Tabela de
-    #              negociação bate com o Rotulo esperado (GENERICO_D1000) -> OK
+    #              negociação real "Tabela Agregadora - D1000_GENERICO"
+    #              (mesmas palavras do Rotulo GENERICO_D1000, ordem trocada
+    #              e com prefixo extra — caso real observado na base) -> OK
     # pedido 9102: CNPJ 22.222.222/0001-22 (raiz 22222222), Tabela NÃO bate
     #              com o Rotulo esperado (GENERICO_D500) -> Erro Operacional,
     #              com desconto correto calculado via EAN
@@ -420,7 +449,7 @@ def test_matriz_bandeira_com_regra(tmp_path: Path):
             "CNPJ": ["11.111.111/0001-11", "22.222.222/0001-22"],
             "Id pedido": ["9101", "9102"],
             "EAN": ["1111111111111", "2222222222222"],
-            "Tabela de negociação": ["GENERICO D1000 CA", "FEIRA NEGOCIOS CA"],
+            "Tabela de negociação": ["Tabela Agregadora - D1000_GENERICO", "FEIRA NEGOCIOS CA"],
             "Data do pedido (original)": ["10/05/2026 10:00", "11/05/2026 10:00"],
             "Faturado líquido (R$)": ["27,3", "40,0"],
             "Desconto comercial faturado (%)": ["56,87", "20"],

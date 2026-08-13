@@ -31,9 +31,10 @@ define como a base é filtrada e o que sai no resultado:
   também tiver "regra" configurado, roda uma segunda camada reaproveitando
   esse histórico em memória: cruza cada venda com o Rotulo esperado no
   arquivo de regra (por Raiz CNPJ — os 8 primeiros dígitos do CNPJ), marca
-  Check = OK só quando a Tabela de negociação bate com esse Rotulo, e faz o
-  mesmo cálculo de desconto/preço dos tipos "tabela"/"cnpj" pros erros — o
-  resultado sai num segundo arquivo (regra.nome_arquivo_saida).
+  Check = OK só quando cada palavra do Rotulo aparece (como prefixo, em
+  qualquer ordem) na Tabela de negociação real, e faz o mesmo cálculo de
+  desconto/preço dos tipos "tabela"/"cnpj" pros erros — o resultado sai num
+  segundo arquivo (regra.nome_arquivo_saida).
 
   Um arquivo de saída é salvo por matriz (nome_arquivo_saida no config, ou
   "{nome}_analise.xlsx" por padrão).
@@ -64,6 +65,7 @@ from utils import (
     read_table_or_glob,
     to_datetime,
     to_numeric,
+    tokenizar,
 )
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -335,21 +337,31 @@ def carregar_regra(matriz_cfg: dict) -> pd.DataFrame | None:
         )
 
     df["_raiz_cnpj_norm"] = df[col_raiz].map(normalize_cnpj_raiz)
-    # "GENERICO_D1000" (regra) -> "GENERICO D1000", pra comparar com o texto
-    # real da Tabela de negociação (que usa espaço, não underscore)
-    df["_rotulo_norm"] = df[col_rotulo].map(
-        lambda v: normalize_text(str(v).replace("_", " ")) if not pd.isna(v) else ""
-    )
+    # tokeniza em vez de comparar substring: "GENERICO_D1000" (regra) tem
+    # que bater com "Tabela Agregadora - D1000_GENERICO" (Tabela real) —
+    # mesmas palavras, ordem trocada e com prefixo extra
+    df["_rotulo_tokens"] = df[col_rotulo].map(lambda v: tokenizar(normalize_text(v)))
 
-    return df[["_raiz_cnpj_norm", "_rotulo_norm"]].drop_duplicates(subset="_raiz_cnpj_norm", keep="first")
+    return df[["_raiz_cnpj_norm", "_rotulo_tokens"]].drop_duplicates(subset="_raiz_cnpj_norm", keep="first")
+
+
+def _rotulo_bate_na_tabela(rotulo_tokens: tuple[str, ...], tabela_tokens: tuple[str, ...]) -> bool:
+    """Cada palavra do Rotulo precisa ser prefixo de alguma palavra da
+    Tabela de negociação, em qualquer ordem — cobre tanto abreviação
+    ("AUT" prefixo de "AUTORIZADOR") quanto reordenação ("GENERICO_D1000"
+    vs "D1000_GENERICO").
+    """
+    if not rotulo_tokens:
+        return False
+    return all(any(tab.startswith(rot) for tab in tabela_tokens) for rot in rotulo_tokens)
 
 
 def aplicar_regra_bandeira(df_historico: pd.DataFrame, matriz_cfg: dict, cfg: dict) -> pd.DataFrame:
     """A partir do histórico já consolidado (ainda em memória, sem re-ler
     nada), cruza cada venda com o Rotulo esperado no arquivo de regra
     (por Raiz CNPJ) e marca Check = OK só quando a Tabela de negociação
-    real contém esse Rotulo. Erro Operacional é cruzado com
-    Condicao_comercial pro cálculo de desconto/preço, igual às outras
+    real contém todas as palavras desse Rotulo. Erro Operacional é cruzado
+    com Condicao_comercial pro cálculo de desconto/preço, igual às outras
     matrizes (Feira, Canal Autorizador).
     """
     df = df_historico.copy()
@@ -357,10 +369,11 @@ def aplicar_regra_bandeira(df_historico: pd.DataFrame, matriz_cfg: dict, cfg: di
 
     df_regra = carregar_regra(matriz_cfg)
     df = df.merge(df_regra, how="left", on="_raiz_cnpj_norm", indicator="_encontrado_regra")
+    df["_tabela_tokens"] = df["_tabela_norm"].map(tokenizar)
 
     encontrado = df["_encontrado_regra"] == "both"
     bate_tabela = pd.Series(
-        [bool(rot) and rot in tab for rot, tab in zip(df["_rotulo_norm"], df["_tabela_norm"])],
+        [_rotulo_bate_na_tabela(rot, tab) for rot, tab in zip(df["_rotulo_tokens"], df["_tabela_tokens"])],
         index=df.index,
     )
     ok = encontrado & bate_tabela

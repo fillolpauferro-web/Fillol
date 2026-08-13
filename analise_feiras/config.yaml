@@ -173,8 +173,11 @@ matrizes:
     # confiável que casar pelo nome da bandeira, que pode ter grafias
     # diferentes pro mesmo grupo (ex.: "DROGARIA TAMOIO" vs "DROGARIATAMOIO").
     # O Rotulo do arquivo de regra (ex.: "GENERICO_D1000") é comparado com a
-    # Tabela de negociação trocando "_" por espaço — AJUSTAR/confirmar se
-    # esse Rotulo não corresponder literalmente ao texto real da Tabela.
+    # Tabela de negociação por palavra, não por texto exato: cada palavra do
+    # Rotulo precisa aparecer (como prefixo) em alguma palavra da Tabela,
+    # em qualquer ordem — cobre tanto abreviação ("CANAL_AUT" -> "Canal
+    # Autorizador") quanto reordenação ("GENERICO_D1000" -> "Tabela
+    # Agregadora - D1000_GENERICO", caso real confirmado na base do usuário).
     regra:
       arquivo: "C:/Users/I0507867.FARMA/OneDrive - Sanofi/Desktop/Analise Painel/dados/regra.xlsx"
       aba: null
