@@ -1,22 +1,31 @@
-"""Pipeline recorrente de análise de matrizes comerciais (Feira, Campanha, ...).
+"""Pipeline recorrente de análise de matrizes comerciais (Feira, Canal
+Autorizador, ...). Cada matriz no config.yaml tem um "tipo" que define como
+a base é filtrada e como o Check é calculado:
 
-Passos (para cada matriz ativa no config.yaml):
-  1. Filtra a base grande pela palavra-chave da matriz na coluna
-     "Tabela de negociação".
-  2. Faz um PROCX (merge) com o arquivo de controle da matriz, comparando o
-     CNPJ do pedido com a coluna de CNPJ ajustado do controle, e traz as
-     datas reais (Início Real / Término Real) em que a feira aconteceu.
-  3. "Check" = OK só quando o CNPJ existe no controle E a data do pedido
-     está dentro do período Início Real / Término Real. Fora disso (CNPJ não
-     cadastrado, ou cadastrado mas pedido fora do período) = "Erro Operacional".
-  4. Para os pedidos com erro operacional, cruza com Condicao_comercial (por
-     EAN — o desconto correto é por produto, não depende do CNPJ) para achar
-     o desconto correto, calcula o preço sem desconto e o preço líquido que
-     deveria ter sido faturado.
-  5. Salva tudo num único arquivo de saída por matriz.
+  tipo: "tabela" (ex.: Feira) — parte da coluna "Tabela de negociação":
+    1. Filtra a base pela palavra-chave da matriz.
+    2. PROCX (merge) com o arquivo de controle pelo CNPJ, trazendo as datas
+       reais (Início Real / Término Real) em que a feira aconteceu.
+    3. Check = OK só quando o CNPJ existe no controle E a data do pedido está
+       dentro do período Início Real / Término Real.
+
+  tipo: "cnpj" (ex.: Canal Autorizador) — parte da relação de CNPJs:
+    1. Filtra a base pelos CNPJs presentes no arquivo de controle (ex.:
+       Painel_NV, uma lista de clientes que deveriam comprar por um canal
+       específico — não pela Tabela de negociação da base).
+    2. Check = OK só quando a "Tabela de negociação" do pedido bate com a
+       palavra_chave configurada (ex.: pedido de um CNPJ do Canal Autorizador
+       feito em qualquer tabela diferente de "Canal Autorizador" = erro).
+
+  Em ambos os tipos, pedidos com Check = Erro Operacional são cruzados com
+  Condicao_comercial (por EAN, e por Tabela se a planilha tiver essa coluna)
+  para achar o desconto correto, calcular o preço sem desconto e o preço
+  líquido que deveria ter sido faturado. Um arquivo de saída é salvo por
+  matriz.
 
 Uso:
-    python pipeline.py                       # roda as matrizes marcadas ativo: true
+    python pipeline.py                       # pergunta interativamente quais matrizes rodar
+    python pipeline.py --todas               # roda todas as matrizes ativas sem perguntar
     python pipeline.py --matrizes Feira       # roda só "Feira", ignora o config
     python pipeline.py --listar               # lista as matrizes configuradas e sai
     python pipeline.py --config outro.yaml
@@ -30,7 +39,16 @@ from pathlib import Path
 import pandas as pd
 import yaml
 
-from utils import normalize_cnpj, normalize_ean, normalize_text, read_table, read_table_or_glob, to_datetime, to_numeric
+from utils import (
+    normalize_cnpj,
+    normalize_ean,
+    normalize_text,
+    read_table,
+    read_table_mais_recente,
+    read_table_or_glob,
+    to_datetime,
+    to_numeric,
+)
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -65,30 +83,52 @@ def carregar_base(cfg: dict) -> pd.DataFrame:
 
 
 def filtrar_matriz(df_base: pd.DataFrame, palavra_chave: str) -> pd.DataFrame:
+    """tipo: "tabela" — filtra pela palavra-chave na coluna Tabela de negociação."""
     chave = normalize_text(palavra_chave)
     mask = df_base["_tabela_norm"].str.contains(chave, na=False)
     return df_base.loc[mask].copy()
 
 
+def filtrar_por_cnpj(df_base: pd.DataFrame, cnpjs_norm: set[str]) -> pd.DataFrame:
+    """tipo: "cnpj" — filtra pelos CNPJs presentes no arquivo de controle,
+    independente da Tabela de negociação do pedido.
+    """
+    mask = df_base["_cnpj_norm"].isin(cnpjs_norm)
+    return df_base.loc[mask].copy()
+
+
 def carregar_controle(matriz_cfg: dict) -> pd.DataFrame:
-    """Lê o arquivo de controle da matriz (ex.: Controle_Feiras) e prepara a
-    coluna-chave (CNPJ ajustado) mais as colunas extras a trazer (ex.:
-    Início Real / Término Real).
+    """Lê o arquivo de controle da matriz (ex.: Controle_Feiras, Painel_NV) e
+    prepara a coluna-chave (CNPJ ajustado) mais as colunas extras a trazer
+    (ex.: Início Real / Término Real). Aceita nome de arquivo com curinga
+    (ex.: "Painel_NV_*.xlsx") e usa sempre o mais recente.
+
+    Se a matriz configurar coluna_rotulo_controle/rotulo_valido_controle
+    (caso do Painel_NV, que traz vários rótulos no mesmo arquivo), filtra o
+    controle só pelas linhas com esse rótulo antes de montar a lista de CNPJs.
     """
     caminho = BASE_DIR / matriz_cfg["arquivo_controle"]
-    df = read_table(caminho, matriz_cfg.get("aba_controle"))
+    df = read_table_mais_recente(caminho, matriz_cfg.get("aba_controle"))
 
     chave_col = matriz_cfg["chave_controle"]
-    colunas_trazidas = matriz_cfg["colunas_trazidas"]
+    colunas_trazidas = matriz_cfg.get("colunas_trazidas") or {}
     colunas_data = matriz_cfg.get("colunas_data", [])
+    coluna_rotulo = matriz_cfg.get("coluna_rotulo_controle")
+    rotulo_valido = matriz_cfg.get("rotulo_valido_controle")
 
     obrigatorias = [chave_col, *colunas_trazidas.values()]
+    if coluna_rotulo:
+        obrigatorias.append(coluna_rotulo)
     faltando = [c for c in obrigatorias if c not in df.columns]
     if faltando:
         raise KeyError(
             f"Colunas ausentes no arquivo de controle ({caminho.name}): {faltando}. "
-            "Ajuste chave_controle/colunas_trazidas no config.yaml."
+            "Ajuste chave_controle/colunas_trazidas/coluna_rotulo_controle no config.yaml."
         )
+
+    if coluna_rotulo:
+        alvo = normalize_text(rotulo_valido)
+        df = df[df[coluna_rotulo].map(normalize_text) == alvo]
 
     df = df.rename(columns={v: k for k, v in colunas_trazidas.items()})
     df["_chave_controle_norm"] = df[chave_col].map(normalize_cnpj)
@@ -115,30 +155,43 @@ def aplicar_procx_cnpj(df_matriz: pd.DataFrame, df_controle: pd.DataFrame) -> pd
 
 
 def calcular_check(df: pd.DataFrame, matriz_cfg: dict) -> pd.Series:
-    """Check = OK só quando o CNPJ existe no controle E o pedido foi feito
-    dentro do período real da feira (inicio_real a termino_real, comparando
-    só a data — sem o horário). Fora do período (mesmo com CNPJ cadastrado)
-    conta como Erro Operacional.
+    """tipo: "tabela" (ex.: Feira) — Check = OK só quando o CNPJ existe no
+    controle E o pedido foi feito dentro do período real (inicio_real a
+    termino_real, comparando só a data — sem o horário).
+
+    tipo: "cnpj" (ex.: Canal Autorizador) — a base já foi filtrada pelos
+    CNPJs do controle, então Check = OK só quando a Tabela de negociação do
+    pedido bate com a palavra_chave configurada; qualquer outra tabela
+    (pedido de um CNPJ do canal, mas lançado em condição diferente) = erro.
     """
     encontrado = df["_encontrado_no_controle"] == "both"
+    tipo = matriz_cfg.get("tipo", "tabela")
 
-    colunas_trazidas = matriz_cfg["colunas_trazidas"]
-    tem_periodo = "inicio_real" in colunas_trazidas and "termino_real" in colunas_trazidas
-    if tem_periodo:
-        data_pedido = df["_data_pedido"].dt.normalize()
-        inicio = df["inicio_real"].dt.normalize()
-        termino = df["termino_real"].dt.normalize()
-        dentro_periodo = (data_pedido >= inicio) & (data_pedido <= termino)
-        ok = encontrado & dentro_periodo
+    if tipo == "cnpj":
+        palavra = normalize_text(matriz_cfg["palavra_chave"])
+        tabela_correta = df["_tabela_norm"].str.contains(palavra, na=False)
+        ok = encontrado & tabela_correta
     else:
-        ok = encontrado
+        colunas_trazidas = matriz_cfg["colunas_trazidas"]
+        tem_periodo = "inicio_real" in colunas_trazidas and "termino_real" in colunas_trazidas
+        if tem_periodo:
+            data_pedido = df["_data_pedido"].dt.normalize()
+            inicio = df["inicio_real"].dt.normalize()
+            termino = df["termino_real"].dt.normalize()
+            dentro_periodo = (data_pedido >= inicio) & (data_pedido <= termino)
+            ok = encontrado & dentro_periodo
+        else:
+            ok = encontrado
 
     return pd.Series(CHECK_OK, index=df.index).mask(~ok, CHECK_ERRO)
 
 
 def carregar_condicao_comercial(cfg: dict) -> pd.DataFrame:
-    """Condicao_comercial traz o desconto correto por produto (EAN) — não
-    depende do CNPJ do cliente.
+    """Condicao_comercial traz o desconto correto por produto (EAN). Se a
+    planilha tiver a coluna "Tabela" (condicao_comercial.colunas.chave_tabela
+    configurada), o desconto correto passa a variar por Tabela de negociação
+    também — nesse caso, aplicar_condicao_correta filtra pela tabela certa de
+    cada matriz antes de casar por EAN.
     """
     cc_cfg = cfg["condicao_comercial"]
     caminho = BASE_DIR / cc_cfg["arquivo"]
@@ -146,8 +199,10 @@ def carregar_condicao_comercial(cfg: dict) -> pd.DataFrame:
 
     col_ean = cc_cfg["colunas"]["chave_ean"]
     col_desconto = cc_cfg["colunas"]["desconto_correto_pct"]
+    col_tabela = cc_cfg["colunas"].get("chave_tabela")
 
-    faltando = [c for c in (col_ean, col_desconto) if c not in df.columns]
+    obrigatorias = [col_ean, col_desconto, *([col_tabela] if col_tabela else [])]
+    faltando = [c for c in obrigatorias if c not in df.columns]
     if faltando:
         raise KeyError(
             f"Colunas ausentes em Condicao_comercial ({caminho.name}): {faltando}. "
@@ -162,10 +217,25 @@ def carregar_condicao_comercial(cfg: dict) -> pd.DataFrame:
     if cc_cfg.get("desconto_em_fracao"):
         df["_desconto_correto_pct"] = df["_desconto_correto_pct"] * 100
 
-    return df[["_ean_norm", "_desconto_correto_pct"]].drop_duplicates(subset="_ean_norm", keep="first")
+    if col_tabela:
+        df["_tabela_condicao_norm"] = df[col_tabela].map(normalize_text)
+        colunas_saida = ["_ean_norm", "_tabela_condicao_norm", "_desconto_correto_pct"]
+        subset_dedup = ["_ean_norm", "_tabela_condicao_norm"]
+    else:
+        colunas_saida = ["_ean_norm", "_desconto_correto_pct"]
+        subset_dedup = ["_ean_norm"]
+
+    return df[colunas_saida].drop_duplicates(subset=subset_dedup, keep="first")
 
 
-def aplicar_condicao_correta(df: pd.DataFrame, df_condicao: pd.DataFrame) -> pd.DataFrame:
+def aplicar_condicao_correta(df: pd.DataFrame, df_condicao: pd.DataFrame, matriz_cfg: dict) -> pd.DataFrame:
+    if "_tabela_condicao_norm" in df_condicao.columns:
+        palavra = normalize_text(matriz_cfg["palavra_chave"])
+        df_condicao = df_condicao[df_condicao["_tabela_condicao_norm"].str.contains(palavra, na=False)]
+        df_condicao = df_condicao[["_ean_norm", "_desconto_correto_pct"]].drop_duplicates(
+            subset="_ean_norm", keep="first"
+        )
+
     df = df.merge(df_condicao, how="left", on="_ean_norm")
 
     # preço sem desconto = líquido faturado / (1 - desconto aplicado)
@@ -195,7 +265,7 @@ def aplicar_condicao_correta(df: pd.DataFrame, df_condicao: pd.DataFrame) -> pd.
 def montar_saida(df: pd.DataFrame, cfg: dict, matriz_cfg: dict) -> pd.DataFrame:
     colunas_base_originais = list(cfg["base"]["colunas"].values())
     colunas_novas = [
-        *matriz_cfg["colunas_trazidas"].keys(),
+        *(matriz_cfg.get("colunas_trazidas") or {}).keys(),
         "Check",
         "desconto_correto_pct",
         "preco_sem_desconto",
@@ -207,21 +277,31 @@ def montar_saida(df: pd.DataFrame, cfg: dict, matriz_cfg: dict) -> pd.DataFrame:
 
 def rodar_matriz(nome_matriz: str, matriz_cfg: dict, df_base: pd.DataFrame, cfg: dict) -> pd.DataFrame | None:
     print(f"\n=== Matriz: {nome_matriz} ===")
-
-    df_filtrado = filtrar_matriz(df_base, matriz_cfg["palavra_chave"])
-    if df_filtrado.empty:
-        print(f"Nenhuma linha encontrada para a palavra-chave '{matriz_cfg['palavra_chave']}'.")
-        return None
-    print(f"{len(df_filtrado)} linhas filtradas em 'Tabela de negociação'.")
+    tipo = matriz_cfg.get("tipo", "tabela")
 
     df_controle = carregar_controle(matriz_cfg)
+
+    if tipo == "cnpj":
+        cnpjs_validos = set(df_controle["_chave_controle_norm"])
+        df_filtrado = filtrar_por_cnpj(df_base, cnpjs_validos)
+        if df_filtrado.empty:
+            print("Nenhuma venda encontrada para os CNPJs do arquivo de controle.")
+            return None
+        print(f"{len(df_filtrado)} linhas filtradas pelos {len(cnpjs_validos)} CNPJs do controle.")
+    else:
+        df_filtrado = filtrar_matriz(df_base, matriz_cfg["palavra_chave"])
+        if df_filtrado.empty:
+            print(f"Nenhuma linha encontrada para a palavra-chave '{matriz_cfg['palavra_chave']}'.")
+            return None
+        print(f"{len(df_filtrado)} linhas filtradas em 'Tabela de negociação'.")
+
     df_merge = aplicar_procx_cnpj(df_filtrado, df_controle)
 
     df_merge["Check"] = calcular_check(df_merge, matriz_cfg)
     print(df_merge["Check"].value_counts(dropna=False).to_string())
 
     df_condicao = carregar_condicao_comercial(cfg)
-    df_final = aplicar_condicao_correta(df_merge, df_condicao)
+    df_final = aplicar_condicao_correta(df_merge, df_condicao, matriz_cfg)
 
     df_saida = montar_saida(df_final, cfg, matriz_cfg)
 
@@ -237,12 +317,40 @@ def rodar_matriz(nome_matriz: str, matriz_cfg: dict, df_base: pd.DataFrame, cfg:
     return df_saida
 
 
+def perguntar_quais_matrizes(ativas: list[dict]) -> list[dict]:
+    """Menu interativo (console) pra escolher qual análise rodar, sem perder
+    as outras já configuradas. Só é chamado quando dá pra interagir (terminal
+    de verdade) e nem --matrizes nem --todas foram usados.
+    """
+    print("\nQual análise você quer rodar?")
+    print("  0 - Todas as análises ativas")
+    for i, m in enumerate(ativas, start=1):
+        print(f"  {i} - {m['nome']} (tipo: {m.get('tipo', 'tabela')})")
+
+    escolha = input("Digite o(s) número(s) separados por vírgula (Enter = todas): ").strip()
+    if not escolha or escolha == "0":
+        return ativas
+
+    indices_validos = set()
+    for pedaco in escolha.split(","):
+        pedaco = pedaco.strip()
+        if pedaco.isdigit() and 1 <= int(pedaco) <= len(ativas):
+            indices_validos.add(int(pedaco))
+        else:
+            print(f"Ignorando opção inválida: '{pedaco}'")
+
+    return [m for i, m in enumerate(ativas, start=1) if i in indices_validos]
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--config", default=str(BASE_DIR / "config.yaml"), help="Caminho do config.yaml")
     parser.add_argument(
         "--matrizes",
-        help="Lista separada por vírgula das matrizes a rodar (ignora o 'ativo' do config). Ex: Feira,Campanha",
+        help="Lista separada por vírgula das matrizes a rodar (ignora o 'ativo' do config e o menu). Ex: Feira,CanalAutorizador",
+    )
+    parser.add_argument(
+        "--todas", action="store_true", help="Roda todas as matrizes ativas sem mostrar o menu interativo"
     )
     parser.add_argument("--listar", action="store_true", help="Lista as matrizes configuradas e sai")
     args = parser.parse_args()
@@ -251,17 +359,29 @@ def main() -> None:
 
     if args.listar:
         for m in cfg["matrizes"]:
-            print(f"- {m['nome']} (ativo={m['ativo']}, palavra_chave='{m['palavra_chave']}')")
+            print(f"- {m['nome']} (tipo={m.get('tipo', 'tabela')}, ativo={m['ativo']}, palavra_chave='{m['palavra_chave']}')")
         return
 
     if args.matrizes:
         selecionadas = {nome.strip() for nome in args.matrizes.split(",")}
         matrizes_a_rodar = [m for m in cfg["matrizes"] if m["nome"] in selecionadas]
     else:
-        matrizes_a_rodar = [m for m in cfg["matrizes"] if m.get("ativo")]
+        ativas = [m for m in cfg["matrizes"] if m.get("ativo")]
+        if not ativas:
+            matrizes_a_rodar = []
+        elif args.todas:
+            matrizes_a_rodar = ativas
+        else:
+            try:
+                matrizes_a_rodar = perguntar_quais_matrizes(ativas)
+            except EOFError:
+                # rodando sem console interativo (ex.: tarefa agendada) — não
+                # trava esperando input, só roda tudo que está ativo
+                print("Sem entrada interativa disponível — rodando todas as matrizes ativas.")
+                matrizes_a_rodar = ativas
 
     if not matrizes_a_rodar:
-        print("Nenhuma matriz ativa. Marque 'ativo: true' no config.yaml ou use --matrizes.")
+        print("Nenhuma matriz selecionada. Marque 'ativo: true' no config.yaml, use --matrizes ou escolha no menu.")
         return
 
     df_base = carregar_base(cfg)

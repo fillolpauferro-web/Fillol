@@ -100,6 +100,30 @@ def read_table_or_glob(padrao: str | Path, aba: str | None = None) -> pd.DataFra
     return pd.concat(partes, ignore_index=True)
 
 
+def read_table_mais_recente(padrao: str | Path, aba: str | None = None) -> pd.DataFrame:
+    """Como read_table, mas aceita curinga (* ? []) no caminho — usa só o
+    arquivo mais recente (data de modificação) entre os que baterem com o
+    padrão, ao invés de juntar todos como read_table_or_glob faz.
+
+    Útil para arquivos de controle cujo nome muda a cada exportação (ex.:
+    "Painel_NV_2026_08.xlsx"), onde só a versão mais atual deve valer.
+    """
+    padrao_str = str(padrao)
+    if not any(ch in padrao_str for ch in "*?["):
+        return read_table(padrao_str, aba)
+
+    arquivos = glob.glob(padrao_str)
+    if not arquivos:
+        raise FileNotFoundError(
+            f"Nenhum arquivo encontrado para o padrão: {padrao_str}. "
+            "Verifique o caminho/prefixo no config.yaml."
+        )
+
+    mais_recente = max(arquivos, key=lambda p: Path(p).stat().st_mtime)
+    print(f"Usando o arquivo mais recente para '{Path(padrao_str).name}': {Path(mais_recente).name}")
+    return read_table(mais_recente, aba)
+
+
 def normalize_text(valor) -> str:
     """Maiúsculas, sem acento, sem espaço nas pontas — para comparações robustas."""
     if valor is None or (isinstance(valor, float) and pd.isna(valor)):

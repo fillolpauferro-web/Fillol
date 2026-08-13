@@ -1,3 +1,4 @@
+import os
 import sys
 from pathlib import Path
 
@@ -5,8 +6,8 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from pipeline import CHECK_ERRO, CHECK_OK, carregar_base, rodar_matriz  # noqa: E402
-from utils import normalize_cnpj, normalize_ean, to_datetime, to_numeric  # noqa: E402
+from pipeline import CHECK_ERRO, CHECK_OK, carregar_base, perguntar_quais_matrizes, rodar_matriz  # noqa: E402
+from utils import normalize_cnpj, normalize_ean, read_table_mais_recente, to_datetime, to_numeric  # noqa: E402
 
 
 def test_to_numeric_aceita_formato_brasileiro_e_internacional():
@@ -49,6 +50,36 @@ def test_normalize_ean_remove_aspas_das_duas_pontas():
     assert normalize_ean("'7896422511865") == "7896422511865"
     assert normalize_ean(" 7896422511865 ") == "7896422511865"
     assert normalize_ean(None) == ""
+
+
+def test_read_table_mais_recente_pega_o_arquivo_mais_novo(tmp_path: Path):
+    # nome do arquivo muda a cada exportação (ex.: Painel_NV_XXXX) — só o
+    # mais recente deve valer, não a concatenação de todos
+    antigo = tmp_path / "Painel_NV_2026_01.xlsx"
+    novo = tmp_path / "Painel_NV_2026_02.xlsx"
+    pd.DataFrame({"x": [1]}).to_excel(antigo, index=False)
+    pd.DataFrame({"x": [2]}).to_excel(novo, index=False)
+    os.utime(antigo, (1_000_000_000, 1_000_000_000))
+    os.utime(novo, (2_000_000_000, 2_000_000_000))
+
+    resultado = read_table_mais_recente(str(tmp_path / "Painel_NV_*.xlsx"))
+    assert resultado["x"].iloc[0] == "2"
+
+
+def test_perguntar_quais_matrizes(monkeypatch):
+    ativas = [{"nome": "Feira", "tipo": "tabela"}, {"nome": "CanalAutorizador", "tipo": "cnpj"}]
+
+    monkeypatch.setattr("builtins.input", lambda prompt="": "2")
+    assert [m["nome"] for m in perguntar_quais_matrizes(ativas)] == ["CanalAutorizador"]
+
+    monkeypatch.setattr("builtins.input", lambda prompt="": "")
+    assert perguntar_quais_matrizes(ativas) == ativas
+
+    monkeypatch.setattr("builtins.input", lambda prompt="": "1,2")
+    assert len(perguntar_quais_matrizes(ativas)) == 2
+
+    monkeypatch.setattr("builtins.input", lambda prompt="": "99,abc")
+    assert perguntar_quais_matrizes(ativas) == []
 
 
 def _montar_config(tmp_path: Path) -> dict:
@@ -188,3 +219,87 @@ def test_pipeline_end_to_end(tmp_path: Path):
     assert pd.Timestamp(linha_fora_periodo["inicio_real"]) == pd.Timestamp("2026-05-01")
 
     assert (tmp_path / "saida" / "Feira_analise.xlsx").exists()
+
+
+def test_matriz_tipo_cnpj_canal_autorizador(tmp_path: Path):
+    # pedido 9001: CNPJ está no Painel_NV com Rótulo CANAL_AUT e a Tabela de
+    #              negociação bate com "Canal Autorizador" -> OK
+    # pedido 9002: mesmo CNPJ do Painel_NV, mas lançado numa Tabela diferente
+    #              -> Erro Operacional; desconto correto tem que vir da linha
+    #              "Canal Autorizador" da condicao_comercial (0.20), não da
+    #              linha "Feira Negócios CA" (0.50) do mesmo EAN
+    # pedido 9003: CNPJ está no Painel_NV, mas com outro Rótulo (não
+    #              CANAL_AUT) -> nem entra na análise dessa matriz
+    base_df = pd.DataFrame(
+        {
+            "Tipo de cliente": ["CANAL AUTORIZADO", "CANAL AUTORIZADO", "CANAL AUTORIZADO"],
+            "CNPJ": ["11.222.333/0001-81", "11.222.333/0001-81", "44.555.666/0001-92"],
+            "Id pedido": ["9001", "9002", "9003"],
+            "EAN": ["1111111111111", "1111111111111", "1111111111111"],
+            "Tabela de negociação": ["Canal Autorizador CA", "Associativismo CA", "Canal Autorizador CA"],
+            "Data do pedido (original)": ["10/05/2026 10:00", "11/05/2026 10:00", "12/05/2026 10:00"],
+            "Faturado líquido (R$)": ["27,3", "27,3", "27,3"],
+            "Desconto comercial faturado (%)": ["56,87", "56,87", "56,87"],
+        }
+    )
+
+    painel_nv_df = pd.DataFrame(
+        {
+            "CNPJ ajustado": ["11.222.333/0001-81", "44.555.666/0001-92"],
+            "Rótulo": ["CANAL_AUT", "OUTRO_CANAL"],
+        }
+    )
+
+    condicao_df = pd.DataFrame(
+        {
+            "EAN FORMATADO": ["1111111111111", "1111111111111"],
+            "Tabela": ["Canal Autorizador", "Feira Negócios CA"],
+            "Desconto Atual": [0.20, 0.50],
+        }
+    )
+
+    (tmp_path / "saida").mkdir()
+    base_df.to_excel(tmp_path / "base_pedidos.xlsx", index=False)
+    with pd.ExcelWriter(tmp_path / "Painel_NV_2026_08.xlsx") as w:
+        painel_nv_df.to_excel(w, sheet_name="Dados", index=False)
+    with pd.ExcelWriter(tmp_path / "condicao_comercial.xlsx") as w:
+        condicao_df.to_excel(w, sheet_name="Dados", index=False)
+
+    cfg = _montar_config(tmp_path)
+    cfg["condicao_comercial"]["colunas"]["chave_tabela"] = "Tabela"
+    matriz_cfg = {
+        "nome": "CanalAutorizador",
+        "tipo": "cnpj",
+        "ativo": True,
+        "palavra_chave": "CANAL AUTORIZADOR",
+        "arquivo_controle": "Painel_NV_*.xlsx",
+        "aba_controle": "Dados",
+        "chave_controle": "CNPJ ajustado",
+        "coluna_rotulo_controle": "Rótulo",
+        "rotulo_valido_controle": "CANAL_AUT",
+        "colunas_trazidas": {},
+        "colunas_data": [],
+    }
+    cfg["matrizes"].append(matriz_cfg)
+
+    import pipeline
+
+    pipeline.BASE_DIR = tmp_path
+
+    df_base = carregar_base(cfg)
+    resultado = rodar_matriz("CanalAutorizador", matriz_cfg, df_base, cfg)
+
+    assert resultado is not None
+    # pedido 9003 tem outro Rótulo no Painel_NV -> fora da análise
+    assert set(resultado["Id pedido"]) == {"9001", "9002"}
+
+    checks = dict(zip(resultado["Id pedido"], resultado["Check"]))
+    assert checks["9001"] == CHECK_OK
+    assert checks["9002"] == CHECK_ERRO
+
+    linha_erro = resultado.loc[resultado["Id pedido"] == "9002"].iloc[0]
+    preco_sem_desconto = 27.3 / (1 - 0.5687)
+    preco_correto = preco_sem_desconto * (1 - 0.20)  # linha "Canal Autorizador", não a de Feira
+    assert round(linha_erro["preco_liquido_desconto_correto"], 2) == round(preco_correto, 2)
+
+    assert (tmp_path / "saida" / "CanalAutorizador_analise.xlsx").exists()

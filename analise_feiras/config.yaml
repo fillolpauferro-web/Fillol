@@ -35,34 +35,55 @@ base:
 
 # Arquivo usado no passo 4 (achar o desconto que deveria ter sido aplicado
 # quando um pedido é identificado como erro operacional). O desconto correto
-# é por produto (EAN) — não depende do CNPJ do cliente.
+# é por produto (EAN); se a planilha também tiver a coluna "Tabela" (config
+# chave_tabela abaixo), o desconto correto passa a variar por Tabela de
+# negociação também — cada matriz busca a condição da SUA tabela (usando a
+# própria palavra_chave da matriz) antes de casar por EAN.
+# IMPORTANTE: chave_tabela abaixo só funciona depois que a coluna "Tabela"
+# existir de fato na aba "Dados" do condicao_comercial.xlsx — sem ela,
+# TODAS as matrizes (Feira incluída) vão dar erro de coluna ausente.
 condicao_comercial:
   arquivo: "C:/Users/I0507867.FARMA/OneDrive - Sanofi/Desktop/Analise Painel/dados/condicao_comercial.xlsx"
   aba: "Dados"
   colunas:
     chave_ean: "EAN FORMATADO"
     desconto_correto_pct: "Desconto Atual"
+    chave_tabela: "Tabela"
   # true porque a célula guarda 0.2398 (fração) e o Excel só EXIBE como
   # "23,98%" — confirmado lendo o valor cru da planilha do usuário
   desconto_em_fracao: true
 
-# Cada item da lista abaixo é uma "matriz" de análise: um recorte da coluna
-# "Tabela de negociação" (ex.: Feira, Campanha) cruzado com o respectivo
-# arquivo de controle. Adicione quantas quiser; marque ativo: false para
-# pular sem apagar a configuração.
+# Cada item da lista abaixo é uma "matriz" de análise. Adicione quantas
+# quiser; marque ativo: false para pular sem apagar a configuração. O campo
+# "tipo" muda a lógica usada:
 #
-# Check = OK só quando as DUAS condições são verdadeiras:
-#   1. o CNPJ do pedido (base.colunas.cnpj) existe na coluna "chave_controle"
-#      do arquivo de controle;
-#   2. a data do pedido está dentro do período real da feira (comparando só
-#      a data, sem horário) — exige que colunas_trazidas tenha as chaves
-#      "inicio_real" e "termino_real" (como no exemplo abaixo).
-# Fora disso (CNPJ não cadastrado, ou cadastrado mas pedido fora do
-# período), Check = "Erro Operacional". As colunas em "colunas_trazidas"
-# são sempre copiadas pra saída quando o CNPJ é encontrado (ex.: as datas
-# reais em que a feira aconteceu), mesmo se o Check der erro por período.
+# tipo: "tabela" (padrão, ex.: Feira, Campanha) — filtra a base pela
+#   palavra_chave na coluna "Tabela de negociação". Check = OK só quando as
+#   DUAS condições são verdadeiras:
+#     1. o CNPJ do pedido existe na coluna "chave_controle" do arquivo de
+#        controle;
+#     2. a data do pedido está dentro do período real (comparando só a
+#        data, sem horário) — exige colunas_trazidas com as chaves
+#        "inicio_real" e "termino_real" (como no exemplo da Feira). Se a
+#        matriz não tiver essas duas chaves, só a condição 1 vale.
+#   Fora disso, Check = "Erro Operacional".
+#
+# tipo: "cnpj" (ex.: Canal Autorizador) — não filtra pela Tabela de
+#   negociação; filtra a base pelos CNPJs presentes no arquivo de controle
+#   (ex.: Painel_NV). Check = OK só quando a "Tabela de negociação" do
+#   pedido contém a palavra_chave configurada; qualquer pedido desses CNPJs
+#   feito em condição diferente (ex.: Feira, Associativismo, etc. em vez de
+#   Canal Autorizador) vira "Erro Operacional".
+#   coluna_rotulo_controle/rotulo_valido_controle são opcionais: use quando
+#   o arquivo de controle traz vários rótulos/canais misturados no mesmo
+#   arquivo (caso do Painel_NV) e você precisa filtrar só as linhas do
+#   rótulo desta matriz antes de montar a lista de CNPJs.
+#
+# Em ambos os tipos, "colunas_trazidas" são copiadas pra saída sempre que o
+# CNPJ é encontrado no controle (mesmo se o Check der erro).
 matrizes:
   - nome: "Feira"
+    tipo: "tabela"
     ativo: true
     palavra_chave: "FEIRA" # texto buscado em Tabela de negociação (sem acento/maiúsculas)
     arquivo_controle: "C:/Users/I0507867.FARMA/OneDrive - Sanofi/Desktop/Analise Painel/dados/Controle_Feiras.xlsx"
@@ -79,6 +100,7 @@ matrizes:
     colunas_data: ["inicio_real", "termino_real"]
 
   - nome: "Campanha"
+    tipo: "tabela"
     ativo: false
     palavra_chave: "CAMPANHA"
     arquivo_controle: "C:/Users/I0507867.FARMA/OneDrive - Sanofi/Desktop/Analise Painel/dados/Controle_Campanhas.xlsx"
@@ -88,6 +110,29 @@ matrizes:
       inicio_real: "Início Real"
       termino_real: "Término Real"
     colunas_data: ["inicio_real", "termino_real"]
+
+  - nome: "CanalAutorizador"
+    tipo: "cnpj"
+    ativo: true
+    # texto buscado (contém) na Tabela de negociação da base pra validar o
+    # Check, e também no config.yaml -> condicao_comercial pra achar o
+    # desconto certo desse canal na coluna "Tabela"
+    palavra_chave: "CANAL AUTORIZADOR"
+    # nome do arquivo muda a cada exportação (Painel_NV_XXXX) — usa * pra
+    # sempre pegar o mais recente
+    arquivo_controle: "C:/Users/I0507867.FARMA/OneDrive - Sanofi/Desktop/Analise Painel/dados/Painel_NV_*.xlsx"
+    aba_controle: null
+    chave_controle: "CNPJ ajustado"
+    # o Painel_NV pode ter vários rótulos/canais no mesmo arquivo; filtra só
+    # as linhas de Canal Autorizador antes de montar a lista de CNPJs.
+    # ATENÇÃO: o rótulo no Painel_NV vem como "Canal_Aut", só que a Tabela de
+    # negociação real na base é "Canal Autorizador" — por isso são dois
+    # campos separados (rotulo_valido_controle vs. palavra_chave acima) em
+    # vez de comparar o texto direto.
+    coluna_rotulo_controle: "Rótulo"
+    rotulo_valido_controle: "CANAL_AUT"
+    colunas_trazidas: {}
+    colunas_data: []
 
 saida:
   pasta: "C:/Users/I0507867.FARMA/OneDrive - Sanofi/Desktop/Analise Painel/saida"
