@@ -345,9 +345,12 @@ def test_matriz_tipo_consolidacao_bandeira(tmp_path: Path):
     painel_bandeira_df = pd.DataFrame(
         {
             "CNPJ Ajustado": ["11.111.111/0001-11", "22.222.222/0001-22"],
-            "BANDEIRA": ["REDE A", "REDE B"],
-            "ID BANDEIRA": ["10", "20"],
-            "Razão Social": ["CLIENTE UM", "CLIENTE DOIS"],
+            "id_bandeira": ["10", "20"],
+            "desc_bandeira": ["REDE A", "REDE B"],
+            "perfil_bandeira": ["CALENDARIO", "CALENDARIO"],
+            "razao_social": ["CLIENTE UM", "CLIENTE DOIS"],
+            "cidade": ["SAO PAULO", "RIO DE JANEIRO"],
+            "estado": ["SP", "RJ"],
         }
     )
 
@@ -365,9 +368,12 @@ def test_matriz_tipo_consolidacao_bandeira(tmp_path: Path):
         "aba_controle": "Dados",
         "chave_controle": "CNPJ Ajustado",
         "colunas_trazidas": {
-            "bandeira": "BANDEIRA",
-            "id_bandeira": "ID BANDEIRA",
-            "razao_social": "Razão Social",
+            "id_bandeira": "id_bandeira",
+            "bandeira": "desc_bandeira",
+            "perfil_bandeira": "perfil_bandeira",
+            "razao_social": "razao_social",
+            "cidade": "cidade",
+            "estado": "estado",
         },
         "colunas_data": [],
         "nome_arquivo_saida": "historico_bandeiras.xlsx",

@@ -150,13 +150,15 @@ matrizes:
     arquivo_controle: "C:/Users/I0507867.FARMA/OneDrive - Sanofi/Desktop/Analise Painel/dados/Painel_Bandeira*.xlsx"
     aba_controle: null
     chave_controle: "CNPJ Ajustado"
-    # colunas do Painel_Bandeira trazidas pra saída — Bandeira é o que
-    # importa pra agrupar as vendas depois. AJUSTAR os nomes de coluna se
-    # forem diferentes na planilha real (ex.: sem "ID Bandeira").
+    # colunas do Painel_Bandeira trazidas pra saída — desc_bandeira é o nome
+    # da bandeira (ex.: CARREFOUR), usado pra agrupar as vendas depois.
     colunas_trazidas:
-      bandeira: "BANDEIRA"
-      id_bandeira: "ID BANDEIRA"
-      razao_social: "Razão Social"
+      id_bandeira: "id_bandeira"
+      bandeira: "desc_bandeira"
+      perfil_bandeira: "perfil_bandeira"
+      razao_social: "razao_social"
+      cidade: "cidade"
+      estado: "estado"
     colunas_data: []
     # nome do arquivo de resultado consolidado (em vez de "Bandeira_analise.xlsx")
     nome_arquivo_saida: "historico_bandeiras.xlsx"
