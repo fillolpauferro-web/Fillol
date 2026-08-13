@@ -191,6 +191,28 @@ matrizes:
         chave_raiz_cnpj: "Raiz CNPJ"
         rotulo: "Rotulo"
       nome_arquivo_saida: "Bandeiras_Analise.xlsx"
+      # De-para manual: cobre bandeiras cujo nome não tem nenhuma relação de
+      # palavra com o código da Tabela de negociação, então não dá pra
+      # derivar pelo Rotulo do arquivo de regra (ex.: bandeira "Pacheco" vs
+      # Tabela "DPSP_CA" — nomes sem nenhuma palavra em comum). Funciona
+      # como reforço: Check = OK se bater com o Rotulo do regra.xlsx OU com
+      # algum item daqui (confirmado pelo usuário com casos reais).
+      # bandeira_contem: procurado (contém) na coluna "bandeira" da venda.
+      # tabela_contem: procurado por palavra na Tabela de negociação, igual
+      # ao Rotulo do regra.xlsx (ordem das palavras não importa).
+      mapa_bandeira_tabela:
+        - bandeira_contem: "DROGAO SUPER"
+          tabela_contem: "DROGAO SUPER"
+        - bandeira_contem: "PACHECO"
+          tabela_contem: "DPSP"
+        - bandeira_contem: "COOP"
+          tabela_contem: "COOP"
+        - bandeira_contem: "CARREFOUR"
+          tabela_contem: "CARREFOUR"
+        - bandeira_contem: "RAIA"
+          tabela_contem: "RAIA"
+        - bandeira_contem: "ULTRAFARMA"
+          tabela_contem: "ULTRAFARMA"
 
 saida:
   pasta: "C:/Users/I0507867.FARMA/OneDrive - Sanofi/Desktop/Analise Painel/saida"

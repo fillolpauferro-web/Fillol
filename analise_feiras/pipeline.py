@@ -31,9 +31,12 @@ define como a base é filtrada e o que sai no resultado:
   também tiver "regra" configurado, roda uma segunda camada reaproveitando
   esse histórico em memória: cruza cada venda com o Rotulo esperado no
   arquivo de regra (por Raiz CNPJ — os 8 primeiros dígitos do CNPJ), marca
-  Check = OK só quando cada palavra do Rotulo aparece (como prefixo, em
-  qualquer ordem) na Tabela de negociação real, e faz o mesmo cálculo de
-  desconto/preço dos tipos "tabela"/"cnpj" pros erros — o resultado sai num
+  Check = OK quando cada palavra do Rotulo aparece (como prefixo, em
+  qualquer ordem) na Tabela de negociação real, OU quando bate com algum
+  item de regra.mapa_bandeira_tabela — um de-para manual pra bandeiras cujo
+  nome não tem nenhuma relação de palavra com o código da Tabela (ex.:
+  "Pacheco" vs "DPSP_CA") — e faz o mesmo cálculo de desconto/preço dos
+  tipos "tabela"/"cnpj" pros erros — o resultado sai num
   segundo arquivo (regra.nome_arquivo_saida).
 
   Um arquivo de saída é salvo por matriz (nome_arquivo_saida no config, ou
@@ -364,13 +367,33 @@ def _rotulo_bate_na_tabela(rotulo_tokens: tuple[str, ...], tabela_tokens: tuple[
     return all(any(tab.startswith(rot) for tab in tabela_tokens) for rot in rotulo_tokens)
 
 
+def _bate_mapa_bandeira(bandeira_norm: str, tabela_tokens: tuple[str, ...], mapa: list[dict]) -> bool:
+    """mapa_bandeira_tabela é um "de-para" manual (config.yaml), pra cobrir
+    bandeiras cujo nome não tem nenhuma relação de palavra com o código da
+    Tabela de negociação (ex.: bandeira "Pacheco" vs Tabela "DPSP_CA" — não
+    dá pra derivar essa ligação a partir do texto, como dá com o Rotulo do
+    arquivo de regra). Funciona como reforço: se a bandeira da venda contém
+    "bandeira_contem" de algum item, e a Tabela contém "tabela_contem"
+    (mesma lógica de _rotulo_bate_na_tabela), considera batido.
+    """
+    for item in mapa:
+        band_kw = normalize_text(item.get("bandeira_contem", ""))
+        if not band_kw or band_kw not in bandeira_norm:
+            continue
+        tab_tokens_esperados = tokenizar(normalize_text(item.get("tabela_contem", "")))
+        if _rotulo_bate_na_tabela(tab_tokens_esperados, tabela_tokens):
+            return True
+    return False
+
+
 def aplicar_regra_bandeira(df_historico: pd.DataFrame, matriz_cfg: dict, cfg: dict) -> pd.DataFrame:
     """A partir do histórico já consolidado (ainda em memória, sem re-ler
     nada), cruza cada venda com o Rotulo esperado no arquivo de regra
-    (por Raiz CNPJ) e marca Check = OK só quando a Tabela de negociação
-    real contém todas as palavras desse Rotulo. Erro Operacional é cruzado
-    com Condicao_comercial pro cálculo de desconto/preço, igual às outras
-    matrizes (Feira, Canal Autorizador).
+    (por Raiz CNPJ) e marca Check = OK quando a Tabela de negociação real
+    contém todas as palavras desse Rotulo, OU quando bate com algum item de
+    regra.mapa_bandeira_tabela (de-para manual bandeira -> tabela esperada).
+    Erro Operacional é cruzado com Condicao_comercial pro cálculo de
+    desconto/preço, igual às outras matrizes (Feira, Canal Autorizador).
     """
     df = df_historico.copy()
     df["_raiz_cnpj_norm"] = df["_cnpj_norm"].str[:8]
@@ -383,14 +406,29 @@ def aplicar_regra_bandeira(df_historico: pd.DataFrame, matriz_cfg: dict, cfg: di
     # CNPJ sem correspondência no regra vira NaN (float) na coluna do merge,
     # não uma tupla vazia — precisa tratar antes de iterar, senão quebra com
     # "'float' object is not iterable"
-    bate_tabela = pd.Series(
+    bate_regra = pd.Series(
         [
             _rotulo_bate_na_tabela(rot, tab) if isinstance(rot, tuple) else False
             for rot, tab in zip(df["_rotulo_tokens"], df["_tabela_tokens"])
         ],
         index=df.index,
     )
-    ok = encontrado & bate_tabela
+
+    regra_cfg = matriz_cfg.get("regra") or {}
+    mapa = regra_cfg.get("mapa_bandeira_tabela") or []
+    coluna_bandeira = regra_cfg.get("coluna_bandeira", "bandeira")
+    if mapa and coluna_bandeira in df.columns:
+        bate_mapa = pd.Series(
+            [
+                _bate_mapa_bandeira(normalize_text(b), tab, mapa)
+                for b, tab in zip(df[coluna_bandeira], df["_tabela_tokens"])
+            ],
+            index=df.index,
+        )
+    else:
+        bate_mapa = pd.Series(False, index=df.index)
+
+    ok = (encontrado & bate_regra) | bate_mapa
     df["Check"] = pd.Series(CHECK_OK, index=df.index).mask(~ok, CHECK_ERRO)
 
     df_condicao = carregar_condicao_comercial(cfg)

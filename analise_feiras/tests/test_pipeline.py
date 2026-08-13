@@ -10,6 +10,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from pipeline import (  # noqa: E402
     CHECK_ERRO,
     CHECK_OK,
+    _bate_mapa_bandeira,
     _rotulo_bate_na_tabela,
     carregar_base,
     perguntar_quais_matrizes,
@@ -55,6 +56,28 @@ def test_rotulo_bate_na_tabela_ignora_ordem_e_aceita_abreviacao():
 
     # rótulo vazio nunca bate
     assert not _rotulo_bate_na_tabela((), tab)
+
+
+def test_bate_mapa_bandeira_cobre_nomes_sem_relacao_textual():
+    mapa = [
+        {"bandeira_contem": "DROGAO SUPER", "tabela_contem": "DROGAO SUPER"},
+        {"bandeira_contem": "PACHECO", "tabela_contem": "DPSP"},
+    ]
+
+    # casos reais confirmados pelo usuário
+    tab = tokenizar(normalize_text("Tabela Agregadora - DROGAO SUPER_GENERICO"))
+    assert _bate_mapa_bandeira(normalize_text("DROGAO SUPER SP"), tab, mapa)
+
+    # "Pacheco" e "DPSP_CA" não têm nenhuma palavra em comum — só o mapa
+    # manual resolve, o match por Rotulo/token não teria como
+    tab = tokenizar(normalize_text("DPSP_CA"))
+    assert _bate_mapa_bandeira(normalize_text("PACHECO"), tab, mapa)
+
+    # bandeira sem item no mapa não bate
+    assert not _bate_mapa_bandeira(normalize_text("OUTRA REDE"), tab, mapa)
+
+    # mapa vazio nunca bate
+    assert not _bate_mapa_bandeira(normalize_text("PACHECO"), tab, [])
 
 
 def test_carregar_base_ignora_prefixo_tabela_agregadora(tmp_path: Path):
@@ -522,27 +545,47 @@ def test_matriz_bandeira_com_regra(tmp_path: Path):
     #              que virar Erro Operacional sem quebrar (bug real: a
     #              coluna de tokens do Rotulo vira NaN pra CNPJ sem
     #              correspondência, e iterar sobre NaN estourava TypeError)
+    # pedido 9104: CNPJ 44.444.444/0001-44 também SEM linha no regra.xlsx,
+    #              mas a bandeira é "PACHECO" e a Tabela é "DPSP_CA" — sem
+    #              nenhuma palavra em comum, só o mapa_bandeira_tabela
+    #              (de-para manual) resgata pra OK
     base_df = pd.DataFrame(
         {
-            "Tipo de cliente": ["ASSOCIATIVISMO", "ASSOCIATIVISMO", "ASSOCIATIVISMO"],
-            "CNPJ": ["11.111.111/0001-11", "22.222.222/0001-22", "33.333.333/0001-33"],
-            "Id pedido": ["9101", "9102", "9103"],
-            "EAN": ["1111111111111", "2222222222222", "3333333333333"],
+            "Tipo de cliente": ["ASSOCIATIVISMO", "ASSOCIATIVISMO", "ASSOCIATIVISMO", "ASSOCIATIVISMO"],
+            "CNPJ": [
+                "11.111.111/0001-11",
+                "22.222.222/0001-22",
+                "33.333.333/0001-33",
+                "44.444.444/0001-44",
+            ],
+            "Id pedido": ["9101", "9102", "9103", "9104"],
+            "EAN": ["1111111111111", "2222222222222", "3333333333333", "4444444444444"],
             "Tabela de negociação": [
                 "Tabela Agregadora - D1000_GENERICO",
                 "FEIRA NEGOCIOS CA",
                 "QUALQUER OUTRA TABELA",
+                "DPSP_CA",
             ],
-            "Data do pedido (original)": ["10/05/2026 10:00", "11/05/2026 10:00", "12/05/2026 10:00"],
-            "Faturado líquido (R$)": ["27,3", "40,0", "15,0"],
-            "Desconto comercial faturado (%)": ["56,87", "20", "10"],
+            "Data do pedido (original)": [
+                "10/05/2026 10:00",
+                "11/05/2026 10:00",
+                "12/05/2026 10:00",
+                "13/05/2026 10:00",
+            ],
+            "Faturado líquido (R$)": ["27,3", "40,0", "15,0", "18,0"],
+            "Desconto comercial faturado (%)": ["56,87", "20", "10", "30"],
         }
     )
 
     painel_bandeira_df = pd.DataFrame(
         {
-            "CNPJ Ajustado": ["11.111.111/0001-11", "22.222.222/0001-22", "33.333.333/0001-33"],
-            "desc_bandeira": ["REDE A", "REDE B", "REDE C"],
+            "CNPJ Ajustado": [
+                "11.111.111/0001-11",
+                "22.222.222/0001-22",
+                "33.333.333/0001-33",
+                "44.444.444/0001-44",
+            ],
+            "desc_bandeira": ["REDE A", "REDE B", "REDE C", "PACHECO"],
         }
     )
 
@@ -585,6 +628,9 @@ def test_matriz_bandeira_com_regra(tmp_path: Path):
             "aba": "Dados",
             "colunas": {"chave_raiz_cnpj": "Raiz CNPJ", "rotulo": "Rotulo"},
             "nome_arquivo_saida": "Bandeiras_Analise.xlsx",
+            "mapa_bandeira_tabela": [
+                {"bandeira_contem": "PACHECO", "tabela_contem": "DPSP"},
+            ],
         },
     }
     cfg["matrizes"].append(matriz_cfg)
@@ -606,6 +652,7 @@ def test_matriz_bandeira_com_regra(tmp_path: Path):
     assert checks["9101"] == CHECK_OK
     assert checks["9102"] == CHECK_ERRO
     assert checks["9103"] == CHECK_ERRO  # CNPJ sem linha no regra.xlsx
+    assert checks["9104"] == CHECK_OK  # sem linha no regra.xlsx, mas resgatado pelo mapa_bandeira_tabela
 
     linha_erro = resultado.loc[resultado["Id pedido"] == "9102"].iloc[0]
     preco_sem_desconto = 40.0 / (1 - 0.20)
