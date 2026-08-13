@@ -79,8 +79,16 @@ condicao_comercial:
 #   arquivo (caso do Painel_NV) e você precisa filtrar só as linhas do
 #   rótulo desta matriz antes de montar a lista de CNPJs.
 #
-# Em ambos os tipos, "colunas_trazidas" são copiadas pra saída sempre que o
-# CNPJ é encontrado no controle (mesmo se o Check der erro).
+# tipo: "consolidacao" (ex.: Bandeira) — sem Check e sem cruzamento com
+#   Condicao_comercial. Filtra a base pelos CNPJs do arquivo de controle
+#   (ex.: Painel_Bandeira) e só consolida essas vendas num arquivo único,
+#   trazendo as colunas de colunas_trazidas (ex.: Bandeira) pra dar pra
+#   agrupar/analisar depois.
+#
+# Em todos os tipos, "colunas_trazidas" são copiadas pra saída sempre que o
+# CNPJ é encontrado no controle (mesmo se o Check der erro, quando aplicável).
+# "nome_arquivo_saida" (opcional) troca o nome padrão "{nome}_analise.xlsx"
+# do arquivo de resultado.
 matrizes:
   - nome: "Feira"
     tipo: "tabela"
@@ -133,6 +141,25 @@ matrizes:
     rotulo_valido_controle: "CANAL_AUT"
     colunas_trazidas: {}
     colunas_data: []
+
+  - nome: "Bandeira"
+    tipo: "consolidacao"
+    ativo: true
+    # nome do arquivo pode mudar a cada exportação, igual ao Painel_NV — usa
+    # * pra sempre pegar o mais recente. AJUSTAR se o nome real for diferente.
+    arquivo_controle: "C:/Users/I0507867.FARMA/OneDrive - Sanofi/Desktop/Analise Painel/dados/Painel_Bandeira*.xlsx"
+    aba_controle: null
+    chave_controle: "CNPJ Ajustado"
+    # colunas do Painel_Bandeira trazidas pra saída — Bandeira é o que
+    # importa pra agrupar as vendas depois. AJUSTAR os nomes de coluna se
+    # forem diferentes na planilha real (ex.: sem "ID Bandeira").
+    colunas_trazidas:
+      bandeira: "BANDEIRA"
+      id_bandeira: "ID BANDEIRA"
+      razao_social: "Razão Social"
+    colunas_data: []
+    # nome do arquivo de resultado consolidado (em vez de "Bandeira_analise.xlsx")
+    nome_arquivo_saida: "historico_bandeiras.xlsx"
 
 saida:
   pasta: "C:/Users/I0507867.FARMA/OneDrive - Sanofi/Desktop/Analise Painel/saida"

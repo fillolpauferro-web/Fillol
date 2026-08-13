@@ -1,6 +1,6 @@
 """Pipeline recorrente de análise de matrizes comerciais (Feira, Canal
-Autorizador, ...). Cada matriz no config.yaml tem um "tipo" que define como
-a base é filtrada e como o Check é calculado:
+Autorizador, Bandeira, ...). Cada matriz no config.yaml tem um "tipo" que
+define como a base é filtrada e o que sai no resultado:
 
   tipo: "tabela" (ex.: Feira) — parte da coluna "Tabela de negociação":
     1. Filtra a base pela palavra-chave da matriz.
@@ -17,13 +17,21 @@ a base é filtrada e como o Check é calculado:
        palavra_chave configurada (ex.: pedido de um CNPJ do Canal Autorizador
        feito em qualquer tabela diferente de "Canal Autorizador" = erro).
 
-  Em ambos os tipos, pedidos com Check = Erro Operacional são cruzados com
-  Condicao_comercial (por EAN, e por Tabela se a planilha tiver essa coluna)
-  para achar o desconto correto, calcular o preço sem desconto e o preço
-  líquido que deveria ter sido faturado — exceto quando o desconto comercial
-  faturado do pedido é 0 (indício de dado ausente/errado): o Check continua
-  Erro Operacional, mas o cálculo de preço/desconto fica em branco. Um
-  arquivo de saída é salvo por matriz.
+  Nos tipos "tabela" e "cnpj", pedidos com Check = Erro Operacional são
+  cruzados com Condicao_comercial (por EAN, e por Tabela se a planilha tiver
+  essa coluna) para achar o desconto correto, calcular o preço sem desconto
+  e o preço líquido que deveria ter sido faturado — exceto quando o desconto
+  comercial faturado do pedido é 0 (indício de dado ausente/errado): o Check
+  continua Erro Operacional, mas o cálculo de preço/desconto fica em branco.
+
+  tipo: "consolidacao" (ex.: Bandeira) — sem Check e sem cruzamento de
+  desconto: só filtra a base pelos CNPJs do arquivo de controle (ex.:
+  Painel_Bandeira) e consolida essas vendas num único arquivo, trazendo as
+  colunas configuradas em colunas_trazidas (ex.: Bandeira) pra permitir
+  agrupar/analisar depois.
+
+  Um arquivo de saída é salvo por matriz (nome_arquivo_saida no config, ou
+  "{nome}_analise.xlsx" por padrão).
 
 Uso:
     python pipeline.py                       # pergunta interativamente quais matrizes rodar
@@ -281,13 +289,22 @@ def montar_saida(df: pd.DataFrame, cfg: dict, matriz_cfg: dict) -> pd.DataFrame:
     return df[colunas_base_originais + colunas_novas].copy()
 
 
+def montar_saida_consolidacao(df: pd.DataFrame, cfg: dict, matriz_cfg: dict) -> pd.DataFrame:
+    """tipo: "consolidacao" — sem Check nem cruzamento de desconto, só as
+    vendas encontradas mais as colunas trazidas do controle (ex.: Bandeira).
+    """
+    colunas_base_originais = list(cfg["base"]["colunas"].values())
+    colunas_novas = list((matriz_cfg.get("colunas_trazidas") or {}).keys())
+    return df[colunas_base_originais + colunas_novas].copy()
+
+
 def rodar_matriz(nome_matriz: str, matriz_cfg: dict, df_base: pd.DataFrame, cfg: dict) -> pd.DataFrame | None:
     print(f"\n=== Matriz: {nome_matriz} ===")
     tipo = matriz_cfg.get("tipo", "tabela")
 
     df_controle = carregar_controle(matriz_cfg)
 
-    if tipo == "cnpj":
+    if tipo in ("cnpj", "consolidacao"):
         cnpjs_validos = set(df_controle["_chave_controle_norm"])
         df_filtrado = filtrar_por_cnpj(df_base, cnpjs_validos)
         if df_filtrado.empty:
@@ -303,22 +320,29 @@ def rodar_matriz(nome_matriz: str, matriz_cfg: dict, df_base: pd.DataFrame, cfg:
 
     df_merge = aplicar_procx_cnpj(df_filtrado, df_controle)
 
-    df_merge["Check"] = calcular_check(df_merge, matriz_cfg)
-    print(df_merge["Check"].value_counts(dropna=False).to_string())
+    if tipo == "consolidacao":
+        # sem Check, sem cruzamento de desconto — só consolida as vendas
+        # encontradas com as colunas trazidas do controle (ex.: Bandeira)
+        df_saida = montar_saida_consolidacao(df_merge, cfg, matriz_cfg)
+    else:
+        df_merge["Check"] = calcular_check(df_merge, matriz_cfg)
+        print(df_merge["Check"].value_counts(dropna=False).to_string())
 
-    df_condicao = carregar_condicao_comercial(cfg)
-    df_final = aplicar_condicao_correta(df_merge, df_condicao, matriz_cfg)
+        df_condicao = carregar_condicao_comercial(cfg)
+        df_final = aplicar_condicao_correta(df_merge, df_condicao, matriz_cfg)
 
-    df_saida = montar_saida(df_final, cfg, matriz_cfg)
+        df_saida = montar_saida(df_final, cfg, matriz_cfg)
 
     pasta_saida = BASE_DIR / cfg["saida"]["pasta"]
     pasta_saida.mkdir(parents=True, exist_ok=True)
-    caminho_final = pasta_saida / f"{nome_matriz}_analise.xlsx"
+    nome_arquivo = matriz_cfg.get("nome_arquivo_saida") or f"{nome_matriz}_analise.xlsx"
+    caminho_final = pasta_saida / nome_arquivo
     df_saida.to_excel(caminho_final, index=False)
     print(f"Resultado salvo em {caminho_final}")
 
-    impacto = df_saida["diferenca_faturamento"].sum(skipna=True)
-    print(f"Impacto financeiro total dos erros operacionais: R$ {impacto:,.2f}")
+    if "diferenca_faturamento" in df_saida.columns:
+        impacto = df_saida["diferenca_faturamento"].sum(skipna=True)
+        print(f"Impacto financeiro total dos erros operacionais: R$ {impacto:,.2f}")
 
     return df_saida
 
@@ -365,7 +389,9 @@ def main() -> None:
 
     if args.listar:
         for m in cfg["matrizes"]:
-            print(f"- {m['nome']} (tipo={m.get('tipo', 'tabela')}, ativo={m['ativo']}, palavra_chave='{m['palavra_chave']}')")
+            palavra_chave = m.get("palavra_chave")
+            detalhe = f", palavra_chave='{palavra_chave}'" if palavra_chave else ""
+            print(f"- {m['nome']} (tipo={m.get('tipo', 'tabela')}, ativo={m['ativo']}{detalhe})")
         return
 
     if args.matrizes:

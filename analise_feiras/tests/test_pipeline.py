@@ -323,3 +323,79 @@ def test_matriz_tipo_cnpj_canal_autorizador(tmp_path: Path):
     assert round(linha_erro["preco_liquido_desconto_correto"], 2) == round(preco_correto, 2)
 
     assert (tmp_path / "saida" / "CanalAutorizador_analise.xlsx").exists()
+
+
+def test_matriz_tipo_consolidacao_bandeira(tmp_path: Path):
+    # pedido 8001 e 8002: CNPJs que estão no Painel_Bandeira -> entram na
+    #                     consolidação, cada um com a Bandeira do seu grupo
+    # pedido 8003: CNPJ fora do Painel_Bandeira -> não entra
+    base_df = pd.DataFrame(
+        {
+            "Tipo de cliente": ["ASSOCIATIVISMO", "ASSOCIATIVISMO", "ASSOCIATIVISMO"],
+            "CNPJ": ["11.111.111/0001-11", "22.222.222/0001-22", "33.333.333/0001-33"],
+            "Id pedido": ["8001", "8002", "8003"],
+            "EAN": ["1111111111111", "2222222222222", "3333333333333"],
+            "Tabela de negociação": ["DEFAULT GENERICO CA", "DEFAULT GENERICO CA", "DEFAULT GENERICO CA"],
+            "Data do pedido (original)": ["10/05/2026 10:00", "11/05/2026 10:00", "12/05/2026 10:00"],
+            "Faturado líquido (R$)": ["27,3", "40,0", "15,0"],
+            "Desconto comercial faturado (%)": ["56,87", "20", "10"],
+        }
+    )
+
+    painel_bandeira_df = pd.DataFrame(
+        {
+            "CNPJ Ajustado": ["11.111.111/0001-11", "22.222.222/0001-22"],
+            "BANDEIRA": ["REDE A", "REDE B"],
+            "ID BANDEIRA": ["10", "20"],
+            "Razão Social": ["CLIENTE UM", "CLIENTE DOIS"],
+        }
+    )
+
+    (tmp_path / "saida").mkdir()
+    base_df.to_excel(tmp_path / "base_pedidos.xlsx", index=False)
+    with pd.ExcelWriter(tmp_path / "Painel_Bandeira_2026_08.xlsx") as w:
+        painel_bandeira_df.to_excel(w, sheet_name="Dados", index=False)
+
+    cfg = _montar_config(tmp_path)
+    matriz_cfg = {
+        "nome": "Bandeira",
+        "tipo": "consolidacao",
+        "ativo": True,
+        "arquivo_controle": "Painel_Bandeira_*.xlsx",
+        "aba_controle": "Dados",
+        "chave_controle": "CNPJ Ajustado",
+        "colunas_trazidas": {
+            "bandeira": "BANDEIRA",
+            "id_bandeira": "ID BANDEIRA",
+            "razao_social": "Razão Social",
+        },
+        "colunas_data": [],
+        "nome_arquivo_saida": "historico_bandeiras.xlsx",
+    }
+    cfg["matrizes"].append(matriz_cfg)
+
+    import pipeline
+
+    pipeline.BASE_DIR = tmp_path
+
+    df_base = carregar_base(cfg)
+    resultado = rodar_matriz("Bandeira", matriz_cfg, df_base, cfg)
+
+    assert resultado is not None
+    # pedido 8003 tem CNPJ fora do Painel_Bandeira -> não entra
+    assert set(resultado["Id pedido"]) == {"8001", "8002"}
+
+    # sem Check nem colunas de desconto — é só consolidação
+    assert "Check" not in resultado.columns
+    assert "desconto_correto_pct" not in resultado.columns
+    assert "diferenca_faturamento" not in resultado.columns
+
+    bandeiras = dict(zip(resultado["Id pedido"], resultado["bandeira"]))
+    assert bandeiras["8001"] == "REDE A"
+    assert bandeiras["8002"] == "REDE B"
+
+    razoes = dict(zip(resultado["Id pedido"], resultado["razao_social"]))
+    assert razoes["8001"] == "CLIENTE UM"
+
+    assert (tmp_path / "saida" / "historico_bandeiras.xlsx").exists()
+    assert not (tmp_path / "saida" / "Bandeira_analise.xlsx").exists()
