@@ -15,7 +15,16 @@ from pipeline import (  # noqa: E402
     perguntar_quais_matrizes,
     rodar_matriz,
 )
-from utils import normalize_cnpj, normalize_ean, normalize_text, read_table_mais_recente, to_datetime, to_numeric, tokenizar  # noqa: E402
+from utils import (  # noqa: E402
+    normalize_cnpj,
+    normalize_cnpj_raiz,
+    normalize_ean,
+    normalize_text,
+    read_table_mais_recente,
+    to_datetime,
+    to_numeric,
+    tokenizar,
+)
 
 
 def test_rotulo_bate_na_tabela_ignora_ordem_e_aceita_abreviacao():
@@ -73,10 +82,21 @@ def test_normalize_cnpj_preenche_com_zero_a_esquerda():
     assert normalize_cnpj(None) == ""
 
 
+def test_normalize_cnpj_remove_decimal_zero_residual():
+    # célula numérica sem casas decimais vira string terminando em ".0"
+    # (ex.: pandas lendo uma coluna float) — não pode virar um dígito extra
+    assert normalize_cnpj("1672858000165.0") == "01672858000165"
+    assert normalize_cnpj_raiz("42225938.0") == "42225938"
+    assert normalize_cnpj_raiz("9156879.0") == "09156879"
+    # CNPJ mascarado não pode ser afetado (não termina em ".0")
+    assert normalize_cnpj("01.672.858/0001-65") == "01672858000165"
+
+
 def test_normalize_ean_remove_aspas_das_duas_pontas():
     assert normalize_ean("'7896422511865'") == "7896422511865"
     assert normalize_ean("'7896422511865") == "7896422511865"
     assert normalize_ean(" 7896422511865 ") == "7896422511865"
+    assert normalize_ean("7896422511865.0") == "7896422511865"
     assert normalize_ean(None) == ""
 
 
@@ -443,23 +463,32 @@ def test_matriz_bandeira_com_regra(tmp_path: Path):
     # pedido 9102: CNPJ 22.222.222/0001-22 (raiz 22222222), Tabela NÃO bate
     #              com o Rotulo esperado (GENERICO_D500) -> Erro Operacional,
     #              com desconto correto calculado via EAN
+    # pedido 9103: CNPJ 33.333.333/0001-33 (raiz 33333333) está no
+    #              Painel_Bandeira mas NÃO tem linha no regra.xlsx -> tem
+    #              que virar Erro Operacional sem quebrar (bug real: a
+    #              coluna de tokens do Rotulo vira NaN pra CNPJ sem
+    #              correspondência, e iterar sobre NaN estourava TypeError)
     base_df = pd.DataFrame(
         {
-            "Tipo de cliente": ["ASSOCIATIVISMO", "ASSOCIATIVISMO"],
-            "CNPJ": ["11.111.111/0001-11", "22.222.222/0001-22"],
-            "Id pedido": ["9101", "9102"],
-            "EAN": ["1111111111111", "2222222222222"],
-            "Tabela de negociação": ["Tabela Agregadora - D1000_GENERICO", "FEIRA NEGOCIOS CA"],
-            "Data do pedido (original)": ["10/05/2026 10:00", "11/05/2026 10:00"],
-            "Faturado líquido (R$)": ["27,3", "40,0"],
-            "Desconto comercial faturado (%)": ["56,87", "20"],
+            "Tipo de cliente": ["ASSOCIATIVISMO", "ASSOCIATIVISMO", "ASSOCIATIVISMO"],
+            "CNPJ": ["11.111.111/0001-11", "22.222.222/0001-22", "33.333.333/0001-33"],
+            "Id pedido": ["9101", "9102", "9103"],
+            "EAN": ["1111111111111", "2222222222222", "3333333333333"],
+            "Tabela de negociação": [
+                "Tabela Agregadora - D1000_GENERICO",
+                "FEIRA NEGOCIOS CA",
+                "QUALQUER OUTRA TABELA",
+            ],
+            "Data do pedido (original)": ["10/05/2026 10:00", "11/05/2026 10:00", "12/05/2026 10:00"],
+            "Faturado líquido (R$)": ["27,3", "40,0", "15,0"],
+            "Desconto comercial faturado (%)": ["56,87", "20", "10"],
         }
     )
 
     painel_bandeira_df = pd.DataFrame(
         {
-            "CNPJ Ajustado": ["11.111.111/0001-11", "22.222.222/0001-22"],
-            "desc_bandeira": ["REDE A", "REDE B"],
+            "CNPJ Ajustado": ["11.111.111/0001-11", "22.222.222/0001-22", "33.333.333/0001-33"],
+            "desc_bandeira": ["REDE A", "REDE B", "REDE C"],
         }
     )
 
@@ -522,6 +551,7 @@ def test_matriz_bandeira_com_regra(tmp_path: Path):
     checks = dict(zip(resultado["Id pedido"], resultado["Check"]))
     assert checks["9101"] == CHECK_OK
     assert checks["9102"] == CHECK_ERRO
+    assert checks["9103"] == CHECK_ERRO  # CNPJ sem linha no regra.xlsx
 
     linha_erro = resultado.loc[resultado["Id pedido"] == "9102"].iloc[0]
     preco_sem_desconto = 40.0 / (1 - 0.20)

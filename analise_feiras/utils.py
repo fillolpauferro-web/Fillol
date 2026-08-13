@@ -145,6 +145,16 @@ def tokenizar(texto_normalizado: str) -> tuple[str, ...]:
     return tuple(t for t in re.split(r"[\s_\-]+", texto_normalizado) if t)
 
 
+def _texto_sem_decimal_zero(valor) -> str:
+    """str(valor) removendo um ".0"/".00"/... no final — Excel/pandas
+    convertem uma célula numérica sem casas decimais pra string terminando
+    em ".0" (ex.: 42225938 -> "42225938.0"), o que faria um extrator de
+    dígitos ler um "0" a mais. Não afeta CNPJ mascarado ("01.672.858/0001-
+    65"), que nunca termina nesse padrão (sempre termina em "-DD").
+    """
+    return re.sub(r"\.0+$", "", str(valor))
+
+
 def normalize_cnpj(valor) -> str:
     """Mantém só os dígitos do CNPJ e preenche com zero à esquerda até 14
     dígitos (equivalente a =TEXTO(CNPJ;"00000000000000") do Excel) — o Excel
@@ -152,7 +162,7 @@ def normalize_cnpj(valor) -> str:
     """
     if valor is None or (isinstance(valor, float) and pd.isna(valor)):
         return ""
-    digitos = re.sub(r"\D", "", str(valor))
+    digitos = re.sub(r"\D", "", _texto_sem_decimal_zero(valor))
     return digitos.zfill(14) if digitos else ""
 
 
@@ -164,17 +174,18 @@ def normalize_cnpj_raiz(valor) -> str:
     """
     if valor is None or (isinstance(valor, float) and pd.isna(valor)):
         return ""
-    digitos = re.sub(r"\D", "", str(valor))
+    digitos = re.sub(r"\D", "", _texto_sem_decimal_zero(valor))
     return digitos.zfill(8) if digitos else ""
 
 
 def normalize_ean(valor) -> str:
     """Remove aspas simples (marcador de "número como texto" do Excel/CSV,
-    que pode vir só no início ou nas duas pontas) e espaços nas pontas.
+    que pode vir só no início ou nas duas pontas), espaços nas pontas, e um
+    ".0" residual de EAN guardado como número no Excel.
     """
     if valor is None or (isinstance(valor, float) and pd.isna(valor)):
         return ""
-    return str(valor).strip().strip("'")
+    return _texto_sem_decimal_zero(str(valor).strip().strip("'"))
 
 
 def to_datetime(series: pd.Series) -> pd.Series:

@@ -372,8 +372,14 @@ def aplicar_regra_bandeira(df_historico: pd.DataFrame, matriz_cfg: dict, cfg: di
     df["_tabela_tokens"] = df["_tabela_norm"].map(tokenizar)
 
     encontrado = df["_encontrado_regra"] == "both"
+    # CNPJ sem correspondência no regra vira NaN (float) na coluna do merge,
+    # não uma tupla vazia — precisa tratar antes de iterar, senão quebra com
+    # "'float' object is not iterable"
     bate_tabela = pd.Series(
-        [_rotulo_bate_na_tabela(rot, tab) for rot, tab in zip(df["_rotulo_tokens"], df["_tabela_tokens"])],
+        [
+            _rotulo_bate_na_tabela(rot, tab) if isinstance(rot, tuple) else False
+            for rot, tab in zip(df["_rotulo_tokens"], df["_tabela_tokens"])
+        ],
         index=df.index,
     )
     ok = encontrado & bate_tabela
