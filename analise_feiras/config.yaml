@@ -32,6 +32,12 @@ base:
     data_pedido: "Data do pedido (original)"
     faturado_liquido: "Faturado líquido (R$)"
     desconto_aplicado_pct: "Desconto comercial faturado (%)"
+    # AJUSTAR: nome real da coluna na planilha pode ser diferente (ex.:
+    # "Nº da Nota", "Numero da Nota Fiscal", "NF"). Aparece em toda saída
+    # (Feira, Canal Autorizador, Bandeira), não só no histórico de Bandeira,
+    # porque toda coluna listada aqui em base.colunas sai em todos os
+    # relatórios.
+    numero_nota: "Numero da Nota"
 
 # Arquivo usado no passo 4 (achar o desconto que deveria ter sido aplicado
 # quando um pedido é identificado como erro operacional). O desconto correto
