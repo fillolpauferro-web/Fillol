@@ -145,6 +145,16 @@ def tokenizar(texto_normalizado: str) -> tuple[str, ...]:
     return tuple(t for t in re.split(r"[\s_\-]+", texto_normalizado) if t)
 
 
+def remover_prefixo_tabela_agregadora(texto_normalizado: str) -> str:
+    """Remove o prefixo "TABELA AGREGADORA - " (já normalizado) do início
+    do texto — é a mesma Tabela de negociação, só que na versão agregada.
+    Pedidos lançados na versão agregada são tão válidos quanto na direta,
+    então toda comparação (Feira, Canal Autorizador, regra da Bandeira)
+    precisa tratar as duas formas como equivalentes.
+    """
+    return re.sub(r"^TABELA AGREGADORA\s*-\s*", "", texto_normalizado)
+
+
 def _texto_sem_decimal_zero(valor) -> str:
     """str(valor) removendo um ".0"/".00"/... no final — Excel/pandas
     convertem uma célula numérica sem casas decimais pra string terminando

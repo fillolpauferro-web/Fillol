@@ -21,10 +21,20 @@ from utils import (  # noqa: E402
     normalize_ean,
     normalize_text,
     read_table_mais_recente,
+    remover_prefixo_tabela_agregadora,
     to_datetime,
     to_numeric,
     tokenizar,
 )
+
+
+def test_remover_prefixo_tabela_agregadora():
+    assert remover_prefixo_tabela_agregadora(normalize_text("Tabela Agregadora - Carrefour CA")) == "CARREFOUR CA"
+    assert remover_prefixo_tabela_agregadora(normalize_text("Tabela Agregadora - Canal Autorizador")) == (
+        "CANAL AUTORIZADOR"
+    )
+    # sem o prefixo, não mexe em nada
+    assert remover_prefixo_tabela_agregadora(normalize_text("Carrefour CA")) == "CARREFOUR CA"
 
 
 def test_rotulo_bate_na_tabela_ignora_ordem_e_aceita_abreviacao():
@@ -45,6 +55,50 @@ def test_rotulo_bate_na_tabela_ignora_ordem_e_aceita_abreviacao():
 
     # rótulo vazio nunca bate
     assert not _rotulo_bate_na_tabela((), tab)
+
+
+def test_carregar_base_ignora_prefixo_tabela_agregadora(tmp_path: Path):
+    # pedidos lançados na versão "Tabela Agregadora - X" são tão válidos
+    # quanto na versão direta "X" — carregar_base já precisa tratar como
+    # equivalentes pra Feira/CanalAutorizador/regra da Bandeira funcionarem
+    # sem precisar saber qual das duas formas a base usou.
+    base_df = pd.DataFrame(
+        {
+            "Tabela de negociação": ["Tabela Agregadora - Carrefour CA", "Carrefour CA"],
+            "CNPJ": ["11.111.111/0001-11", "22.222.222/0001-22"],
+            "EAN": ["1111111111111", "2222222222222"],
+            "Id pedido": ["1", "2"],
+            "Data do pedido (original)": ["10/05/2026 10:00", "10/05/2026 10:00"],
+            "Faturado líquido (R$)": ["27,3", "27,3"],
+            "Desconto comercial faturado (%)": ["20", "20"],
+        }
+    )
+    base_df.to_excel(tmp_path / "base_pedidos.xlsx", index=False)
+
+    cfg = {
+        "base": {
+            "arquivo": "base_pedidos.xlsx",
+            "aba": None,
+            "colunas": {
+                "tabela_negociacao": "Tabela de negociação",
+                "cnpj": "CNPJ",
+                "ean": "EAN",
+                "id_pedido": "Id pedido",
+                "data_pedido": "Data do pedido (original)",
+                "faturado_liquido": "Faturado líquido (R$)",
+                "desconto_aplicado_pct": "Desconto comercial faturado (%)",
+            },
+        }
+    }
+
+    import pipeline
+
+    pipeline.BASE_DIR = tmp_path
+    df_base = carregar_base(cfg)
+
+    assert df_base["_tabela_norm"].tolist() == ["CARREFOUR CA", "CARREFOUR CA"]
+    # a coluna original de saída continua com o texto de verdade
+    assert df_base["Tabela de negociação"].tolist() == ["Tabela Agregadora - Carrefour CA", "Carrefour CA"]
 
 
 def test_to_numeric_aceita_formato_brasileiro_e_internacional():

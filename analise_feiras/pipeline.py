@@ -63,6 +63,7 @@ from utils import (
     read_table,
     read_table_mais_recente,
     read_table_or_glob,
+    remover_prefixo_tabela_agregadora,
     to_datetime,
     to_numeric,
     tokenizar,
@@ -93,7 +94,14 @@ def carregar_base(cfg: dict) -> pd.DataFrame:
 
     df["_cnpj_norm"] = df[colunas["cnpj"]].map(normalize_cnpj)
     df["_ean_norm"] = df[colunas["ean"]].map(normalize_ean)
-    df["_tabela_norm"] = df[colunas["tabela_negociacao"]].map(normalize_text)
+    # "Tabela Agregadora - X" é a mesma Tabela de negociação que "X" (versão
+    # agregada) — pedidos lançados em qualquer uma das duas são igualmente
+    # válidos, então tiramos esse prefixo antes de qualquer comparação
+    # (Feira, Canal Autorizador, regra da Bandeira). O texto original da
+    # coluna "Tabela de negociação" continua intacto na saída.
+    df["_tabela_norm"] = (
+        df[colunas["tabela_negociacao"]].map(normalize_text).map(remover_prefixo_tabela_agregadora)
+    )
     df["_data_pedido"] = to_datetime(df[colunas["data_pedido"]])
     df["_faturado_liquido"] = to_numeric(df[colunas["faturado_liquido"]])
     df["_desconto_aplicado_pct"] = to_numeric(df[colunas["desconto_aplicado_pct"]])
