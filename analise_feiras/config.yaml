@@ -205,6 +205,8 @@ matrizes:
           tabela_contem: "DROGAO SUPER"
         - bandeira_contem: "PACHECO"
           tabela_contem: "DPSP"
+        - bandeira_contem: "DSP" # nome real na coluna "bandeira" (confirmado pelo usuário) — "Pacheco" é só o nome comercial
+          tabela_contem: "DPSP"
         - bandeira_contem: "COOP"
           tabela_contem: "COOP"
         - bandeira_contem: "CARREFOUR"
