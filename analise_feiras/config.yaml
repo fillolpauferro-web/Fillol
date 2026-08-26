@@ -38,9 +38,9 @@ base:
     # porque toda coluna listada aqui em base.colunas sai em todos os
     # relatórios.
     numero_nota: "Numero da Nota"
-    # AJUSTAR: nome real da coluna de quantidade (unidades) faturada, se for
-    # diferente (ex.: "Quantidade", "Qtde Faturada", "Qtd Faturada").
-    quantidade_faturada: "Quantidade Faturada"
+    quantidade_faturada: "Quantidade faturada"
+    distribuidor: "Nome do distribuidor"
+    grupo_clientes: "Grupo de clientes"
 
 # Arquivo usado no passo 4 (achar o desconto que deveria ter sido aplicado
 # quando um pedido é identificado como erro operacional). O desconto correto
@@ -108,10 +108,18 @@ condicao_comercial:
 #   mais volume em cada mês. Saída é um arquivo com várias abas, não um
 #   pedido por linha.
 #
-# tipo: "resumo_por_cnpj" (ex.: Raia e DPSP por CNPJ) — sem Check, sem
-#   filtro por CNPJ de entrada, roda na base inteira. Filtra só as tabelas
-#   de palavras_chave e acumula (total, sem quebra mensal) quantidade de
-#   pedidos e faturado líquido por CNPJ, dentro de cada tabela.
+# tipo: "resumo_por_cnpj" (ex.: Raia e DPSP por CNPJ, Canal Autorizador por
+#   distribuidor) — sem Check, sem filtro por CNPJ de entrada, roda na base
+#   inteira. Filtra só as tabelas de palavras_chave e acumula (total, sem
+#   quebra mensal) quantidade de pedidos, faturado líquido e quantidade
+#   faturada por CNPJ (padrão) ou por distribuidor (coluna_agrupamento:
+#   "distribuidor"), dentro de cada tabela.
+#
+# tipo: "resumo_cnpj_grupo" — sem Check, sem filtro por palavras-chave nem
+#   CNPJ de entrada, roda na base inteira. Agrupa por CNPJ + Grupo de
+#   clientes + Tabela de negociação + mês, com quantidade de pedidos,
+#   faturado líquido e quantidade faturada. Exige
+#   base.colunas.grupo_clientes configurado.
 #
 # Em todos os tipos, "colunas_trazidas" são copiadas pra saída sempre que o
 # CNPJ é encontrado no controle (mesmo se o Check der erro, quando aplicável).
@@ -256,6 +264,19 @@ matrizes:
       - "RAIA CA"
       - "DPSP CA"
     nome_arquivo_saida: "Raia_DPSP_por_CNPJ.xlsx"
+
+  - nome: "CanalAutorizadorPorDistribuidor"
+    tipo: "resumo_por_cnpj"
+    ativo: true
+    palavras_chave:
+      - "CANAL AUTORIZADOR"
+    coluna_agrupamento: "distribuidor"
+    nome_arquivo_saida: "CanalAutorizador_por_Distribuidor.xlsx"
+
+  - nome: "ResumoCNPJGrupo"
+    tipo: "resumo_cnpj_grupo"
+    ativo: true
+    nome_arquivo_saida: "Resumo_CNPJ_Grupo.xlsx"
 
 saida:
   pasta: "C:/Users/I0507867.FARMA/OneDrive - Sanofi/Desktop/Analise Painel/saida"

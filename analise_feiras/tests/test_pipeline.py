@@ -861,6 +861,136 @@ def test_matriz_tipo_resumo_por_cnpj(tmp_path: Path):
     assert round(resultado.loc[("DPSP CA", cnpj_c), "faturado_liquido"], 2) == 500.0
 
 
+def test_matriz_resumo_por_cnpj_agrupando_por_distribuidor(tmp_path: Path):
+    # Canal Autorizador: Distribuidora Alpha com 2 pedidos (100 + 150 = 250)
+    # e Distribuidora Beta com 1 pedido (300); Carrefour CA fica de fora
+    # (não está em palavras_chave).
+    base_df = pd.DataFrame(
+        {
+            "Tipo de cliente": ["X", "X", "X", "X"],
+            "CNPJ": [
+                "11.111.111/0001-11",
+                "22.222.222/0001-22",
+                "33.333.333/0001-33",
+                "44.444.444/0001-44",
+            ],
+            "Id pedido": ["1", "2", "3", "4"],
+            "EAN": ["1", "2", "3", "4"],
+            "Tabela de negociação": ["Canal Autorizador", "Canal Autorizador", "Canal Autorizador", "Carrefour CA"],
+            "Nome do distribuidor": [
+                "Distribuidora Alpha",
+                "Distribuidora Alpha",
+                "Distribuidora Beta",
+                "Distribuidora Gama",
+            ],
+            "Data do pedido (original)": ["10/05/2026 10:00"] * 4,
+            "Faturado líquido (R$)": ["100,00", "150,00", "300,00", "999,00"],
+            "Desconto comercial faturado (%)": ["10"] * 4,
+        }
+    )
+
+    base_df.to_excel(tmp_path / "base_pedidos.xlsx", index=False)
+    (tmp_path / "saida").mkdir()
+
+    cfg = _montar_config(tmp_path)
+    cfg["base"]["colunas"]["distribuidor"] = "Nome do distribuidor"
+    matriz_cfg = {
+        "nome": "CanalAutorizadorPorDistribuidor",
+        "tipo": "resumo_por_cnpj",
+        "ativo": True,
+        "palavras_chave": ["CANAL AUTORIZADOR"],
+        "coluna_agrupamento": "distribuidor",
+        "nome_arquivo_saida": "CanalAutorizador_por_Distribuidor.xlsx",
+    }
+
+    import pipeline
+
+    pipeline.BASE_DIR = tmp_path
+
+    df_base = carregar_base(cfg)
+    resultado = rodar_matriz("CanalAutorizadorPorDistribuidor", matriz_cfg, df_base, cfg)
+
+    assert resultado is not None
+    assert (tmp_path / "saida" / "CanalAutorizador_por_Distribuidor.xlsx").exists()
+    assert "distribuidor" in resultado.columns
+    assert "cnpj" not in resultado.columns
+
+    resultado = resultado.set_index("distribuidor")
+    assert resultado.loc["DISTRIBUIDORA ALPHA", "qtd_pedidos"] == 2
+    assert round(resultado.loc["DISTRIBUIDORA ALPHA", "faturado_liquido"], 2) == 250.0
+    assert resultado.loc["DISTRIBUIDORA BETA", "qtd_pedidos"] == 1
+    assert round(resultado.loc["DISTRIBUIDORA BETA", "faturado_liquido"], 2) == 300.0
+    assert "DISTRIBUIDORA GAMA" not in resultado.index
+
+
+def test_matriz_resumo_cnpj_grupo(tmp_path: Path):
+    # CNPJ A / Grupo 1 tem 2 pedidos na mesma tabela e mês (acumula: qtd=2,
+    # faturado=150) e 1 pedido em outra tabela/mês; CNPJ B / Grupo 2 tem 1
+    # pedido isolado.
+    base_df = pd.DataFrame(
+        {
+            "Tipo de cliente": ["X", "X", "X", "X"],
+            "CNPJ": [
+                "11.111.111/0001-11",
+                "11.111.111/0001-11",
+                "11.111.111/0001-11",
+                "22.222.222/0001-22",
+            ],
+            "Id pedido": ["1", "2", "3", "4"],
+            "EAN": ["1", "2", "3", "4"],
+            "Tabela de negociação": ["Feira X", "Feira X", "Canal Autorizador", "Feira X"],
+            "Grupo de clientes": ["Grupo 1", "Grupo 1", "Grupo 1", "Grupo 2"],
+            "Data do pedido (original)": [
+                "10/05/2026 10:00",
+                "11/05/2026 10:00",
+                "10/06/2026 10:00",
+                "10/05/2026 10:00",
+            ],
+            "Faturado líquido (R$)": ["100,00", "50,00", "200,00", "300,00"],
+            "Desconto comercial faturado (%)": ["10"] * 4,
+        }
+    )
+
+    base_df.to_excel(tmp_path / "base_pedidos.xlsx", index=False)
+    (tmp_path / "saida").mkdir()
+
+    cfg = _montar_config(tmp_path)
+    cfg["base"]["colunas"]["grupo_clientes"] = "Grupo de clientes"
+    matriz_cfg = {
+        "nome": "ResumoCNPJGrupo",
+        "tipo": "resumo_cnpj_grupo",
+        "ativo": True,
+        "nome_arquivo_saida": "Resumo_CNPJ_Grupo.xlsx",
+    }
+
+    import pipeline
+
+    pipeline.BASE_DIR = tmp_path
+
+    df_base = carregar_base(cfg)
+    resultado = rodar_matriz("ResumoCNPJGrupo", matriz_cfg, df_base, cfg)
+
+    assert resultado is not None
+    assert (tmp_path / "saida" / "Resumo_CNPJ_Grupo.xlsx").exists()
+    assert len(resultado) == 3  # 2 combinações do CNPJ A + 1 do CNPJ B
+
+    cnpj_a = normalize_cnpj("11.111.111/0001-11")
+    cnpj_b = normalize_cnpj("22.222.222/0001-22")
+    resultado = resultado.set_index(["cnpj", "grupo_clientes", "tabela_negociacao", "mes"])
+
+    linha_acumulada = resultado.loc[(cnpj_a, "Grupo 1", "FEIRA X", "2026-05")]
+    assert linha_acumulada["qtd_pedidos"] == 2
+    assert round(linha_acumulada["faturado_liquido"], 2) == 150.0
+
+    linha_ca = resultado.loc[(cnpj_a, "Grupo 1", "CANAL AUTORIZADOR", "2026-06")]
+    assert linha_ca["qtd_pedidos"] == 1
+    assert round(linha_ca["faturado_liquido"], 2) == 200.0
+
+    linha_b = resultado.loc[(cnpj_b, "Grupo 2", "FEIRA X", "2026-05")]
+    assert linha_b["qtd_pedidos"] == 1
+    assert round(linha_b["faturado_liquido"], 2) == 300.0
+
+
 def test_resumo_volume_com_quantidade_faturada(tmp_path: Path):
     # mesmos pedidos do test_matriz_tipo_resumo_volume, mas com a coluna
     # opcional "Quantidade Faturada" configurada — precisa aparecer em
