@@ -452,7 +452,8 @@ def calcular_resumo_volume(df_base: pd.DataFrame, matriz_cfg: dict) -> pd.DataFr
     sem Check): classifica cada pedido em categoria_a (Tabela de negociação
     contém alguma das palavras_chave_categoria_a) ou categoria_b (o resto),
     e soma quantidade de pedidos e faturado líquido por categoria, com o
-    percentual de cada uma sobre o total.
+    percentual de cada uma sobre o total e o faturado médio por pedido
+    individual (volume por pedido).
     """
     palavras = [normalize_text(p) for p in matriz_cfg["palavras_chave_categoria_a"]]
     nome_a = matriz_cfg.get("nome_categoria_a", "A")
@@ -474,6 +475,10 @@ def calcular_resumo_volume(df_base: pd.DataFrame, matriz_cfg: dict) -> pd.DataFr
     resumo["percentual_faturado"] = (
         (resumo["faturado_liquido"] / total_faturado * 100).round(2) if total_faturado else 0.0
     )
+    # volume por pedido = faturado líquido médio de cada pedido individual
+    resumo["faturado_medio_por_pedido"] = (resumo["faturado_liquido"] / resumo["qtd_pedidos"]).where(
+        resumo["qtd_pedidos"] > 0
+    ).round(2)
     return resumo
 
 
@@ -507,9 +512,19 @@ def calcular_resumo_mensal(df_base: pd.DataFrame, matriz_cfg: dict) -> dict[str,
     total_mes = mensal.groupby("mes")[["qtd_pedidos", "faturado_liquido"]].transform("sum")
     mensal["percentual_pedidos"] = (mensal["qtd_pedidos"] / total_mes["qtd_pedidos"] * 100).round(2)
     mensal["percentual_faturado"] = (mensal["faturado_liquido"] / total_mes["faturado_liquido"] * 100).round(2)
+    # volume por pedido = faturado líquido médio de cada pedido individual naquele mês/categoria
+    mensal["faturado_medio_por_pedido"] = (mensal["faturado_liquido"] / mensal["qtd_pedidos"]).round(2)
 
     media_mensal = (
-        mensal.groupby("categoria")[["qtd_pedidos", "faturado_liquido", "percentual_pedidos", "percentual_faturado"]]
+        mensal.groupby("categoria")[
+            [
+                "qtd_pedidos",
+                "faturado_liquido",
+                "percentual_pedidos",
+                "percentual_faturado",
+                "faturado_medio_por_pedido",
+            ]
+        ]
         .mean()
         .round(2)
         .reset_index()
@@ -522,6 +537,9 @@ def calcular_resumo_mensal(df_base: pd.DataFrame, matriz_cfg: dict) -> dict[str,
         .agg(qtd_pedidos=("_tabela_norm", "size"), faturado_liquido=("_faturado_liquido", "sum"))
         .reset_index()
     )
+    ca_por_tabela_mes["faturado_medio_por_pedido"] = (
+        ca_por_tabela_mes["faturado_liquido"] / ca_por_tabela_mes["qtd_pedidos"]
+    ).round(2)
 
     maior_por_mes = (
         ca_por_tabela_mes.sort_values("faturado_liquido", ascending=False)
@@ -532,6 +550,7 @@ def calcular_resumo_mensal(df_base: pd.DataFrame, matriz_cfg: dict) -> dict[str,
                 "tabela_especifica": "tabela_maior_volume",
                 "qtd_pedidos": "qtd_pedidos_maior",
                 "faturado_liquido": "faturado_liquido_maior",
+                "faturado_medio_por_pedido": "faturado_medio_por_pedido_maior",
             }
         )
         .sort_values("mes")

@@ -740,6 +740,9 @@ def test_matriz_tipo_resumo_volume(tmp_path: Path):
     assert linhas.loc["WE", "qtd_pedidos"] == 2
     assert round(linhas.loc["CA", "faturado_liquido"], 2) == 850.0
     assert round(linhas.loc["WE", "faturado_liquido"], 2) == 350.0
+    # volume por pedido = faturado líquido médio de cada pedido individual
+    assert round(linhas.loc["CA", "faturado_medio_por_pedido"], 2) == 212.5
+    assert round(linhas.loc["WE", "faturado_medio_por_pedido"], 2) == 175.0
 
     caminho_saida = tmp_path / "saida" / "Resumo_CA_WE.xlsx"
     assert caminho_saida.exists()
@@ -757,17 +760,23 @@ def test_matriz_tipo_resumo_volume(tmp_path: Path):
     assert mensal.loc[("2026-05", "CA"), "qtd_pedidos"] == 2
     assert round(mensal.loc[("2026-05", "CA"), "faturado_liquido"], 2) == 300.0
     assert round(mensal.loc[("2026-05", "CA"), "percentual_faturado"], 2) == 85.71
+    assert round(mensal.loc[("2026-05", "CA"), "faturado_medio_por_pedido"], 2) == 150.0
     assert round(mensal.loc[("2026-06", "CA"), "faturado_liquido"], 2) == 550.0
+    assert round(mensal.loc[("2026-06", "CA"), "faturado_medio_por_pedido"], 2) == 275.0
 
     media = abas["Media_Mensal"].set_index("categoria")
     assert round(media.loc["CA", "faturado_liquido"], 2) == 425.0
     assert round(media.loc["WE", "faturado_liquido"], 2) == 175.0
+    assert round(media.loc["CA", "faturado_medio_por_pedido"], 2) == 212.5
+    assert round(media.loc["WE", "faturado_medio_por_pedido"], 2) == 175.0
 
     maior = abas["Maior_Volume_por_Mes"].set_index("mes")
     assert maior.loc["2026-05", "tabela_maior_volume"] == "RAIA CA"
     assert round(maior.loc["2026-05", "faturado_liquido_maior"], 2) == 200.0
+    assert round(maior.loc["2026-05", "faturado_medio_por_pedido_maior"], 2) == 200.0
     assert maior.loc["2026-06", "tabela_maior_volume"] == "CARREFOUR CA"
     assert round(maior.loc["2026-06", "faturado_liquido_maior"], 2) == 400.0
+    assert round(maior.loc["2026-06", "faturado_medio_por_pedido_maior"], 2) == 400.0
 
 
 def test_main_continua_apos_erro_em_uma_matriz(tmp_path: Path, monkeypatch):
