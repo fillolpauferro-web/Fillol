@@ -663,6 +663,78 @@ def test_matriz_bandeira_com_regra(tmp_path: Path):
     assert pd.isna(linha_ok["diferenca_faturamento"])
 
 
+def test_matriz_tipo_resumo_volume(tmp_path: Path):
+    # pedidos 1, 2 e 4 caem em CA (Carrefour CA, Raia CA, e "Tabela
+    # Agregadora - DPSP CA" que vira "DPSP CA" depois de tirar o prefixo);
+    # pedidos 3 e 5 caem em WE (não batem com nenhuma palavra de CA).
+    # Roda na base inteira, sem filtro por CNPJ nem arquivo de controle.
+    base_df = pd.DataFrame(
+        {
+            "Tipo de cliente": ["X", "X", "X", "X", "X"],
+            "CNPJ": [
+                "11.111.111/0001-11",
+                "22.222.222/0001-22",
+                "33.333.333/0001-33",
+                "44.444.444/0001-44",
+                "55.555.555/0001-55",
+            ],
+            "Id pedido": ["1", "2", "3", "4", "5"],
+            "EAN": ["1", "2", "3", "4", "5"],
+            "Tabela de negociação": [
+                "Carrefour CA",
+                "Raia CA",
+                "Default Generico CA",
+                "Tabela Agregadora - DPSP CA",
+                "Araujo_Generico",
+            ],
+            "Data do pedido (original)": ["10/05/2026 10:00"] * 5,
+            "Faturado líquido (R$)": ["100,00", "200,00", "50,00", "150,00", "300,00"],
+            "Desconto comercial faturado (%)": ["10", "10", "10", "10", "10"],
+        }
+    )
+
+    base_df.to_excel(tmp_path / "base_pedidos.xlsx", index=False)
+    (tmp_path / "saida").mkdir()
+
+    cfg = _montar_config(tmp_path)
+    matriz_cfg = {
+        "nome": "ResumoCAxWE",
+        "tipo": "resumo_volume",
+        "ativo": True,
+        "palavras_chave_categoria_a": [
+            "CANAL AUTORIZADOR",
+            "CARREFOUR CA",
+            "DPSP CA",
+            "PANVEL CA",
+            "RAIA CA",
+        ],
+        "nome_categoria_a": "CA",
+        "nome_categoria_b": "WE",
+        "nome_arquivo_saida": "Resumo_CA_WE.xlsx",
+    }
+
+    import pipeline
+
+    pipeline.BASE_DIR = tmp_path
+
+    df_base = carregar_base(cfg)
+    resultado = rodar_matriz("ResumoCAxWE", matriz_cfg, df_base, cfg)
+
+    assert resultado is not None
+    linhas = resultado.set_index("categoria")
+
+    assert linhas.loc["CA", "qtd_pedidos"] == 3
+    assert linhas.loc["WE", "qtd_pedidos"] == 2
+    assert round(linhas.loc["CA", "faturado_liquido"], 2) == 450.0
+    assert round(linhas.loc["WE", "faturado_liquido"], 2) == 350.0
+    assert round(linhas.loc["CA", "percentual_pedidos"], 2) == 60.0
+    assert round(linhas.loc["WE", "percentual_pedidos"], 2) == 40.0
+    assert round(linhas.loc["CA", "percentual_faturado"], 2) == 56.25
+    assert round(linhas.loc["WE", "percentual_faturado"], 2) == 43.75
+
+    assert (tmp_path / "saida" / "Resumo_CA_WE.xlsx").exists()
+
+
 def test_main_continua_apos_erro_em_uma_matriz(tmp_path: Path, monkeypatch):
     # Uma matriz mal configurada (arquivo de controle inexistente) não pode
     # travar o resto: a matriz seguinte da lista ainda precisa rodar e

@@ -95,6 +95,14 @@ condicao_comercial:
 #   Rotulo esperado por Raiz CNPJ, com o mesmo cálculo de desconto/preço
 #   dos outros tipos — sai num segundo arquivo (regra.nome_arquivo_saida).
 #
+# tipo: "resumo_volume" (ex.: composição CA x WE) — sem Check, sem filtro
+#   por CNPJ, roda na base inteira. Classifica cada pedido em duas
+#   categorias a partir da Tabela de negociação (palavras_chave_categoria_a
+#   define quem cai em nome_categoria_a; o resto cai em nome_categoria_b) e
+#   soma quantidade de pedidos + faturado líquido de cada categoria, com o
+#   percentual de cada uma sobre o total. Saída é uma tabela pequena (uma
+#   linha por categoria), não um pedido por linha.
+#
 # Em todos os tipos, "colunas_trazidas" são copiadas pra saída sempre que o
 # CNPJ é encontrado no controle (mesmo se o Check der erro, quando aplicável).
 # "nome_arquivo_saida" (opcional) troca o nome padrão "{nome}_analise.xlsx"
@@ -215,6 +223,21 @@ matrizes:
           tabela_contem: "RAIA"
         - bandeira_contem: "ULTRAFARMA"
           tabela_contem: "ULTRAFARMA"
+
+  - nome: "ResumoCAxWE"
+    tipo: "resumo_volume"
+    ativo: true
+    # Tabela de negociação contendo qualquer uma dessas palavras cai na
+    # categoria CA; tudo o mais cai em WE (confirmado pelo usuário).
+    palavras_chave_categoria_a:
+      - "CANAL AUTORIZADOR"
+      - "CARREFOUR CA"
+      - "DPSP CA"
+      - "PANVEL CA"
+      - "RAIA CA"
+    nome_categoria_a: "CA"
+    nome_categoria_b: "WE"
+    nome_arquivo_saida: "Resumo_CA_WE.xlsx"
 
 saida:
   pasta: "C:/Users/I0507867.FARMA/OneDrive - Sanofi/Desktop/Analise Painel/saida"

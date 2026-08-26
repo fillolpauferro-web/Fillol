@@ -39,6 +39,14 @@ define como a base é filtrada e o que sai no resultado:
   tipos "tabela"/"cnpj" pros erros — o resultado sai num
   segundo arquivo (regra.nome_arquivo_saida).
 
+  tipo: "resumo_volume" (ex.: composição CA x WE) — sem Check, sem filtro
+  por CNPJ, roda em cima da base inteira: classifica cada pedido em duas
+  categorias a partir da Tabela de negociação (categoria_a se contém
+  alguma das palavras_chave_categoria_a; categoria_b — "o resto" — senão) e
+  soma quantidade de pedidos e faturado líquido de cada categoria, com o
+  percentual de cada uma sobre o total. Saída é uma tabela resumo (uma
+  linha por categoria), não um pedido por linha.
+
   Um arquivo de saída é salvo por matriz (nome_arquivo_saida no config, ou
   "{nome}_analise.xlsx" por padrão).
 
@@ -435,6 +443,36 @@ def aplicar_regra_bandeira(df_historico: pd.DataFrame, matriz_cfg: dict, cfg: di
     return aplicar_condicao_correta(df, df_condicao, matriz_cfg)
 
 
+def calcular_resumo_volume(df_base: pd.DataFrame, matriz_cfg: dict) -> pd.DataFrame:
+    """tipo: "resumo_volume" — roda na base inteira (sem filtro por CNPJ,
+    sem Check): classifica cada pedido em categoria_a (Tabela de negociação
+    contém alguma das palavras_chave_categoria_a) ou categoria_b (o resto),
+    e soma quantidade de pedidos e faturado líquido por categoria, com o
+    percentual de cada uma sobre o total.
+    """
+    palavras = [normalize_text(p) for p in matriz_cfg["palavras_chave_categoria_a"]]
+    nome_a = matriz_cfg.get("nome_categoria_a", "A")
+    nome_b = matriz_cfg.get("nome_categoria_b", "B")
+
+    categoria = df_base["_tabela_norm"].map(lambda t: nome_a if any(p in t for p in palavras) else nome_b)
+
+    resumo = (
+        df_base.assign(categoria=categoria)
+        .groupby("categoria")
+        .agg(qtd_pedidos=("_tabela_norm", "size"), faturado_liquido=("_faturado_liquido", "sum"))
+        .reindex([nome_a, nome_b], fill_value=0)
+        .reset_index()
+    )
+
+    total_pedidos = resumo["qtd_pedidos"].sum()
+    total_faturado = resumo["faturado_liquido"].sum()
+    resumo["percentual_pedidos"] = (resumo["qtd_pedidos"] / total_pedidos * 100).round(2) if total_pedidos else 0.0
+    resumo["percentual_faturado"] = (
+        (resumo["faturado_liquido"] / total_faturado * 100).round(2) if total_faturado else 0.0
+    )
+    return resumo
+
+
 def _salvar_saida(df_saida: pd.DataFrame, pasta_saida: Path, nome_arquivo: str) -> None:
     caminho_final = pasta_saida / nome_arquivo
     df_saida.to_excel(caminho_final, index=False)
@@ -448,6 +486,17 @@ def _salvar_saida(df_saida: pd.DataFrame, pasta_saida: Path, nome_arquivo: str) 
 def rodar_matriz(nome_matriz: str, matriz_cfg: dict, df_base: pd.DataFrame, cfg: dict) -> pd.DataFrame | None:
     print(f"\n=== Matriz: {nome_matriz} ===")
     tipo = matriz_cfg.get("tipo", "tabela")
+
+    if tipo == "resumo_volume":
+        # roda na base inteira, sem arquivo de controle nem CNPJ — não passa
+        # pelo carregar_controle/filtro das outras matrizes
+        resumo = calcular_resumo_volume(df_base, matriz_cfg)
+        print(resumo.to_string(index=False))
+        pasta_saida = BASE_DIR / cfg["saida"]["pasta"]
+        pasta_saida.mkdir(parents=True, exist_ok=True)
+        nome_arquivo = matriz_cfg.get("nome_arquivo_saida") or f"{nome_matriz}_analise.xlsx"
+        _salvar_saida(resumo, pasta_saida, nome_arquivo)
+        return resumo
 
     df_controle = carregar_controle(matriz_cfg)
 
