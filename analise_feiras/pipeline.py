@@ -45,11 +45,12 @@ define como a base é filtrada e o que sai no resultado:
   alguma das palavras_chave_categoria_a; categoria_b — "o resto" — senão) e
   soma quantidade de pedidos e faturado líquido de cada categoria, com o
   percentual de cada uma sobre o total. Também abre por mês: CA x WE mês a
-  mês (com percentual dentro do mês) + média mensal por categoria, e dentro
-  de CA, por mês, o volume de cada tabela específica (as que compõem
-  palavras_chave_categoria_a) e qual delas puxou mais volume. Saída é um
-  arquivo com várias abas (Resumo, Mensal_CAxWE, Media_Mensal,
-  CA_por_Tabela_Mes, Maior_Volume_por_Mes) — resumo, não um pedido por linha.
+  mês (com percentual dentro do mês) + média mensal por categoria; dentro
+  de CA, o volume total e mês a mês de cada tabela específica isolada (ex.:
+  só "Canal Autorizador") e qual delas puxou mais volume em cada mês. Saída
+  é um arquivo com várias abas (Resumo, Mensal_CAxWE, Media_Mensal,
+  CA_por_Tabela, CA_por_Tabela_Mes, Maior_Volume_por_Mes) — resumo, não um
+  pedido por linha.
 
   Um arquivo de saída é salvo por matriz (nome_arquivo_saida no config, ou
   "{nome}_analise.xlsx" por padrão).
@@ -484,10 +485,10 @@ def calcular_resumo_volume(df_base: pd.DataFrame, matriz_cfg: dict) -> pd.DataFr
 
 def calcular_resumo_mensal(df_base: pd.DataFrame, matriz_cfg: dict) -> dict[str, pd.DataFrame]:
     """Quebra mensal do "resumo_volume": CA x WE por mês (com percentual
-    dentro de cada mês) + média mensal por categoria, e dentro de CA, por
-    mês, o volume de cada uma das tabelas específicas (as que compõem
-    palavras_chave_categoria_a) — junto com qual delas puxou mais volume
-    (faturado líquido) em cada mês.
+    dentro de cada mês) + média mensal por categoria; dentro de CA, o
+    volume total (todos os meses) de cada tabela específica isolada (ex.:
+    só "Canal Autorizador"), e também mês a mês, com qual delas puxou mais
+    volume (faturado líquido) em cada mês.
     """
     palavras = list(matriz_cfg["palavras_chave_categoria_a"])
     palavras_norm = [normalize_text(p) for p in palavras]
@@ -532,6 +533,27 @@ def calcular_resumo_mensal(df_base: pd.DataFrame, matriz_cfg: dict) -> dict[str,
 
     df_ca = df[df["categoria"] == nome_a].copy()
     df_ca["tabela_especifica"] = df_ca["_tabela_norm"].map(_tabela_especifica)
+
+    # total (todos os meses juntos) por tabela específica dentro de CA —
+    # ex.: quantos pedidos são só de "Canal Autorizador", isolado das outras
+    # tabelas que também compõem a categoria CA
+    ca_por_tabela = (
+        df_ca.groupby("tabela_especifica")
+        .agg(qtd_pedidos=("_tabela_norm", "size"), faturado_liquido=("_faturado_liquido", "sum"))
+        .reset_index()
+    )
+    total_ca_pedidos = ca_por_tabela["qtd_pedidos"].sum()
+    total_ca_faturado = ca_por_tabela["faturado_liquido"].sum()
+    ca_por_tabela["percentual_pedidos_dentro_ca"] = (
+        (ca_por_tabela["qtd_pedidos"] / total_ca_pedidos * 100).round(2) if total_ca_pedidos else 0.0
+    )
+    ca_por_tabela["percentual_faturado_dentro_ca"] = (
+        (ca_por_tabela["faturado_liquido"] / total_ca_faturado * 100).round(2) if total_ca_faturado else 0.0
+    )
+    ca_por_tabela["faturado_medio_por_pedido"] = (
+        ca_por_tabela["faturado_liquido"] / ca_por_tabela["qtd_pedidos"]
+    ).round(2)
+
     ca_por_tabela_mes = (
         df_ca.groupby(["mes", "tabela_especifica"])
         .agg(qtd_pedidos=("_tabela_norm", "size"), faturado_liquido=("_faturado_liquido", "sum"))
@@ -560,6 +582,7 @@ def calcular_resumo_mensal(df_base: pd.DataFrame, matriz_cfg: dict) -> dict[str,
     return {
         "Mensal_CAxWE": mensal,
         "Media_Mensal": media_mensal,
+        "CA_por_Tabela": ca_por_tabela,
         "CA_por_Tabela_Mes": ca_por_tabela_mes,
         "Maior_Volume_por_Mes": maior_por_mes,
     }

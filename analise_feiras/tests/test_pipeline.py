@@ -752,9 +752,22 @@ def test_matriz_tipo_resumo_volume(tmp_path: Path):
         "Resumo",
         "Mensal_CAxWE",
         "Media_Mensal",
+        "CA_por_Tabela",
         "CA_por_Tabela_Mes",
         "Maior_Volume_por_Mes",
     }
+
+    # total (todos os meses juntos) isolado por tabela específica dentro de CA
+    ca_por_tabela = abas["CA_por_Tabela"].set_index("tabela_especifica")
+    assert ca_por_tabela.loc["CARREFOUR CA", "qtd_pedidos"] == 2
+    assert round(ca_por_tabela.loc["CARREFOUR CA", "faturado_liquido"], 2) == 500.0
+    assert round(ca_por_tabela.loc["CARREFOUR CA", "faturado_medio_por_pedido"], 2) == 250.0
+    assert ca_por_tabela.loc["RAIA CA", "qtd_pedidos"] == 1
+    assert round(ca_por_tabela.loc["RAIA CA", "faturado_liquido"], 2) == 200.0
+    assert ca_por_tabela.loc["DPSP CA", "qtd_pedidos"] == 1
+    assert round(ca_por_tabela.loc["DPSP CA", "faturado_liquido"], 2) == 150.0
+    assert round(ca_por_tabela.loc["CARREFOUR CA", "percentual_pedidos_dentro_ca"], 2) == 50.0
+    assert round(ca_por_tabela.loc["CARREFOUR CA", "percentual_faturado_dentro_ca"], 2) == 58.82
 
     mensal = abas["Mensal_CAxWE"].set_index(["mes", "categoria"])
     assert mensal.loc[("2026-05", "CA"), "qtd_pedidos"] == 2
