@@ -100,8 +100,10 @@ condicao_comercial:
 #   categorias a partir da Tabela de negociação (palavras_chave_categoria_a
 #   define quem cai em nome_categoria_a; o resto cai em nome_categoria_b) e
 #   soma quantidade de pedidos + faturado líquido de cada categoria, com o
-#   percentual de cada uma sobre o total. Saída é uma tabela pequena (uma
-#   linha por categoria), não um pedido por linha.
+#   percentual de cada uma sobre o total — mais a abertura mês a mês (com
+#   média mensal) e, dentro da categoria_a, qual tabela específica puxa
+#   mais volume em cada mês. Saída é um arquivo com várias abas, não um
+#   pedido por linha.
 #
 # Em todos os tipos, "colunas_trazidas" são copiadas pra saída sempre que o
 # CNPJ é encontrado no controle (mesmo se o Check der erro, quando aplicável).

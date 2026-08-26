@@ -664,32 +664,45 @@ def test_matriz_bandeira_com_regra(tmp_path: Path):
 
 
 def test_matriz_tipo_resumo_volume(tmp_path: Path):
-    # pedidos 1, 2 e 4 caem em CA (Carrefour CA, Raia CA, e "Tabela
-    # Agregadora - DPSP CA" que vira "DPSP CA" depois de tirar o prefixo);
-    # pedidos 3 e 5 caem em WE (não batem com nenhuma palavra de CA).
+    # maio/2026: pedido 1 (Carrefour CA, 100), pedido 2 (Raia CA, 200) em CA;
+    #            pedido 3 (Default Generico CA, 50) em WE.
+    #            -> maior volume de CA no mês: Raia CA (200)
+    # junho/2026: pedido 4 ("Tabela Agregadora - DPSP CA" -> DPSP CA, 150) e
+    #            pedido 6 (Carrefour CA, 400) em CA; pedido 5
+    #            (Araujo_Generico, 300) em WE.
+    #            -> maior volume de CA no mês: Carrefour CA (400)
     # Roda na base inteira, sem filtro por CNPJ nem arquivo de controle.
     base_df = pd.DataFrame(
         {
-            "Tipo de cliente": ["X", "X", "X", "X", "X"],
+            "Tipo de cliente": ["X", "X", "X", "X", "X", "X"],
             "CNPJ": [
                 "11.111.111/0001-11",
                 "22.222.222/0001-22",
                 "33.333.333/0001-33",
                 "44.444.444/0001-44",
                 "55.555.555/0001-55",
+                "66.666.666/0001-66",
             ],
-            "Id pedido": ["1", "2", "3", "4", "5"],
-            "EAN": ["1", "2", "3", "4", "5"],
+            "Id pedido": ["1", "2", "3", "4", "5", "6"],
+            "EAN": ["1", "2", "3", "4", "5", "6"],
             "Tabela de negociação": [
                 "Carrefour CA",
                 "Raia CA",
                 "Default Generico CA",
                 "Tabela Agregadora - DPSP CA",
                 "Araujo_Generico",
+                "Carrefour CA",
             ],
-            "Data do pedido (original)": ["10/05/2026 10:00"] * 5,
-            "Faturado líquido (R$)": ["100,00", "200,00", "50,00", "150,00", "300,00"],
-            "Desconto comercial faturado (%)": ["10", "10", "10", "10", "10"],
+            "Data do pedido (original)": [
+                "10/05/2026 10:00",
+                "11/05/2026 10:00",
+                "12/05/2026 10:00",
+                "10/06/2026 10:00",
+                "11/06/2026 10:00",
+                "12/06/2026 10:00",
+            ],
+            "Faturado líquido (R$)": ["100,00", "200,00", "50,00", "150,00", "300,00", "400,00"],
+            "Desconto comercial faturado (%)": ["10", "10", "10", "10", "10", "10"],
         }
     )
 
@@ -723,16 +736,38 @@ def test_matriz_tipo_resumo_volume(tmp_path: Path):
     assert resultado is not None
     linhas = resultado.set_index("categoria")
 
-    assert linhas.loc["CA", "qtd_pedidos"] == 3
+    assert linhas.loc["CA", "qtd_pedidos"] == 4
     assert linhas.loc["WE", "qtd_pedidos"] == 2
-    assert round(linhas.loc["CA", "faturado_liquido"], 2) == 450.0
+    assert round(linhas.loc["CA", "faturado_liquido"], 2) == 850.0
     assert round(linhas.loc["WE", "faturado_liquido"], 2) == 350.0
-    assert round(linhas.loc["CA", "percentual_pedidos"], 2) == 60.0
-    assert round(linhas.loc["WE", "percentual_pedidos"], 2) == 40.0
-    assert round(linhas.loc["CA", "percentual_faturado"], 2) == 56.25
-    assert round(linhas.loc["WE", "percentual_faturado"], 2) == 43.75
 
-    assert (tmp_path / "saida" / "Resumo_CA_WE.xlsx").exists()
+    caminho_saida = tmp_path / "saida" / "Resumo_CA_WE.xlsx"
+    assert caminho_saida.exists()
+
+    abas = pd.read_excel(caminho_saida, sheet_name=None)
+    assert set(abas.keys()) == {
+        "Resumo",
+        "Mensal_CAxWE",
+        "Media_Mensal",
+        "CA_por_Tabela_Mes",
+        "Maior_Volume_por_Mes",
+    }
+
+    mensal = abas["Mensal_CAxWE"].set_index(["mes", "categoria"])
+    assert mensal.loc[("2026-05", "CA"), "qtd_pedidos"] == 2
+    assert round(mensal.loc[("2026-05", "CA"), "faturado_liquido"], 2) == 300.0
+    assert round(mensal.loc[("2026-05", "CA"), "percentual_faturado"], 2) == 85.71
+    assert round(mensal.loc[("2026-06", "CA"), "faturado_liquido"], 2) == 550.0
+
+    media = abas["Media_Mensal"].set_index("categoria")
+    assert round(media.loc["CA", "faturado_liquido"], 2) == 425.0
+    assert round(media.loc["WE", "faturado_liquido"], 2) == 175.0
+
+    maior = abas["Maior_Volume_por_Mes"].set_index("mes")
+    assert maior.loc["2026-05", "tabela_maior_volume"] == "RAIA CA"
+    assert round(maior.loc["2026-05", "faturado_liquido_maior"], 2) == 200.0
+    assert maior.loc["2026-06", "tabela_maior_volume"] == "CARREFOUR CA"
+    assert round(maior.loc["2026-06", "faturado_liquido_maior"], 2) == 400.0
 
 
 def test_main_continua_apos_erro_em_uma_matriz(tmp_path: Path, monkeypatch):

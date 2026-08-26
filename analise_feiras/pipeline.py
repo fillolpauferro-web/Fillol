@@ -44,8 +44,12 @@ define como a base é filtrada e o que sai no resultado:
   categorias a partir da Tabela de negociação (categoria_a se contém
   alguma das palavras_chave_categoria_a; categoria_b — "o resto" — senão) e
   soma quantidade de pedidos e faturado líquido de cada categoria, com o
-  percentual de cada uma sobre o total. Saída é uma tabela resumo (uma
-  linha por categoria), não um pedido por linha.
+  percentual de cada uma sobre o total. Também abre por mês: CA x WE mês a
+  mês (com percentual dentro do mês) + média mensal por categoria, e dentro
+  de CA, por mês, o volume de cada tabela específica (as que compõem
+  palavras_chave_categoria_a) e qual delas puxou mais volume. Saída é um
+  arquivo com várias abas (Resumo, Mensal_CAxWE, Media_Mensal,
+  CA_por_Tabela_Mes, Maior_Volume_por_Mes) — resumo, não um pedido por linha.
 
   Um arquivo de saída é salvo por matriz (nome_arquivo_saida no config, ou
   "{nome}_analise.xlsx" por padrão).
@@ -473,6 +477,75 @@ def calcular_resumo_volume(df_base: pd.DataFrame, matriz_cfg: dict) -> pd.DataFr
     return resumo
 
 
+def calcular_resumo_mensal(df_base: pd.DataFrame, matriz_cfg: dict) -> dict[str, pd.DataFrame]:
+    """Quebra mensal do "resumo_volume": CA x WE por mês (com percentual
+    dentro de cada mês) + média mensal por categoria, e dentro de CA, por
+    mês, o volume de cada uma das tabelas específicas (as que compõem
+    palavras_chave_categoria_a) — junto com qual delas puxou mais volume
+    (faturado líquido) em cada mês.
+    """
+    palavras = list(matriz_cfg["palavras_chave_categoria_a"])
+    palavras_norm = [normalize_text(p) for p in palavras]
+    nome_a = matriz_cfg.get("nome_categoria_a", "A")
+    nome_b = matriz_cfg.get("nome_categoria_b", "B")
+
+    def _tabela_especifica(tabela_norm: str) -> str | None:
+        for original, norm in zip(palavras, palavras_norm):
+            if norm in tabela_norm:
+                return original
+        return None
+
+    df = df_base.copy()
+    df["categoria"] = df["_tabela_norm"].map(lambda t: nome_a if any(p in t for p in palavras_norm) else nome_b)
+    df["mes"] = df["_data_pedido"].dt.to_period("M").astype(str)
+
+    mensal = (
+        df.groupby(["mes", "categoria"])
+        .agg(qtd_pedidos=("_tabela_norm", "size"), faturado_liquido=("_faturado_liquido", "sum"))
+        .reset_index()
+    )
+    total_mes = mensal.groupby("mes")[["qtd_pedidos", "faturado_liquido"]].transform("sum")
+    mensal["percentual_pedidos"] = (mensal["qtd_pedidos"] / total_mes["qtd_pedidos"] * 100).round(2)
+    mensal["percentual_faturado"] = (mensal["faturado_liquido"] / total_mes["faturado_liquido"] * 100).round(2)
+
+    media_mensal = (
+        mensal.groupby("categoria")[["qtd_pedidos", "faturado_liquido", "percentual_pedidos", "percentual_faturado"]]
+        .mean()
+        .round(2)
+        .reset_index()
+    )
+
+    df_ca = df[df["categoria"] == nome_a].copy()
+    df_ca["tabela_especifica"] = df_ca["_tabela_norm"].map(_tabela_especifica)
+    ca_por_tabela_mes = (
+        df_ca.groupby(["mes", "tabela_especifica"])
+        .agg(qtd_pedidos=("_tabela_norm", "size"), faturado_liquido=("_faturado_liquido", "sum"))
+        .reset_index()
+    )
+
+    maior_por_mes = (
+        ca_por_tabela_mes.sort_values("faturado_liquido", ascending=False)
+        .groupby("mes", as_index=False)
+        .first()
+        .rename(
+            columns={
+                "tabela_especifica": "tabela_maior_volume",
+                "qtd_pedidos": "qtd_pedidos_maior",
+                "faturado_liquido": "faturado_liquido_maior",
+            }
+        )
+        .sort_values("mes")
+        .reset_index(drop=True)
+    )
+
+    return {
+        "Mensal_CAxWE": mensal,
+        "Media_Mensal": media_mensal,
+        "CA_por_Tabela_Mes": ca_por_tabela_mes,
+        "Maior_Volume_por_Mes": maior_por_mes,
+    }
+
+
 def _salvar_saida(df_saida: pd.DataFrame, pasta_saida: Path, nome_arquivo: str) -> None:
     caminho_final = pasta_saida / nome_arquivo
     df_saida.to_excel(caminho_final, index=False)
@@ -491,11 +564,23 @@ def rodar_matriz(nome_matriz: str, matriz_cfg: dict, df_base: pd.DataFrame, cfg:
         # roda na base inteira, sem arquivo de controle nem CNPJ — não passa
         # pelo carregar_controle/filtro das outras matrizes
         resumo = calcular_resumo_volume(df_base, matriz_cfg)
+        abas_mensais = calcular_resumo_mensal(df_base, matriz_cfg)
+
         print(resumo.to_string(index=False))
+        print("\nMédia mensal por categoria:")
+        print(abas_mensais["Media_Mensal"].to_string(index=False))
+        print("\nTabela com maior volume por mês (dentro de CA):")
+        print(abas_mensais["Maior_Volume_por_Mes"].to_string(index=False))
+
         pasta_saida = BASE_DIR / cfg["saida"]["pasta"]
         pasta_saida.mkdir(parents=True, exist_ok=True)
         nome_arquivo = matriz_cfg.get("nome_arquivo_saida") or f"{nome_matriz}_analise.xlsx"
-        _salvar_saida(resumo, pasta_saida, nome_arquivo)
+        caminho_final = pasta_saida / nome_arquivo
+        with pd.ExcelWriter(caminho_final) as writer:
+            resumo.to_excel(writer, sheet_name="Resumo", index=False)
+            for nome_aba, df_aba in abas_mensais.items():
+                df_aba.to_excel(writer, sheet_name=nome_aba, index=False)
+        print(f"Resultado salvo em {caminho_final}")
         return resumo
 
     df_controle = carregar_controle(matriz_cfg)
