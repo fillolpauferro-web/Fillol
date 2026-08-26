@@ -105,6 +105,11 @@ condicao_comercial:
 #   mais volume em cada mês. Saída é um arquivo com várias abas, não um
 #   pedido por linha.
 #
+# tipo: "resumo_por_cnpj" (ex.: Raia e DPSP por CNPJ) — sem Check, sem
+#   filtro por CNPJ de entrada, roda na base inteira. Filtra só as tabelas
+#   de palavras_chave e acumula (total, sem quebra mensal) quantidade de
+#   pedidos e faturado líquido por CNPJ, dentro de cada tabela.
+#
 # Em todos os tipos, "colunas_trazidas" são copiadas pra saída sempre que o
 # CNPJ é encontrado no controle (mesmo se o Check der erro, quando aplicável).
 # "nome_arquivo_saida" (opcional) troca o nome padrão "{nome}_analise.xlsx"
@@ -240,6 +245,14 @@ matrizes:
     nome_categoria_a: "CA"
     nome_categoria_b: "WE"
     nome_arquivo_saida: "Resumo_CA_WE.xlsx"
+
+  - nome: "RaiaDPSPporCNPJ"
+    tipo: "resumo_por_cnpj"
+    ativo: true
+    palavras_chave:
+      - "RAIA CA"
+      - "DPSP CA"
+    nome_arquivo_saida: "Raia_DPSP_por_CNPJ.xlsx"
 
 saida:
   pasta: "C:/Users/I0507867.FARMA/OneDrive - Sanofi/Desktop/Analise Painel/saida"

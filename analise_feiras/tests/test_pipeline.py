@@ -792,6 +792,75 @@ def test_matriz_tipo_resumo_volume(tmp_path: Path):
     assert round(maior.loc["2026-06", "faturado_medio_por_pedido_maior"], 2) == 400.0
 
 
+def test_matriz_tipo_resumo_por_cnpj(tmp_path: Path):
+    # RAIA CA: CNPJ A com 2 pedidos (100 + 150 = 250) e CNPJ B com 1 pedido
+    #          (300); DPSP CA (via "Tabela Agregadora - DPSP CA", que vira
+    #          "DPSP CA" depois de tirar o prefixo): CNPJ C com 1 pedido
+    #          (500); Carrefour CA fica de fora (não está em palavras_chave).
+    base_df = pd.DataFrame(
+        {
+            "Tipo de cliente": ["X", "X", "X", "X", "X"],
+            "CNPJ": [
+                "11.111.111/0001-11",
+                "11.111.111/0001-11",
+                "22.222.222/0001-22",
+                "33.333.333/0001-33",
+                "44.444.444/0001-44",
+            ],
+            "Id pedido": ["1", "2", "3", "4", "5"],
+            "EAN": ["1", "2", "3", "4", "5"],
+            "Tabela de negociação": [
+                "Raia CA",
+                "Raia CA",
+                "Raia CA",
+                "Tabela Agregadora - DPSP CA",
+                "Carrefour CA",
+            ],
+            "Data do pedido (original)": ["10/05/2026 10:00"] * 5,
+            "Faturado líquido (R$)": ["100,00", "150,00", "300,00", "500,00", "999,00"],
+            "Desconto comercial faturado (%)": ["10"] * 5,
+        }
+    )
+
+    base_df.to_excel(tmp_path / "base_pedidos.xlsx", index=False)
+    (tmp_path / "saida").mkdir()
+
+    cfg = _montar_config(tmp_path)
+    matriz_cfg = {
+        "nome": "RaiaDPSPporCNPJ",
+        "tipo": "resumo_por_cnpj",
+        "ativo": True,
+        "palavras_chave": ["RAIA CA", "DPSP CA"],
+        "nome_arquivo_saida": "Raia_DPSP_por_CNPJ.xlsx",
+    }
+
+    import pipeline
+
+    pipeline.BASE_DIR = tmp_path
+
+    df_base = carregar_base(cfg)
+    resultado = rodar_matriz("RaiaDPSPporCNPJ", matriz_cfg, df_base, cfg)
+
+    assert resultado is not None
+    assert (tmp_path / "saida" / "Raia_DPSP_por_CNPJ.xlsx").exists()
+
+    # Carrefour CA não entra
+    assert set(resultado["tabela_especifica"]) == {"RAIA CA", "DPSP CA"}
+
+    cnpj_a = normalize_cnpj("11.111.111/0001-11")
+    cnpj_b = normalize_cnpj("22.222.222/0001-22")
+    cnpj_c = normalize_cnpj("33.333.333/0001-33")
+
+    resultado = resultado.set_index(["tabela_especifica", "cnpj"])
+    assert resultado.loc[("RAIA CA", cnpj_a), "qtd_pedidos"] == 2
+    assert round(resultado.loc[("RAIA CA", cnpj_a), "faturado_liquido"], 2) == 250.0
+    assert round(resultado.loc[("RAIA CA", cnpj_a), "faturado_medio_por_pedido"], 2) == 125.0
+    assert resultado.loc[("RAIA CA", cnpj_b), "qtd_pedidos"] == 1
+    assert round(resultado.loc[("RAIA CA", cnpj_b), "faturado_liquido"], 2) == 300.0
+    assert resultado.loc[("DPSP CA", cnpj_c), "qtd_pedidos"] == 1
+    assert round(resultado.loc[("DPSP CA", cnpj_c), "faturado_liquido"], 2) == 500.0
+
+
 def test_main_continua_apos_erro_em_uma_matriz(tmp_path: Path, monkeypatch):
     # Uma matriz mal configurada (arquivo de controle inexistente) não pode
     # travar o resto: a matriz seguinte da lista ainda precisa rodar e

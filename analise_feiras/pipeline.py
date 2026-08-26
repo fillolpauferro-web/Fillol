@@ -52,6 +52,11 @@ define como a base é filtrada e o que sai no resultado:
   CA_por_Tabela, CA_por_Tabela_Mes, Maior_Volume_por_Mes) — resumo, não um
   pedido por linha.
 
+  tipo: "resumo_por_cnpj" (ex.: Raia e DPSP por CNPJ) — sem Check, sem
+  filtro por CNPJ de entrada, roda na base inteira: filtra só as tabelas de
+  palavras_chave e acumula (total, sem quebra mensal) quantidade de
+  pedidos e faturado líquido por CNPJ, dentro de cada tabela.
+
   Um arquivo de saída é salvo por matriz (nome_arquivo_saida no config, ou
   "{nome}_analise.xlsx" por padrão).
 
@@ -588,6 +593,38 @@ def calcular_resumo_mensal(df_base: pd.DataFrame, matriz_cfg: dict) -> dict[str,
     }
 
 
+def calcular_resumo_por_cnpj(df_base: pd.DataFrame, matriz_cfg: dict) -> pd.DataFrame:
+    """tipo: "resumo_por_cnpj" — roda na base inteira (sem filtro por CNPJ
+    de controle, sem Check): filtra só as tabelas de palavras_chave (ex.:
+    "RAIA CA", "DPSP CA") e acumula (total, sem quebra mensal) quantidade
+    de pedidos e faturado líquido por CNPJ, dentro de cada tabela.
+    """
+    palavras = list(matriz_cfg["palavras_chave"])
+    palavras_norm = [normalize_text(p) for p in palavras]
+
+    def _tabela_especifica(tabela_norm: str) -> str | None:
+        for original, norm in zip(palavras, palavras_norm):
+            if norm in tabela_norm:
+                return original
+        return None
+
+    df = df_base.copy()
+    df["tabela_especifica"] = df["_tabela_norm"].map(_tabela_especifica)
+    df = df[df["tabela_especifica"].notna()]
+
+    resumo = (
+        df.groupby(["tabela_especifica", "_cnpj_norm"])
+        .agg(qtd_pedidos=("_tabela_norm", "size"), faturado_liquido=("_faturado_liquido", "sum"))
+        .reset_index()
+        .rename(columns={"_cnpj_norm": "cnpj"})
+    )
+    resumo["faturado_medio_por_pedido"] = (resumo["faturado_liquido"] / resumo["qtd_pedidos"]).round(2)
+    resumo = resumo.sort_values(["tabela_especifica", "faturado_liquido"], ascending=[True, False]).reset_index(
+        drop=True
+    )
+    return resumo
+
+
 def _salvar_saida(df_saida: pd.DataFrame, pasta_saida: Path, nome_arquivo: str) -> None:
     caminho_final = pasta_saida / nome_arquivo
     df_saida.to_excel(caminho_final, index=False)
@@ -623,6 +660,19 @@ def rodar_matriz(nome_matriz: str, matriz_cfg: dict, df_base: pd.DataFrame, cfg:
             for nome_aba, df_aba in abas_mensais.items():
                 df_aba.to_excel(writer, sheet_name=nome_aba, index=False)
         print(f"Resultado salvo em {caminho_final}")
+        return resumo
+
+    if tipo == "resumo_por_cnpj":
+        # roda na base inteira, sem arquivo de controle nem CNPJ de entrada
+        resumo = calcular_resumo_por_cnpj(df_base, matriz_cfg)
+        if resumo.empty:
+            print("Nenhuma venda encontrada para as palavras-chave configuradas.")
+            return None
+        print(resumo.to_string(index=False))
+        pasta_saida = BASE_DIR / cfg["saida"]["pasta"]
+        pasta_saida.mkdir(parents=True, exist_ok=True)
+        nome_arquivo = matriz_cfg.get("nome_arquivo_saida") or f"{nome_matriz}_analise.xlsx"
+        _salvar_saida(resumo, pasta_saida, nome_arquivo)
         return resumo
 
     df_controle = carregar_controle(matriz_cfg)
