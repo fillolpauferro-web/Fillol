@@ -126,6 +126,8 @@ def carregar_base(cfg: dict) -> pd.DataFrame:
     df["_data_pedido"] = to_datetime(df[colunas["data_pedido"]])
     df["_faturado_liquido"] = to_numeric(df[colunas["faturado_liquido"]])
     df["_desconto_aplicado_pct"] = to_numeric(df[colunas["desconto_aplicado_pct"]])
+    if "quantidade_faturada" in colunas:
+        df["_quantidade_faturada"] = to_numeric(df[colunas["quantidade_faturada"]])
     return df
 
 
@@ -453,13 +455,52 @@ def aplicar_regra_bandeira(df_historico: pd.DataFrame, matriz_cfg: dict, cfg: di
     return aplicar_condicao_correta(df, df_condicao, matriz_cfg)
 
 
+def _agregar_volume(df: pd.DataFrame, by) -> pd.DataFrame:
+    """Agrupa por `by` somando qtd_pedidos e faturado_liquido, e também
+    quantidade_faturada (unidades) quando a base tiver essa coluna
+    configurada (base.colunas.quantidade_faturada) — não quebra quem não
+    tiver essa coluna. Não reseta o índice, pra permitir reindex antes.
+    """
+    agregacoes = {"qtd_pedidos": ("_tabela_norm", "size"), "faturado_liquido": ("_faturado_liquido", "sum")}
+    if "_quantidade_faturada" in df.columns:
+        agregacoes["quantidade_faturada"] = ("_quantidade_faturada", "sum")
+    return df.groupby(by).agg(**agregacoes)
+
+
+def _completar_percentuais_e_medias(df: pd.DataFrame, sufixo_percentual: str = "") -> None:
+    """Adiciona (in-place) percentual_faturado/percentual_quantidade_faturada
+    (sobre o total do próprio df) e faturado_medio_por_pedido/
+    quantidade_media_por_pedido — reaproveitado por todas as tabelas de
+    resumo_volume/resumo_por_cnpj.
+    """
+    total_pedidos = df["qtd_pedidos"].sum()
+    total_faturado = df["faturado_liquido"].sum()
+    df[f"percentual_pedidos{sufixo_percentual}"] = (
+        (df["qtd_pedidos"] / total_pedidos * 100).round(2) if total_pedidos else 0.0
+    )
+    df[f"percentual_faturado{sufixo_percentual}"] = (
+        (df["faturado_liquido"] / total_faturado * 100).round(2) if total_faturado else 0.0
+    )
+    df["faturado_medio_por_pedido"] = (df["faturado_liquido"] / df["qtd_pedidos"]).where(df["qtd_pedidos"] > 0).round(
+        2
+    )
+    if "quantidade_faturada" in df.columns:
+        total_quantidade = df["quantidade_faturada"].sum()
+        df[f"percentual_quantidade_faturada{sufixo_percentual}"] = (
+            (df["quantidade_faturada"] / total_quantidade * 100).round(2) if total_quantidade else 0.0
+        )
+        df["quantidade_media_por_pedido"] = (
+            (df["quantidade_faturada"] / df["qtd_pedidos"]).where(df["qtd_pedidos"] > 0).round(2)
+        )
+
+
 def calcular_resumo_volume(df_base: pd.DataFrame, matriz_cfg: dict) -> pd.DataFrame:
     """tipo: "resumo_volume" — roda na base inteira (sem filtro por CNPJ,
     sem Check): classifica cada pedido em categoria_a (Tabela de negociação
     contém alguma das palavras_chave_categoria_a) ou categoria_b (o resto),
-    e soma quantidade de pedidos e faturado líquido por categoria, com o
-    percentual de cada uma sobre o total e o faturado médio por pedido
-    individual (volume por pedido).
+    e soma quantidade de pedidos, faturado líquido e quantidade faturada
+    (se configurada) por categoria, com o percentual de cada uma sobre o
+    total e a média por pedido individual (volume por pedido).
     """
     palavras = [normalize_text(p) for p in matriz_cfg["palavras_chave_categoria_a"]]
     nome_a = matriz_cfg.get("nome_categoria_a", "A")
@@ -468,23 +509,11 @@ def calcular_resumo_volume(df_base: pd.DataFrame, matriz_cfg: dict) -> pd.DataFr
     categoria = df_base["_tabela_norm"].map(lambda t: nome_a if any(p in t for p in palavras) else nome_b)
 
     resumo = (
-        df_base.assign(categoria=categoria)
-        .groupby("categoria")
-        .agg(qtd_pedidos=("_tabela_norm", "size"), faturado_liquido=("_faturado_liquido", "sum"))
+        _agregar_volume(df_base.assign(categoria=categoria), "categoria")
         .reindex([nome_a, nome_b], fill_value=0)
         .reset_index()
     )
-
-    total_pedidos = resumo["qtd_pedidos"].sum()
-    total_faturado = resumo["faturado_liquido"].sum()
-    resumo["percentual_pedidos"] = (resumo["qtd_pedidos"] / total_pedidos * 100).round(2) if total_pedidos else 0.0
-    resumo["percentual_faturado"] = (
-        (resumo["faturado_liquido"] / total_faturado * 100).round(2) if total_faturado else 0.0
-    )
-    # volume por pedido = faturado líquido médio de cada pedido individual
-    resumo["faturado_medio_por_pedido"] = (resumo["faturado_liquido"] / resumo["qtd_pedidos"]).where(
-        resumo["qtd_pedidos"] > 0
-    ).round(2)
+    _completar_percentuais_e_medias(resumo)
     return resumo
 
 
@@ -510,31 +539,21 @@ def calcular_resumo_mensal(df_base: pd.DataFrame, matriz_cfg: dict) -> dict[str,
     df["categoria"] = df["_tabela_norm"].map(lambda t: nome_a if any(p in t for p in palavras_norm) else nome_b)
     df["mes"] = df["_data_pedido"].dt.to_period("M").astype(str)
 
-    mensal = (
-        df.groupby(["mes", "categoria"])
-        .agg(qtd_pedidos=("_tabela_norm", "size"), faturado_liquido=("_faturado_liquido", "sum"))
-        .reset_index()
-    )
-    total_mes = mensal.groupby("mes")[["qtd_pedidos", "faturado_liquido"]].transform("sum")
+    mensal = _agregar_volume(df, ["mes", "categoria"]).reset_index()
+    total_mes = mensal.groupby("mes")[[c for c in mensal.columns if c not in ("mes", "categoria")]].transform("sum")
     mensal["percentual_pedidos"] = (mensal["qtd_pedidos"] / total_mes["qtd_pedidos"] * 100).round(2)
     mensal["percentual_faturado"] = (mensal["faturado_liquido"] / total_mes["faturado_liquido"] * 100).round(2)
     # volume por pedido = faturado líquido médio de cada pedido individual naquele mês/categoria
     mensal["faturado_medio_por_pedido"] = (mensal["faturado_liquido"] / mensal["qtd_pedidos"]).round(2)
+    colunas_media_mensal = ["qtd_pedidos", "faturado_liquido", "percentual_pedidos", "percentual_faturado", "faturado_medio_por_pedido"]
+    if "quantidade_faturada" in mensal.columns:
+        mensal["percentual_quantidade_faturada"] = (
+            mensal["quantidade_faturada"] / total_mes["quantidade_faturada"] * 100
+        ).round(2)
+        mensal["quantidade_media_por_pedido"] = (mensal["quantidade_faturada"] / mensal["qtd_pedidos"]).round(2)
+        colunas_media_mensal += ["quantidade_faturada", "percentual_quantidade_faturada", "quantidade_media_por_pedido"]
 
-    media_mensal = (
-        mensal.groupby("categoria")[
-            [
-                "qtd_pedidos",
-                "faturado_liquido",
-                "percentual_pedidos",
-                "percentual_faturado",
-                "faturado_medio_por_pedido",
-            ]
-        ]
-        .mean()
-        .round(2)
-        .reset_index()
-    )
+    media_mensal = mensal.groupby("categoria")[colunas_media_mensal].mean().round(2).reset_index()
 
     df_ca = df[df["categoria"] == nome_a].copy()
     df_ca["tabela_especifica"] = df_ca["_tabela_norm"].map(_tabela_especifica)
@@ -542,44 +561,31 @@ def calcular_resumo_mensal(df_base: pd.DataFrame, matriz_cfg: dict) -> dict[str,
     # total (todos os meses juntos) por tabela específica dentro de CA —
     # ex.: quantos pedidos são só de "Canal Autorizador", isolado das outras
     # tabelas que também compõem a categoria CA
-    ca_por_tabela = (
-        df_ca.groupby("tabela_especifica")
-        .agg(qtd_pedidos=("_tabela_norm", "size"), faturado_liquido=("_faturado_liquido", "sum"))
-        .reset_index()
-    )
-    total_ca_pedidos = ca_por_tabela["qtd_pedidos"].sum()
-    total_ca_faturado = ca_por_tabela["faturado_liquido"].sum()
-    ca_por_tabela["percentual_pedidos_dentro_ca"] = (
-        (ca_por_tabela["qtd_pedidos"] / total_ca_pedidos * 100).round(2) if total_ca_pedidos else 0.0
-    )
-    ca_por_tabela["percentual_faturado_dentro_ca"] = (
-        (ca_por_tabela["faturado_liquido"] / total_ca_faturado * 100).round(2) if total_ca_faturado else 0.0
-    )
-    ca_por_tabela["faturado_medio_por_pedido"] = (
-        ca_por_tabela["faturado_liquido"] / ca_por_tabela["qtd_pedidos"]
-    ).round(2)
+    ca_por_tabela = _agregar_volume(df_ca, "tabela_especifica").reset_index()
+    _completar_percentuais_e_medias(ca_por_tabela, sufixo_percentual="_dentro_ca")
 
-    ca_por_tabela_mes = (
-        df_ca.groupby(["mes", "tabela_especifica"])
-        .agg(qtd_pedidos=("_tabela_norm", "size"), faturado_liquido=("_faturado_liquido", "sum"))
-        .reset_index()
-    )
+    ca_por_tabela_mes = _agregar_volume(df_ca, ["mes", "tabela_especifica"]).reset_index()
     ca_por_tabela_mes["faturado_medio_por_pedido"] = (
         ca_por_tabela_mes["faturado_liquido"] / ca_por_tabela_mes["qtd_pedidos"]
     ).round(2)
+    if "quantidade_faturada" in ca_por_tabela_mes.columns:
+        ca_por_tabela_mes["quantidade_media_por_pedido"] = (
+            ca_por_tabela_mes["quantidade_faturada"] / ca_por_tabela_mes["qtd_pedidos"]
+        ).round(2)
 
+    renomear_maior = {
+        "tabela_especifica": "tabela_maior_volume",
+        "qtd_pedidos": "qtd_pedidos_maior",
+        "faturado_liquido": "faturado_liquido_maior",
+        "faturado_medio_por_pedido": "faturado_medio_por_pedido_maior",
+        "quantidade_faturada": "quantidade_faturada_maior",
+        "quantidade_media_por_pedido": "quantidade_media_por_pedido_maior",
+    }
     maior_por_mes = (
         ca_por_tabela_mes.sort_values("faturado_liquido", ascending=False)
         .groupby("mes", as_index=False)
         .first()
-        .rename(
-            columns={
-                "tabela_especifica": "tabela_maior_volume",
-                "qtd_pedidos": "qtd_pedidos_maior",
-                "faturado_liquido": "faturado_liquido_maior",
-                "faturado_medio_por_pedido": "faturado_medio_por_pedido_maior",
-            }
-        )
+        .rename(columns=renomear_maior)
         .sort_values("mes")
         .reset_index(drop=True)
     )
@@ -597,7 +603,8 @@ def calcular_resumo_por_cnpj(df_base: pd.DataFrame, matriz_cfg: dict) -> pd.Data
     """tipo: "resumo_por_cnpj" — roda na base inteira (sem filtro por CNPJ
     de controle, sem Check): filtra só as tabelas de palavras_chave (ex.:
     "RAIA CA", "DPSP CA") e acumula (total, sem quebra mensal) quantidade
-    de pedidos e faturado líquido por CNPJ, dentro de cada tabela.
+    de pedidos, faturado líquido e quantidade faturada (se configurada)
+    por CNPJ, dentro de cada tabela.
     """
     palavras = list(matriz_cfg["palavras_chave"])
     palavras_norm = [normalize_text(p) for p in palavras]
@@ -613,12 +620,11 @@ def calcular_resumo_por_cnpj(df_base: pd.DataFrame, matriz_cfg: dict) -> pd.Data
     df = df[df["tabela_especifica"].notna()]
 
     resumo = (
-        df.groupby(["tabela_especifica", "_cnpj_norm"])
-        .agg(qtd_pedidos=("_tabela_norm", "size"), faturado_liquido=("_faturado_liquido", "sum"))
-        .reset_index()
-        .rename(columns={"_cnpj_norm": "cnpj"})
+        _agregar_volume(df, ["tabela_especifica", "_cnpj_norm"]).reset_index().rename(columns={"_cnpj_norm": "cnpj"})
     )
     resumo["faturado_medio_por_pedido"] = (resumo["faturado_liquido"] / resumo["qtd_pedidos"]).round(2)
+    if "quantidade_faturada" in resumo.columns:
+        resumo["quantidade_media_por_pedido"] = (resumo["quantidade_faturada"] / resumo["qtd_pedidos"]).round(2)
     resumo = resumo.sort_values(["tabela_especifica", "faturado_liquido"], ascending=[True, False]).reset_index(
         drop=True
     )

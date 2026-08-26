@@ -861,6 +861,100 @@ def test_matriz_tipo_resumo_por_cnpj(tmp_path: Path):
     assert round(resultado.loc[("DPSP CA", cnpj_c), "faturado_liquido"], 2) == 500.0
 
 
+def test_resumo_volume_com_quantidade_faturada(tmp_path: Path):
+    # mesmos pedidos do test_matriz_tipo_resumo_volume, mas com a coluna
+    # opcional "Quantidade Faturada" configurada — precisa aparecer em
+    # Resumo, Mensal_CAxWE, Media_Mensal, CA_por_Tabela e Maior_Volume_por_Mes.
+    base_df = pd.DataFrame(
+        {
+            "Tipo de cliente": ["X", "X", "X", "X", "X", "X"],
+            "CNPJ": [
+                "11.111.111/0001-11",
+                "22.222.222/0001-22",
+                "33.333.333/0001-33",
+                "44.444.444/0001-44",
+                "55.555.555/0001-55",
+                "66.666.666/0001-66",
+            ],
+            "Id pedido": ["1", "2", "3", "4", "5", "6"],
+            "EAN": ["1", "2", "3", "4", "5", "6"],
+            "Tabela de negociação": [
+                "Carrefour CA",
+                "Raia CA",
+                "Default Generico CA",
+                "Tabela Agregadora - DPSP CA",
+                "Araujo_Generico",
+                "Carrefour CA",
+            ],
+            "Data do pedido (original)": [
+                "10/05/2026 10:00",
+                "11/05/2026 10:00",
+                "12/05/2026 10:00",
+                "10/06/2026 10:00",
+                "11/06/2026 10:00",
+                "12/06/2026 10:00",
+            ],
+            "Faturado líquido (R$)": ["100,00", "200,00", "50,00", "150,00", "300,00", "400,00"],
+            "Desconto comercial faturado (%)": ["10"] * 6,
+            "Quantidade Faturada": ["10", "20", "5", "15", "30", "40"],
+        }
+    )
+
+    base_df.to_excel(tmp_path / "base_pedidos.xlsx", index=False)
+    (tmp_path / "saida").mkdir()
+
+    cfg = _montar_config(tmp_path)
+    cfg["base"]["colunas"]["quantidade_faturada"] = "Quantidade Faturada"
+    matriz_cfg = {
+        "nome": "ResumoCAxWE",
+        "tipo": "resumo_volume",
+        "ativo": True,
+        "palavras_chave_categoria_a": [
+            "CANAL AUTORIZADOR",
+            "CARREFOUR CA",
+            "DPSP CA",
+            "PANVEL CA",
+            "RAIA CA",
+        ],
+        "nome_categoria_a": "CA",
+        "nome_categoria_b": "WE",
+        "nome_arquivo_saida": "Resumo_CA_WE.xlsx",
+    }
+
+    import pipeline
+
+    pipeline.BASE_DIR = tmp_path
+
+    df_base = carregar_base(cfg)
+    resultado = rodar_matriz("ResumoCAxWE", matriz_cfg, df_base, cfg)
+
+    linhas = resultado.set_index("categoria")
+    assert linhas.loc["CA", "quantidade_faturada"] == 85  # 10+20+15+40
+    assert linhas.loc["WE", "quantidade_faturada"] == 35  # 5+30
+    assert round(linhas.loc["CA", "percentual_quantidade_faturada"], 2) == round(85 / 120 * 100, 2)
+    assert round(linhas.loc["CA", "quantidade_media_por_pedido"], 2) == round(85 / 4, 2)
+
+    abas = pd.read_excel(tmp_path / "saida" / "Resumo_CA_WE.xlsx", sheet_name=None)
+
+    mensal = abas["Mensal_CAxWE"].set_index(["mes", "categoria"])
+    assert mensal.loc[("2026-05", "CA"), "quantidade_faturada"] == 30  # 10+20
+    assert mensal.loc[("2026-06", "CA"), "quantidade_faturada"] == 55  # 15+40
+    assert round(mensal.loc[("2026-05", "CA"), "percentual_quantidade_faturada"], 2) == round(30 / 35 * 100, 2)
+
+    media = abas["Media_Mensal"].set_index("categoria")
+    assert round(media.loc["CA", "quantidade_faturada"], 2) == round((30 + 55) / 2, 2)
+
+    ca_por_tabela = abas["CA_por_Tabela"].set_index("tabela_especifica")
+    assert ca_por_tabela.loc["CARREFOUR CA", "quantidade_faturada"] == 50  # 10+40
+    assert round(ca_por_tabela.loc["CARREFOUR CA", "percentual_quantidade_faturada_dentro_ca"], 2) == round(
+        50 / 85 * 100, 2
+    )
+
+    maior = abas["Maior_Volume_por_Mes"].set_index("mes")
+    assert maior.loc["2026-05", "quantidade_faturada_maior"] == 20  # pedido da Raia CA em maio
+    assert maior.loc["2026-06", "quantidade_faturada_maior"] == 40  # pedido da Carrefour CA em junho
+
+
 def test_main_continua_apos_erro_em_uma_matriz(tmp_path: Path, monkeypatch):
     # Uma matriz mal configurada (arquivo de controle inexistente) não pode
     # travar o resto: a matriz seguinte da lista ainda precisa rodar e

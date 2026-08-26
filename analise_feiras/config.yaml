@@ -38,6 +38,9 @@ base:
     # porque toda coluna listada aqui em base.colunas sai em todos os
     # relatórios.
     numero_nota: "Numero da Nota"
+    # AJUSTAR: nome real da coluna de quantidade (unidades) faturada, se for
+    # diferente (ex.: "Quantidade", "Qtde Faturada", "Qtd Faturada").
+    quantidade_faturada: "Quantidade Faturada"
 
 # Arquivo usado no passo 4 (achar o desconto que deveria ter sido aplicado
 # quando um pedido é identificado como erro operacional). O desconto correto
