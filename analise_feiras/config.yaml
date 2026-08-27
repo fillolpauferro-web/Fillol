@@ -110,16 +110,18 @@ condicao_comercial:
 #
 # tipo: "resumo_por_cnpj" (ex.: Raia e DPSP por CNPJ, Canal Autorizador por
 #   distribuidor) — sem Check, sem filtro por CNPJ de entrada, roda na base
-#   inteira. Filtra só as tabelas de palavras_chave e acumula (total, sem
-#   quebra mensal) quantidade de pedidos, faturado líquido e quantidade
-#   faturada por CNPJ (padrão) ou por distribuidor (coluna_agrupamento:
-#   "distribuidor"), dentro de cada tabela.
+#   inteira. Filtra só as tabelas de palavras_chave e acumula quantidade de
+#   pedidos, faturado líquido e quantidade faturada por CNPJ (padrão) ou por
+#   distribuidor (coluna_agrupamento: "distribuidor"), dentro de cada
+#   tabela. Por padrão sai um total acumulado (uma lista simples); com
+#   abrir_por_mes: true, sai também uma segunda aba com a mesma quebra mês
+#   a mês (arquivo com abas "Total" e "Mensal").
 #
-# tipo: "resumo_cnpj_grupo" — sem Check, sem filtro por palavras-chave nem
-#   CNPJ de entrada, roda na base inteira. Agrupa por CNPJ + Grupo de
-#   clientes + Tabela de negociação + mês, com quantidade de pedidos,
-#   faturado líquido e quantidade faturada. Exige
-#   base.colunas.grupo_clientes configurado.
+# tipo: "resumo_cnpj_grupo" — sem Check, sem filtro por CNPJ de entrada,
+#   filtra exclusivamente pela palavra_chave da matriz (ex.: "CANAL
+#   AUTORIZADOR"). Agrupa por CNPJ + Grupo de clientes + mês, com
+#   quantidade de pedidos, faturado líquido e quantidade faturada de cada
+#   mês. Exige base.colunas.grupo_clientes configurado.
 #
 # Em todos os tipos, "colunas_trazidas" são copiadas pra saída sempre que o
 # CNPJ é encontrado no controle (mesmo se o Check der erro, quando aplicável).
@@ -271,11 +273,14 @@ matrizes:
     palavras_chave:
       - "CANAL AUTORIZADOR"
     coluna_agrupamento: "distribuidor"
+    abrir_por_mes: true # sai com abas "Total" e "Mensal" (distribuidor x mês)
     nome_arquivo_saida: "CanalAutorizador_por_Distribuidor.xlsx"
 
   - nome: "ResumoCNPJGrupo"
     tipo: "resumo_cnpj_grupo"
     ativo: true
+    # filtra exclusivamente essa tabela — não roda na base inteira
+    palavra_chave: "CANAL AUTORIZADOR"
     nome_arquivo_saida: "Resumo_CNPJ_Grupo.xlsx"
 
 saida:

@@ -54,15 +54,17 @@ define como a base é filtrada e o que sai no resultado:
 
   tipo: "resumo_por_cnpj" (ex.: Raia e DPSP por CNPJ, Canal Autorizador por
   distribuidor) — sem Check, sem filtro por CNPJ de entrada, roda na base
-  inteira: filtra só as tabelas de palavras_chave e acumula (total, sem
-  quebra mensal) quantidade de pedidos, faturado líquido e quantidade
-  faturada por CNPJ (ou por distribuidor, se coluna_agrupamento:
-  "distribuidor"), dentro de cada tabela.
+  inteira: filtra só as tabelas de palavras_chave e acumula quantidade de
+  pedidos, faturado líquido e quantidade faturada por CNPJ (ou por
+  distribuidor, se coluna_agrupamento: "distribuidor"), dentro de cada
+  tabela. Por padrão sai só o total acumulado; com abrir_por_mes: true, sai
+  também a mesma quebra mês a mês, num arquivo com abas "Total" e "Mensal".
 
-  tipo: "resumo_cnpj_grupo" — sem Check, sem filtro por palavras-chave nem
-  CNPJ de entrada, roda na base inteira: agrupa por CNPJ + Grupo de
-  clientes + Tabela de negociação + mês, com quantidade de pedidos,
-  faturado líquido e quantidade faturada. Exige base.colunas.grupo_clientes.
+  tipo: "resumo_cnpj_grupo" — sem Check, sem filtro por CNPJ de entrada,
+  filtra exclusivamente pela palavra_chave da matriz (ex.: "Canal
+  Autorizador"): agrupa por CNPJ + Grupo de clientes + mês, com quantidade
+  de pedidos, faturado líquido e quantidade faturada de cada mês. Exige
+  base.colunas.grupo_clientes.
 
   Um arquivo de saída é salvo por matriz (nome_arquivo_saida no config, ou
   "{nome}_analise.xlsx" por padrão).
@@ -608,16 +610,15 @@ def calcular_resumo_mensal(df_base: pd.DataFrame, matriz_cfg: dict) -> dict[str,
     }
 
 
-def calcular_resumo_por_cnpj(df_base: pd.DataFrame, matriz_cfg: dict) -> pd.DataFrame:
-    """tipo: "resumo_por_cnpj" — roda na base inteira (sem filtro por CNPJ
-    de controle, sem Check): filtra só as tabelas de palavras_chave (ex.:
-    "RAIA CA", "DPSP CA", ou "CANAL AUTORIZADOR") e acumula (total, sem
-    quebra mensal) quantidade de pedidos, faturado líquido e quantidade
-    faturada (se configurada), dentro de cada tabela.
+def _preparar_df_por_grupo(df_base: pd.DataFrame, matriz_cfg: dict) -> tuple[pd.DataFrame, str, str]:
+    """Filtra a base pelas palavras_chave (ex.: "RAIA CA", "CANAL
+    AUTORIZADOR") e monta a coluna "tabela_especifica" e "mes" — reaproveitado
+    por calcular_resumo_por_cnpj e sua versão mensal.
 
-    Por padrão agrupa por CNPJ; se matriz_cfg tiver
-    coluna_agrupamento: "distribuidor", agrupa pela coluna
-    base.colunas.distribuidor (ex.: "Nome do distribuidor") em vez do CNPJ.
+    Por padrão a chave de agrupamento é o CNPJ; se matriz_cfg tiver
+    coluna_agrupamento: "distribuidor", usa a coluna base.colunas.distribuidor
+    (ex.: "Nome do distribuidor") em vez do CNPJ. Retorna (df filtrado,
+    coluna interna a agrupar, nome da coluna na saída).
     """
     palavras = list(matriz_cfg["palavras_chave"])
     palavras_norm = [normalize_text(p) for p in palavras]
@@ -637,6 +638,19 @@ def calcular_resumo_por_cnpj(df_base: pd.DataFrame, matriz_cfg: dict) -> pd.Data
     df = df_base.copy()
     df["tabela_especifica"] = df["_tabela_norm"].map(_tabela_especifica)
     df = df[df["tabela_especifica"].notna()]
+    df["mes"] = df["_data_pedido"].dt.to_period("M").astype(str)
+    return df, chave_col, nome_saida
+
+
+def calcular_resumo_por_cnpj(df_base: pd.DataFrame, matriz_cfg: dict) -> pd.DataFrame:
+    """tipo: "resumo_por_cnpj" — roda na base inteira (sem filtro por CNPJ
+    de controle, sem Check): filtra só as tabelas de palavras_chave (ex.:
+    "RAIA CA", "DPSP CA", ou "CANAL AUTORIZADOR") e acumula (total, sem
+    quebra mensal) quantidade de pedidos, faturado líquido e quantidade
+    faturada (se configurada), dentro de cada tabela — agrupado por CNPJ ou
+    por distribuidor (ver _preparar_df_por_grupo).
+    """
+    df, chave_col, nome_saida = _preparar_df_por_grupo(df_base, matriz_cfg)
 
     resumo = _agregar_volume(df, ["tabela_especifica", chave_col]).reset_index().rename(columns={chave_col: nome_saida})
     resumo["faturado_medio_por_pedido"] = (resumo["faturado_liquido"] / resumo["qtd_pedidos"]).round(2)
@@ -648,11 +662,28 @@ def calcular_resumo_por_cnpj(df_base: pd.DataFrame, matriz_cfg: dict) -> pd.Data
     return resumo
 
 
-def calcular_resumo_cnpj_grupo(df_base: pd.DataFrame, cfg: dict) -> pd.DataFrame:
-    """tipo: "resumo_cnpj_grupo" — roda na base inteira, sem Check e sem
-    filtro por palavras-chave: agrupa por CNPJ + Grupo de clientes +
-    Tabela de negociação + mês, somando quantidade de pedidos, faturado
-    líquido e quantidade faturada (se configurada). Exige
+def calcular_resumo_por_cnpj_mensal(df_base: pd.DataFrame, matriz_cfg: dict) -> pd.DataFrame:
+    """Versão mensal de calcular_resumo_por_cnpj: mesma filtragem e
+    agrupamento (CNPJ ou distribuidor), mas abrindo por mês em vez de
+    acumular tudo — usada quando a matriz tem abrir_por_mes: true.
+    """
+    df, chave_col, nome_saida = _preparar_df_por_grupo(df_base, matriz_cfg)
+
+    mensal = (
+        _agregar_volume(df, ["tabela_especifica", chave_col, "mes"]).reset_index().rename(columns={chave_col: nome_saida})
+    )
+    mensal["faturado_medio_por_pedido"] = (mensal["faturado_liquido"] / mensal["qtd_pedidos"]).round(2)
+    if "quantidade_faturada" in mensal.columns:
+        mensal["quantidade_media_por_pedido"] = (mensal["quantidade_faturada"] / mensal["qtd_pedidos"]).round(2)
+    mensal = mensal.sort_values(["tabela_especifica", nome_saida, "mes"]).reset_index(drop=True)
+    return mensal
+
+
+def calcular_resumo_cnpj_grupo(df_base: pd.DataFrame, cfg: dict, matriz_cfg: dict) -> pd.DataFrame:
+    """tipo: "resumo_cnpj_grupo" — filtra exclusivamente pela palavra_chave
+    da matriz (ex.: "CANAL AUTORIZADOR") e agrupa por CNPJ + Grupo de
+    clientes + mês, somando quantidade de pedidos, faturado líquido e
+    quantidade faturada (se configurada) de cada mês. Exige
     base.colunas.grupo_clientes configurado.
     """
     colunas = cfg["base"]["colunas"]
@@ -661,16 +692,15 @@ def calcular_resumo_cnpj_grupo(df_base: pd.DataFrame, cfg: dict) -> pd.DataFrame
             "Configure base.colunas.grupo_clientes no config.yaml pra usar a matriz tipo 'resumo_cnpj_grupo'."
         )
 
-    df = df_base.copy()
+    palavra = normalize_text(matriz_cfg["palavra_chave"])
+    df = df_base[df_base["_tabela_norm"].str.contains(palavra, na=False)].copy()
     df["grupo_clientes"] = df[colunas["grupo_clientes"]]
     df["mes"] = df["_data_pedido"].dt.to_period("M").astype(str)
 
     resumo = (
-        _agregar_volume(df, ["_cnpj_norm", "grupo_clientes", "_tabela_norm", "mes"])
-        .reset_index()
-        .rename(columns={"_cnpj_norm": "cnpj", "_tabela_norm": "tabela_negociacao"})
+        _agregar_volume(df, ["_cnpj_norm", "grupo_clientes", "mes"]).reset_index().rename(columns={"_cnpj_norm": "cnpj"})
     )
-    return resumo.sort_values(["cnpj", "mes", "tabela_negociacao"]).reset_index(drop=True)
+    return resumo.sort_values(["cnpj", "mes"]).reset_index(drop=True)
 
 
 def _salvar_saida(df_saida: pd.DataFrame, pasta_saida: Path, nome_arquivo: str) -> None:
@@ -720,17 +750,26 @@ def rodar_matriz(nome_matriz: str, matriz_cfg: dict, df_base: pd.DataFrame, cfg:
         pasta_saida = BASE_DIR / cfg["saida"]["pasta"]
         pasta_saida.mkdir(parents=True, exist_ok=True)
         nome_arquivo = matriz_cfg.get("nome_arquivo_saida") or f"{nome_matriz}_analise.xlsx"
-        _salvar_saida(resumo, pasta_saida, nome_arquivo)
+
+        if matriz_cfg.get("abrir_por_mes"):
+            mensal = calcular_resumo_por_cnpj_mensal(df_base, matriz_cfg)
+            caminho_final = pasta_saida / nome_arquivo
+            with pd.ExcelWriter(caminho_final) as writer:
+                resumo.to_excel(writer, sheet_name="Total", index=False)
+                mensal.to_excel(writer, sheet_name="Mensal", index=False)
+            print(f"Resultado salvo em {caminho_final}")
+        else:
+            _salvar_saida(resumo, pasta_saida, nome_arquivo)
         return resumo
 
     if tipo == "resumo_cnpj_grupo":
-        # roda na base inteira, sem filtro por palavras-chave nem CNPJ de
-        # entrada — pode gerar bastante linha (CNPJ x grupo x tabela x mês)
-        resumo = calcular_resumo_cnpj_grupo(df_base, cfg)
+        # filtra exclusivamente pela palavra_chave da matriz (ex.: "CANAL
+        # AUTORIZADOR") — não roda na base inteira
+        resumo = calcular_resumo_cnpj_grupo(df_base, cfg, matriz_cfg)
         if resumo.empty:
-            print("Nenhuma venda encontrada na base.")
+            print(f"Nenhuma linha encontrada para a palavra-chave '{matriz_cfg['palavra_chave']}'.")
             return None
-        print(f"{len(resumo)} linhas geradas (CNPJ x grupo de clientes x tabela x mês).")
+        print(f"{len(resumo)} linhas geradas (CNPJ x grupo de clientes x mês).")
         pasta_saida = BASE_DIR / cfg["saida"]["pasta"]
         pasta_saida.mkdir(parents=True, exist_ok=True)
         nome_arquivo = matriz_cfg.get("nome_arquivo_saida") or f"{nome_matriz}_analise.xlsx"
