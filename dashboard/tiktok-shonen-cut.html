@@ -1,286 +1,846 @@
-<title>Painel TikTok — @shonen.cut</title>
+<title>Painel Shonen.cut</title>
+<meta name="description" content="Painel de performance do @shonen.cut: 172 posts escaneados, o que funciona, o desvio de conteúdo e o plano para voltar a viralizar." />
 <style>
   :root{
-    --surface-1:#fcfcfb; --page:#f9f9f7; --surface-2:#ffffff;
-    --ink-1:#0b0b0b; --ink-2:#52514e; --ink-muted:#898781;
-    --grid:#e1e0d9; --baseline:#c3c2b7; --border:rgba(11,11,11,0.10);
-    --s1:#2a78d6; /* blue - primary series */
-    --s2:#1baf7a; /* aqua */
-    --s3:#eda100; /* yellow */
-    --s6:#e34948; /* red */
-    --s8:#eb6834; /* orange */
-    --good:#0ca30c; --warning:#fab219; --critical:#d03b3b;
+    color-scheme: light;
+    --bg: #F4F1EA;
+    --surface: #FFFFFF;
+    --surface-2: #FBF9F5;
+    --border: #E4DFD3;
+    --text-primary: #221E17;
+    --text-secondary: #6B6255;
+    --text-tertiary: #948B7C;
+    --accent: #D9581F;
+    --accent-ink: #FFFFFF;
+    --accent-soft: #F6E2D3;
+    --blue: #2A78D6;
+    --aqua: #1BAF7A;
+    --yellow: #C9860A;
+    --magenta: #D2578C;
+    --good: #0CA30C;
+    --warning: #B9790E;
+    --critical: #C23B2E;
+    --critical-soft: #FBEAE6;
+    --grid-line: #E4DFD3;
+    --shadow: 0 1px 2px rgba(30,24,15,.04), 0 8px 24px -12px rgba(30,24,15,.12);
   }
   @media (prefers-color-scheme: dark){
-    :root{
-      --surface-1:#1a1a19; --page:#0d0d0d; --surface-2:#202020;
-      --ink-1:#ffffff; --ink-2:#c3c2b7; --ink-muted:#898781;
-      --grid:#2c2c2a; --baseline:#383835; --border:rgba(255,255,255,0.10);
-      --s1:#3987e5; --s2:#199e70; --s3:#c98500; --s6:#e66767; --s8:#d95926;
-      --good:#0ca30c; --warning:#fab219; --critical:#d03b3b;
+    :root:not([data-theme="light"]){
+      color-scheme: dark;
+      --bg: #16130F;
+      --surface: #201B15;
+      --surface-2: #1B1712;
+      --border: #33291D;
+      --text-primary: #F3EEE4;
+      --text-secondary: #B3A996;
+      --text-tertiary: #857A67;
+      --accent: #F17A3E;
+      --accent-ink: #1A1108;
+      --accent-soft: #3A2717;
+      --blue: #5B9AE8;
+      --aqua: #3FCB98;
+      --yellow: #E0A937;
+      --magenta: #E67FAA;
+      --good: #4FCB4F;
+      --warning: #E0A937;
+      --critical: #EE7161;
+      --critical-soft: #3A211B;
+      --grid-line: #33291D;
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 28px -14px rgba(0,0,0,.6);
     }
   }
   :root[data-theme="dark"]{
-    --surface-1:#1a1a19; --page:#0d0d0d; --surface-2:#202020;
-    --ink-1:#ffffff; --ink-2:#c3c2b7; --ink-muted:#898781;
-    --grid:#2c2c2a; --baseline:#383835; --border:rgba(255,255,255,0.10);
-    --s1:#3987e5; --s2:#199e70; --s3:#c98500; --s6:#e66767; --s8:#d95926;
+    color-scheme: dark;
+    --bg: #16130F;
+    --surface: #201B15;
+    --surface-2: #1B1712;
+    --border: #33291D;
+    --text-primary: #F3EEE4;
+    --text-secondary: #B3A996;
+    --text-tertiary: #857A67;
+    --accent: #F17A3E;
+    --accent-ink: #1A1108;
+    --accent-soft: #3A2717;
+    --blue: #5B9AE8;
+    --aqua: #3FCB98;
+    --yellow: #E0A937;
+    --magenta: #E67FAA;
+    --good: #4FCB4F;
+    --warning: #E0A937;
+    --critical: #EE7161;
+    --critical-soft: #3A211B;
+    --grid-line: #33291D;
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 28px -14px rgba(0,0,0,.6);
   }
-  :root[data-theme="light"]{
-    --surface-1:#fcfcfb; --page:#f9f9f7; --surface-2:#ffffff;
-    --ink-1:#0b0b0b; --ink-2:#52514e; --ink-muted:#898781;
-    --grid:#e1e0d9; --baseline:#c3c2b7; --border:rgba(11,11,11,0.10);
-    --s1:#2a78d6; --s2:#1baf7a; --s3:#eda100; --s6:#e34948; --s8:#eb6834;
-  }
-  *{box-sizing:border-box;}
+
+  * { box-sizing: border-box; }
+  html { text-wrap: balance; }
   body{
-    margin:0; background:var(--page); color:var(--ink-1);
-    font-family:system-ui,-apple-system,"Segoe UI",sans-serif;
-    padding:24px; max-width:1180px; margin-inline:auto;
+    background: var(--bg);
+    color: var(--text-primary);
+    font-family: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
   }
-  h1{font-size:1.5rem; margin:0 0 4px;}
-  .subtitle{color:var(--ink-2); font-size:0.92rem; margin:0 0 24px;}
+  ::selection{ background: var(--accent-soft); }
+
+  .display{ font-family: "Bebas Neue", "Oswald", ui-sans-serif, sans-serif; letter-spacing: .01em; }
+  .mono{ font-family: "JetBrains Mono", ui-monospace, monospace; font-variant-numeric: tabular-nums; }
+  .eyebrow{
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    text-transform: uppercase;
+    letter-spacing: .14em;
+    font-size: 11.5px;
+    color: var(--text-tertiary);
+  }
+
+  a { color: inherit; }
+
+  .wrap{ max-width: 1180px; margin: 0 auto; padding: 0 24px 96px; }
+
+  /* ---------- Nav ---------- */
+  nav.topnav{
+    position: sticky; top: 0; z-index: 40;
+    background: color-mix(in srgb, var(--bg) 88%, transparent);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--border);
+  }
+  .navrow{
+    max-width: 1180px; margin: 0 auto; padding: 0 24px;
+    display: flex; align-items: center; gap: 22px;
+    height: 52px; overflow-x: auto; white-space: nowrap;
+  }
+  .navrow .brand{ font-family:"Bebas Neue",sans-serif; font-size: 19px; letter-spacing: .03em; margin-right: 8px; flex-shrink:0; }
+  .navrow .brand .dot{ color: var(--accent); }
+  .navrow a{
+    text-decoration: none; font-size: 13px; color: var(--text-secondary);
+    font-weight: 600; flex-shrink: 0;
+  }
+  .navrow a:hover{ color: var(--accent); }
+
+  /* ---------- Hero ---------- */
+  header.hero{ padding: 56px 0 36px; border-bottom: 1px solid var(--border); }
+  .hero-top{ display:flex; justify-content:space-between; align-items:flex-start; gap: 24px; flex-wrap: wrap; }
+  .hero h1{
+    font-size: clamp(46px, 8vw, 84px);
+    line-height: .92; margin: 6px 0 0; text-wrap: balance;
+  }
+  .hero h1 .cut{ color: var(--accent); }
+  .hero p.sub{
+    max-width: 56ch; margin-top: 14px; color: var(--text-secondary);
+    font-size: 15.5px; line-height: 1.55;
+  }
+  .scan-badge{
+    display:inline-flex; align-items:center; gap:8px;
+    border: 1px solid var(--border); background: var(--surface);
+    border-radius: 100px; padding: 7px 14px 7px 10px;
+    box-shadow: var(--shadow); flex-shrink: 0;
+  }
+  .scan-badge .pulse{ width:8px; height:8px; border-radius:50%; background: var(--good); position:relative; }
+  .scan-badge .pulse::after{
+    content:""; position:absolute; inset:-4px; border-radius:50%;
+    border: 1.5px solid var(--good); opacity:.5;
+    animation: pulse 2.2s ease-out infinite;
+  }
+  @media (prefers-reduced-motion: reduce){ .scan-badge .pulse::after{ animation:none; } }
+  @keyframes pulse{ 0%{ transform:scale(.6); opacity:.6;} 100%{ transform:scale(1.8); opacity:0;} }
+  .scan-badge b{ font-size: 13px; }
+  .scan-badge span{ font-size: 11.5px; color: var(--text-secondary); }
+
+  /* ---------- KPI strip ---------- */
+  .kpi-grid{
+    display:grid; grid-template-columns: repeat(5, 1fr); gap: 1px;
+    background: var(--border); border: 1px solid var(--border);
+    border-radius: 14px; overflow: hidden; margin-top: 34px;
+    box-shadow: var(--shadow);
+  }
+  .kpi{ background: var(--surface); padding: 20px 18px; }
+  .kpi .eyebrow{ margin-bottom: 8px; }
+  .kpi .val{ font-family:"Bebas Neue",sans-serif; font-size: 34px; line-height: 1; letter-spacing:.01em; }
+  .kpi .val small{ font-family:"Plus Jakarta Sans"; font-size: 14px; font-weight: 700; margin-left: 3px; }
+  .kpi .delta{ margin-top: 6px; font-size: 12px; color: var(--text-secondary); }
+  .kpi .delta.good{ color: var(--good); font-weight: 700; }
+  .kpi .delta.bad{ color: var(--critical); font-weight: 700; }
+  @media (max-width: 900px){ .kpi-grid{ grid-template-columns: repeat(2,1fr);} }
+
+  /* ---------- Sections ---------- */
+  section{ padding: 64px 0 0; }
+  .sec-head{ display:flex; justify-content:space-between; align-items: flex-end; gap: 20px; margin-bottom: 22px; flex-wrap: wrap; }
+  .sec-head h2{ font-family:"Bebas Neue",sans-serif; font-size: 34px; margin: 4px 0 0; }
+  .sec-head p{ color: var(--text-secondary); font-size: 14px; max-width: 52ch; margin-top: 4px;}
   .card{
-    background:var(--surface-1); border:1px solid var(--border); border-radius:12px;
-    padding:20px; margin-bottom:20px;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+    box-shadow: var(--shadow);
   }
-  .card h2{font-size:1.02rem; margin:0 0 4px; color:var(--ink-1);}
-  .card .note{color:var(--ink-muted); font-size:0.82rem; margin:0 0 16px;}
-  .kpi-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:14px;}
-  .kpi{background:var(--surface-2); border:1px solid var(--border); border-radius:10px; padding:14px 16px;}
-  .kpi .label{font-size:0.75rem; color:var(--ink-muted); text-transform:uppercase; letter-spacing:.03em;}
-  .kpi .value{font-size:1.6rem; font-weight:600; margin-top:4px; font-variant-numeric:tabular-nums;}
-  .kpi .delta{font-size:0.8rem; margin-top:2px;}
-  .delta.good{color:var(--good);}
-  .delta.crit{color:var(--critical);}
-  .bars{position:relative; height:230px; display:flex; align-items:flex-end; gap:3px; border-bottom:1px solid var(--baseline); padding-bottom:2px;}
-  .bar{flex:1; background:var(--s1); border-radius:4px 4px 0 0; min-height:2px; position:relative; cursor:pointer;}
-  .bar.hit{background:var(--s6);}
-  .bar.video{background:var(--s8);}
-  .axis-labels{display:flex; gap:3px; margin-top:6px;}
-  .axis-labels span{flex:1; font-size:0.62rem; color:var(--ink-muted); text-align:center; white-space:nowrap; overflow:hidden;}
-  .legend{display:flex; gap:16px; margin-bottom:10px; font-size:0.8rem; color:var(--ink-2);}
-  .legend .dot{display:inline-block; width:9px; height:9px; border-radius:50%; margin-right:6px;}
-  .tooltip{
-    position:fixed; background:var(--ink-1); color:var(--surface-1); font-size:0.75rem;
-    padding:6px 9px; border-radius:6px; pointer-events:none; opacity:0; transition:opacity .1s;
-    z-index:50; white-space:nowrap; font-variant-numeric:tabular-nums;
+
+  /* ---------- Growth chart ---------- */
+  .chart-card{ padding: 26px 26px 10px; }
+  .chart-legend{ display:flex; gap: 18px; flex-wrap:wrap; margin-bottom: 6px; }
+  .chart-legend .item{ display:flex; align-items:center; gap:7px; font-size: 12.5px; color: var(--text-secondary); }
+  .chart-legend .sw{ width: 10px; height: 10px; border-radius: 3px; }
+  #growthSvg{ width: 100%; height: auto; display:block; overflow: visible; }
+  .gridline{ stroke: var(--grid-line); stroke-width: 1; }
+  .axislabel{ font-family:"JetBrains Mono",monospace; font-size: 10.5px; fill: var(--text-tertiary); }
+  .growth-area{ fill: url(#areaGrad); }
+  .growth-line{ fill:none; stroke: var(--accent); stroke-width: 2.25; stroke-linecap: round; stroke-linejoin: round; }
+  .marker-dot{ fill: var(--bg); stroke: var(--accent); stroke-width: 2.5; cursor: pointer; }
+  .marker-dot.warn{ stroke: var(--critical); }
+  .marker-dot.good{ stroke: var(--good); }
+  .marker-line{ stroke-dasharray: 3 3; }
+  .crosshair{ stroke: var(--text-tertiary); stroke-width: 1; opacity: 0; pointer-events:none; }
+  .hover-dot{ fill: var(--accent); opacity: 0; pointer-events:none; }
+  #tooltip{
+    position: absolute; pointer-events:none; opacity: 0; transition: opacity .1s;
+    background: var(--text-primary); color: var(--bg); font-size: 12px;
+    padding: 8px 11px; border-radius: 9px; line-height: 1.4; box-shadow: var(--shadow);
+    z-index: 50; max-width: 240px;
   }
-  .hbar-row{display:flex; align-items:center; gap:10px; margin-bottom:8px;}
-  .hbar-label{width:150px; font-size:0.8rem; color:var(--ink-2); flex-shrink:0; text-align:right;}
-  .hbar-track{flex:1; background:var(--surface-2); border-radius:4px; height:20px; position:relative;}
-  .hbar-fill{height:100%; border-radius:4px; background:var(--s1); display:flex; align-items:center;}
-  .hbar-fill span{margin-left:8px; font-size:0.72rem; color:#fff; font-variant-numeric:tabular-nums; white-space:nowrap;}
-  .hbar-fill.outside{overflow:visible;}
-  .hbar-fill.outside span{margin-left:calc(100% + 8px); color:var(--ink-1);}
-  table{width:100%; border-collapse:collapse; font-size:0.85rem;}
-  th{text-align:left; color:var(--ink-muted); font-weight:500; font-size:0.72rem; text-transform:uppercase; letter-spacing:.03em; padding:6px 10px; border-bottom:1px solid var(--grid);}
-  td{padding:8px 10px; border-bottom:1px solid var(--grid); color:var(--ink-2); font-variant-numeric:tabular-nums;}
-  td.desc{color:var(--ink-1); font-variant-numeric:normal;}
-  tr.top td{color:var(--ink-1);}
-  a{color:var(--s1);}
-  .grid2{display:grid; grid-template-columns:1fr 1fr; gap:20px;}
-  @media (max-width:820px){ .grid2{grid-template-columns:1fr;} }
-  .pill{display:inline-block; padding:2px 8px; border-radius:20px; font-size:0.7rem; font-weight:600;}
-  .pill.photo{background:color-mix(in srgb, var(--s1) 18%, transparent); color:var(--s1);}
-  .pill.video{background:color-mix(in srgb, var(--s8) 18%, transparent); color:var(--s8);}
-  ul{color:var(--ink-2); font-size:0.88rem; line-height:1.6; padding-left:20px;}
-  li strong{color:var(--ink-1);}
-  .idea{background:var(--surface-2); border:1px solid var(--border); border-radius:10px; padding:14px 16px; margin-bottom:10px;}
-  .idea h3{margin:0 0 4px; font-size:0.92rem;}
-  .idea p{margin:0; font-size:0.83rem; color:var(--ink-2); line-height:1.5;}
-  .tag{font-size:0.68rem; color:var(--ink-muted); text-transform:uppercase; letter-spacing:.03em;}
-  footer{color:var(--ink-muted); font-size:0.75rem; text-align:center; margin-top:30px; padding-bottom:10px;}
+  #tooltip b{ font-family:"JetBrains Mono",monospace; }
+  .annot-list{ display:flex; flex-direction:column; gap: 9px; margin: 18px 0 22px; }
+  .annot-item{ display:flex; gap: 10px; font-size: 12.5px; color: var(--text-secondary); align-items:flex-start; }
+  .annot-item .tag{
+    flex-shrink:0; width: 15px; height:15px; border-radius: 4px; margin-top: 1px;
+    display:flex; align-items:center; justify-content:center; font-size: 9px; font-weight:800; color:#fff;
+  }
+  .annot-item b{ color: var(--text-primary); }
+
+  /* ---------- Category bars ---------- */
+  .cat-grid{ display:grid; grid-template-columns: 1.15fr .85fr; gap: 20px; }
+  @media (max-width: 880px){ .cat-grid{ grid-template-columns: 1fr; } }
+  .bar-card{ padding: 24px 26px 22px; }
+  .bar-row{ margin-bottom: 16px; }
+  .bar-row:last-child{ margin-bottom: 0; }
+  .bar-row .bar-top{ display:flex; justify-content:space-between; align-items:baseline; margin-bottom: 6px; }
+  .bar-row .bar-name{ font-size: 13.5px; font-weight: 700; }
+  .bar-row .bar-meta{ font-size: 11.5px; color: var(--text-tertiary); }
+  .bar-track{ height: 26px; background: var(--surface-2); border-radius: 7px; overflow: hidden; position:relative; border: 1px solid var(--border); }
+  .bar-fill{ height: 100%; border-radius: 6px; position: relative; display:flex; align-items:center; transition: filter .15s; }
+  .bar-fill:hover{ filter: brightness(1.08); }
+  .bar-fill .bar-val{ position:absolute; right: 10px; font-family:"JetBrains Mono",monospace; font-size: 11.5px; font-weight:700; color:#fff; }
+  .bar-fill.tiny .bar-val{ left: 10px; right: auto; color: var(--text-primary); }
+
+  .verdict-cards{ display:flex; flex-direction:column; gap: 12px; }
+  .verdict{ padding: 16px 18px; border-radius: 12px; border: 1px solid var(--border); background: var(--surface); }
+  .verdict.good{ border-color: color-mix(in srgb, var(--good) 35%, var(--border)); background: color-mix(in srgb, var(--good) 7%, var(--surface)); }
+  .verdict.bad{ border-color: color-mix(in srgb, var(--critical) 35%, var(--border)); background: color-mix(in srgb, var(--critical) 7%, var(--surface)); }
+  .verdict .vh{ display:flex; align-items:center; gap:8px; font-size: 12px; font-weight: 800; text-transform:uppercase; letter-spacing:.05em; margin-bottom:5px; }
+  .verdict.good .vh{ color: var(--good); }
+  .verdict.bad .vh{ color: var(--critical); }
+  .verdict p{ font-size: 13px; color: var(--text-secondary); line-height:1.5; margin:0; }
+  .verdict p b{ color: var(--text-primary); }
+
+  /* ---------- Drift banner ---------- */
+  .drift-banner{
+    border: 1px solid color-mix(in srgb, var(--critical) 40%, var(--border));
+    background: var(--critical-soft);
+    border-radius: 16px; padding: 30px 30px 26px;
+  }
+  .drift-head{ display:flex; align-items:center; gap: 10px; margin-bottom: 6px; }
+  .drift-head .flag{
+    background: var(--critical); color: #fff; font-size: 10.5px; font-weight: 800;
+    letter-spacing: .08em; text-transform: uppercase; padding: 4px 9px; border-radius: 6px;
+  }
+  .drift-banner h3{ font-family:"Bebas Neue",sans-serif; font-size: 28px; margin: 10px 0 6px; }
+  .drift-banner > p{ color: var(--text-secondary); font-size: 14px; max-width: 68ch; line-height: 1.6; }
+  .drift-compare{ display:grid; grid-template-columns: repeat(4,1fr); gap: 14px; margin-top: 22px; }
+  @media (max-width: 900px){ .drift-compare{ grid-template-columns: repeat(2,1fr);} }
+  .dc-cell{ background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px; }
+  .dc-cell .dc-label{ font-size: 11px; color: var(--text-tertiary); text-transform:uppercase; letter-spacing:.06em; margin-bottom:8px; }
+  .dc-cell .dc-nums{ display:flex; align-items:baseline; gap: 8px; }
+  .dc-cell .dc-before{ font-family:"JetBrains Mono",monospace; font-size: 14px; color: var(--text-tertiary); text-decoration: line-through; text-decoration-thickness:1.5px; }
+  .dc-cell .dc-after{ font-family:"Bebas Neue",sans-serif; font-size: 25px; color: var(--critical); }
+  .dc-cell .dc-drop{ font-size: 11.5px; font-weight: 800; color: var(--critical); margin-top: 4px; }
+
+  /* ---------- Weekday chart ---------- */
+  .wd-card{ padding: 24px 26px; }
+  .wd-bars{ display:flex; align-items:flex-end; gap: 10px; height: 150px; margin-top: 10px; }
+  .wd-col{ flex:1; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; height:100%; gap: 6px; }
+  .wd-bar-wrap{ width: 100%; flex:1; display:flex; align-items:flex-end; }
+  .wd-bar{ width: 100%; border-radius: 6px 6px 3px 3px; min-height: 3px; cursor:pointer; transition: filter .15s; position:relative; }
+  .wd-bar:hover{ filter:brightness(1.1); }
+  .wd-day{ font-size: 11.5px; font-weight: 700; color: var(--text-secondary); }
+  .wd-day.best{ color: var(--accent); }
+
+  /* ---------- Tables ---------- */
+  .table-grid{ display:grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  @media (max-width: 980px){ .table-grid{ grid-template-columns: 1fr; } }
+  .tbl-card{ padding: 20px 20px 8px; }
+  .tbl-card h3{ font-family:"Bebas Neue",sans-serif; font-size: 20px; margin: 0 0 12px; display:flex; align-items:center; gap:8px; }
+  .tbl-card h3 .n{ font-size: 11px; font-family:"JetBrains Mono",monospace; color: var(--text-tertiary); font-weight:400; }
+  table{ width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  th{ text-align:left; font-size: 10.5px; text-transform:uppercase; letter-spacing:.05em; color: var(--text-tertiary); padding: 6px 8px; border-bottom: 1px solid var(--border); font-weight:600; }
+  td{ padding: 9px 8px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  tr:last-child td{ border-bottom: none; }
+  td.num{ font-family:"JetBrains Mono",monospace; text-align:right; white-space:nowrap; }
+  td.cap{ color: var(--text-secondary); max-width: 230px; }
+  td.cap a{ text-decoration:none; color: var(--text-primary); }
+  td.cap a:hover{ color: var(--accent); }
+  .pill{ display:inline-block; font-size: 9.5px; font-weight: 800; padding: 2px 7px; border-radius: 100px; color:#fff; text-transform:uppercase; letter-spacing:.03em; white-space:nowrap; }
+  .tbl-scroll{ overflow-x: auto; }
+
+  /* ---------- Opportunities ---------- */
+  .opp-grid{ display:grid; grid-template-columns: repeat(3,1fr); gap: 16px; }
+  @media (max-width: 900px){ .opp-grid{ grid-template-columns: 1fr; } }
+  .opp-card{ padding: 20px; }
+  .opp-card .opp-num{ font-family:"Bebas Neue",sans-serif; font-size: 15px; color: var(--accent); }
+  .opp-card h4{ font-size: 15.5px; margin: 6px 0 8px; }
+  .opp-card p{ font-size: 13px; color: var(--text-secondary); line-height: 1.55; margin:0; }
+  .source-note{ font-size: 11.5px; color: var(--text-tertiary); margin-top: 18px; line-height:1.6; }
+  .source-note a{ color: var(--text-secondary); text-decoration: underline; text-decoration-color: var(--border); }
+
+  /* ---------- Content ideas ---------- */
+  .idea-grid{ display:grid; grid-template-columns: repeat(2,1fr); gap: 18px; }
+  @media (max-width: 900px){ .idea-grid{ grid-template-columns: 1fr; } }
+  .idea-card{ padding: 22px; display:flex; flex-direction:column; gap: 10px; }
+  .idea-top{ display:flex; justify-content:space-between; align-items:flex-start; gap: 10px; }
+  .idea-title{ font-family:"Bebas Neue",sans-serif; font-size: 22px; line-height:1.05; }
+  .idea-franchise{ font-size: 11px; font-family:"JetBrains Mono",monospace; color: var(--text-tertiary); text-transform:uppercase; letter-spacing:.04em; white-space:nowrap; }
+  .idea-hook{ font-size: 13.5px; font-style: italic; color: var(--text-primary); background: var(--surface-2); border-left: 3px solid var(--accent); padding: 9px 12px; border-radius: 0 8px 8px 0; }
+  .idea-why{ font-size: 12.5px; color: var(--text-secondary); line-height: 1.55; }
+  .idea-why b{ color: var(--text-primary); }
+  .idea-format{ display:flex; gap:8px; flex-wrap:wrap; margin-top: auto; padding-top: 4px; }
+  .idea-format span{ font-size: 10.5px; background: var(--surface-2); border:1px solid var(--border); padding: 3px 9px; border-radius: 100px; color: var(--text-secondary); }
+  .idea-card.priority{ border-color: color-mix(in srgb, var(--accent) 45%, var(--border)); }
+  .idea-card.priority .idea-top::after{ content:"PRIORIDADE — arquivo já pronto"; font-size: 9.5px; font-weight:800; color: var(--accent); }
+
+  /* ---------- Action plan ---------- */
+  .plan-list{ counter-reset: step; display:flex; flex-direction:column; gap: 0; }
+  .plan-item{ counter-increment: step; display:flex; gap: 18px; padding: 18px 0; border-bottom: 1px solid var(--border); }
+  .plan-item:last-child{ border-bottom:none; }
+  .plan-item::before{
+    content: counter(step);
+    font-family:"Bebas Neue",sans-serif; font-size: 20px; color: var(--accent);
+    width: 38px; height: 38px; border-radius: 10px; border: 1.5px solid var(--accent);
+    display:flex; align-items:center; justify-content:center; flex-shrink:0;
+  }
+  .plan-item h4{ font-size: 14.5px; margin: 2px 0 4px; }
+  .plan-item p{ font-size: 13px; color: var(--text-secondary); line-height:1.55; margin:0; max-width: 68ch; }
+
+  footer{ margin-top: 70px; padding-top: 22px; border-top: 1px solid var(--border); font-size: 11.5px; color: var(--text-tertiary); display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px; }
 </style>
 
-<h1>Painel de Performance — @shonen.cut (TikTok)</h1>
-<p class="subtitle">98 posts escaneados (100% do histórico do canal, 13/fev a 11/jul/2026) · dados via Metricool</p>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap">
 
-<div class="card">
-  <h2>Indicadores principais</h2>
-  <p class="note">Período completo analisado — quase 5 meses de canal</p>
-  <div class="kpi-grid">
-    <div class="kpi"><div class="label">Posts escaneados</div><div class="value">98</div><div class="delta">100% do histórico</div></div>
-    <div class="kpi"><div class="label">Visualizações totais</div><div class="value">1,90M</div></div>
-    <div class="kpi"><div class="label">Média views/post</div><div class="value">19.356</div><div class="delta">mediana: 1.569</div></div>
-    <div class="kpi"><div class="label">Engajamento médio</div><div class="value">5,68%</div></div>
-    <div class="kpi"><div class="label">Seguidores atuais</div><div class="value">6.478</div><div class="delta good">▲ +812 desde 15/jun</div></div>
-    <div class="kpi"><div class="label">Cadência</div><div class="value">1 post/1,5 dias</div><div class="delta">varia muito por mês, ver abaixo</div></div>
+<nav class="topnav">
+  <div class="navrow">
+    <span class="brand">shonen<span class="dot">.</span>cut</span>
+    <a href="#crescimento">Crescimento</a>
+    <a href="#formatos">Formatos</a>
+    <a href="#desvio">O desvio</a>
+    <a href="#horario">Melhor horário</a>
+    <a href="#ranking">Top &amp; flop</a>
+    <a href="#oportunidades">Oportunidades</a>
+    <a href="#ideias">Ideias prontas</a>
+    <a href="#plano">Plano de ação</a>
   </div>
-</div>
+</nav>
 
-<div class="card">
-  <h2>Views por mês</h2>
-  <p class="note">Total de visualizações por mês. Março foi o pico absoluto do canal; maio teve uma queda severa tanto na frequência de posts quanto no resultado por post.</p>
-  <div class="hbar-row"><div class="hbar-label">Fev/26 (n=23)</div><div class="hbar-track"><div class="hbar-fill outside" style="width:16.1%;"><span>196.429</span></div></div></div>
-  <div class="hbar-row"><div class="hbar-label">Mar/26 (n=30)</div><div class="hbar-track"><div class="hbar-fill" style="width:100%;"><span>1.217.138 · 🔺 pico do canal</span></div></div></div>
-  <div class="hbar-row"><div class="hbar-label">Abr/26 (n=10)</div><div class="hbar-track"><div class="hbar-fill outside" style="width:19.8%;"><span>240.667</span></div></div></div>
-  <div class="hbar-row"><div class="hbar-label">Mai/26 (n=4)</div><div class="hbar-track"><div class="hbar-fill outside" style="width:1.6%;"><span>19.658 · 🔻 queda de atividade</span></div></div></div>
-  <div class="hbar-row"><div class="hbar-label">Jun/26 (n=26)</div><div class="hbar-track"><div class="hbar-fill outside" style="width:18.1%;"><span>220.163</span></div></div></div>
-  <div class="hbar-row"><div class="hbar-label">Jul/26 (n=5)*</div><div class="hbar-track"><div class="hbar-fill outside" style="width:0.2%;"><span>2.837</span></div></div></div>
-  <p class="note" style="margin-top:10px; margin-bottom:0;">*Julho parcial (só 11 dias no ar até a data do painel).</p>
-</div>
+<div class="wrap">
 
-<div class="card">
-  <h2>Views por post ao longo do tempo</h2>
-  <p class="note">Cada barra é um post publicado (ordem cronológica, 98 posts). Em vermelho, o top 10% (9 posts) que sozinho concentra 78% de todas as views do canal — incluindo um único post em 22/mar com 693.921 views (36,6% do total histórico).</p>
-  <div class="legend">
-    <span><span class="dot" style="background:var(--s1)"></span>Carrossel de fotos</span>
-    <span><span class="dot" style="background:var(--s8)"></span>Vídeo editado</span>
-    <span><span class="dot" style="background:var(--s6)"></span>Top 10% (hit)</span>
-  </div>
-  <div class="bars" id="barsChart"></div>
-  <div id="tooltip" class="tooltip"></div>
-</div>
-
-<div class="grid2">
-  <div class="card">
-    <h2>Formato: carrossel de fotos vs. vídeo</h2>
-    <p class="note">Média de views por post, por tipo de conteúdo (histórico completo)</p>
-    <div class="hbar-row">
-      <div class="hbar-label">Carrossel (n=64)</div>
-      <div class="hbar-track"><div class="hbar-fill" style="width:100%; background:var(--s1);"><span>28.614</span></div></div>
+  <header class="hero">
+    <div class="hero-top">
+      <div>
+        <span class="eyebrow">Painel de performance · @shonen.cut · TikTok</span>
+        <h1>Anime funciona.<br>Notícia genérica <span class="cut">não.</span></h1>
+        <p class="sub">172 vídeos escaneados — 100% do histórico público da conta, de 13/fev a 30/ago de 2026 — cruzados com o crescimento diário de seguidores. Esse é o retrato completo do que fez o canal crescer e do que travou o crescimento nas últimas duas semanas.</p>
+      </div>
+      <div class="scan-badge">
+        <span class="pulse"></span>
+        <div><b>172 / 172 posts</b><br><span>100% do histórico escaneado</span></div>
+      </div>
     </div>
-    <div class="hbar-row">
-      <div class="hbar-label">Vídeo editado (n=34)</div>
-      <div class="hbar-track"><div class="hbar-fill outside" style="width:6.7%; background:var(--s8);"><span>1.928</span></div></div>
+
+    <div class="kpi-grid">
+      <div class="kpi">
+        <div class="eyebrow">Seguidores hoje</div>
+        <div class="val">7.626</div>
+        <div class="delta good">+7.626 desde o post nº1</div>
+      </div>
+      <div class="kpi">
+        <div class="eyebrow">Views totais (172 posts)</div>
+        <div class="val">2,50<small>M</small></div>
+        <div class="delta">média de 14.554 por vídeo</div>
+      </div>
+      <div class="kpi">
+        <div class="eyebrow">Formato que mais cresce</div>
+        <div class="val" style="color:var(--accent)">Anime+frase</div>
+        <div class="delta good">16.177 views médias · 69% dos posts</div>
+      </div>
+      <div class="kpi">
+        <div class="eyebrow">Formato que mais falhou</div>
+        <div class="val" style="color:var(--critical)">Dueto/Costura</div>
+        <div class="delta bad">207 views médias · quase zero alcance</div>
+      </div>
+      <div class="kpi">
+        <div class="eyebrow">Queda no desvio (16–26 ago)</div>
+        <div class="val" style="color:var(--critical)">−84%</div>
+        <div class="delta bad">de 16.546 para 2.579 views/vídeo</div>
+      </div>
     </div>
-    <p class="note" style="margin-top:10px; margin-bottom:0;">14,8x mais views em média. Mediana conta a mesma história (2.519 vs. 906) e os 10 posts de maior alcance de todo o histórico são <strong>100% carrossel</strong> — nenhum vídeo entre eles.</p>
-  </div>
-  <div class="card">
-    <h2>Melhor dia da semana</h2>
-    <p class="note">Mediana de views por dia de publicação. Amostra pequena por dia (7-19 posts) — leia como direção, não regra fixa.</p>
-    <div class="hbar-row"><div class="hbar-label">Quinta (n=9)</div><div class="hbar-track"><div class="hbar-fill" style="width:100%;"><span>29.777</span></div></div></div>
-    <div class="hbar-row"><div class="hbar-label">Quarta (n=12)</div><div class="hbar-track"><div class="hbar-fill" style="width:22%;"><span>6.479</span></div></div></div>
-    <div class="hbar-row"><div class="hbar-label">Terça (n=17)</div><div class="hbar-track"><div class="hbar-fill outside" style="width:5%;"><span>1.590</span></div></div></div>
-    <div class="hbar-row"><div class="hbar-label">Segunda (n=19)</div><div class="hbar-track"><div class="hbar-fill outside" style="width:5%;"><span>1.359</span></div></div></div>
-    <div class="hbar-row"><div class="hbar-label">Sexta (n=7)</div><div class="hbar-track"><div class="hbar-fill outside" style="width:4%;"><span>1.245</span></div></div></div>
-    <div class="hbar-row"><div class="hbar-label">Domingo (n=18)</div><div class="hbar-track"><div class="hbar-fill outside" style="width:4%;"><span>1.172</span></div></div></div>
-    <div class="hbar-row"><div class="hbar-label">Sábado (n=16)</div><div class="hbar-track"><div class="hbar-fill outside" style="width:3%;"><span>1.039</span></div></div></div>
-  </div>
-</div>
+  </header>
 
-<div class="card">
-  <h2>O que está funcionando (top 10) vs. o que não funciona mais (flop 5)</h2>
-  <p class="note">Agora com o histórico completo desde fevereiro — o ranking muda bastante em relação a uma leitura de só 3 meses.</p>
-  <table>
-    <thead><tr><th>Data</th><th>Formato</th><th>Legenda</th><th>Views</th><th>Curtidas</th><th>Engaj.</th></tr></thead>
-    <tbody>
-      <tr class="top"><td>22/03</td><td><span class="pill photo">Carrossel</span></td><td class="desc">"A perspectiva do vilão não é errada" — frases de vilões de Naruto ligadas ao amor</td><td>693.921</td><td>64.762</td><td>10,0%</td></tr>
-      <tr class="top"><td>06/04</td><td><span class="pill photo">Carrossel</span></td><td class="desc">"Luta muito forçada em Naruto" — crítica/opinião sobre o roteiro</td><td>193.690</td><td>7.885</td><td>4,5%</td></tr>
-      <tr class="top"><td>24/03</td><td><span class="pill photo">Carrossel</span></td><td class="desc">Frases de Naruto que "tocam fundo" — reflexão + amor</td><td>112.866</td><td>9.204</td><td>8,6%</td></tr>
-      <tr class="top"><td>24/02</td><td><span class="pill photo">Carrossel</span></td><td class="desc">Carrossel só com hashtags de Naruto, sem legenda autoral</td><td>108.740</td><td>5.111</td><td>4,9%</td></tr>
-      <tr class="top"><td>17/06</td><td><span class="pill photo">Carrossel</span></td><td class="desc">Citações JJK + Naruto + One Piece ("anime não é só porrada")</td><td>100.832</td><td>7.968</td><td>8,3%</td></tr>
-      <tr class="top"><td>12/03</td><td><span class="pill photo">Carrossel</span></td><td class="desc">Carrossel só com hashtags de Naruto, sem legenda autoral</td><td>99.337</td><td>4.566</td><td>4,8%</td></tr>
-      <tr class="top"><td>31/03</td><td><span class="pill photo">Carrossel</span></td><td class="desc">"A perspectiva do vilão não é errada" — mesmo tema do post nº1, repetido com sucesso</td><td>85.616</td><td>7.474</td><td>9,1%</td></tr>
-      <tr class="top"><td>26/02</td><td><span class="pill photo">Carrossel</span></td><td class="desc">Carrossel só com hashtags de Naruto, sem legenda autoral</td><td>50.451</td><td>4.933</td><td>10,3%</td></tr>
-      <tr class="top"><td>26/03</td><td><span class="pill photo">Carrossel</span></td><td class="desc">"Você já se identificou com Naruto?" — pergunta direta pra comentários</td><td>39.418</td><td>2.856</td><td>7,7%</td></tr>
-      <tr class="top"><td>11/03</td><td><span class="pill photo">Carrossel</span></td><td class="desc">Carrossel só com hashtags de Naruto, sem legenda autoral</td><td>39.086</td><td>1.960</td><td>5,5%</td></tr>
-      <tr><td>16/06</td><td><span class="pill photo">Carrossel</span></td><td class="desc">Repost de "Geto pergunta sem resposta" (conteúdo duplicado no feed)</td><td>57</td><td>2</td><td>3,5%</td></tr>
-      <tr><td>22/06</td><td><span class="pill photo">Carrossel</span></td><td class="desc">"Lutas polêmicas cross universo" — sem gancho, legenda genérica</td><td>107</td><td>3</td><td>3,7%</td></tr>
-      <tr><td>22/06</td><td><span class="pill photo">Carrossel</span></td><td class="desc">Referência à Copa do Mundo + Akatsuki (tema fora do nicho)</td><td>122</td><td>5</td><td>4,9%</td></tr>
-      <tr><td>11/07</td><td><span class="pill video">Vídeo</span></td><td class="desc">"Naruto sempre foi gênio" — vídeo editado de 71s</td><td>141</td><td>13</td><td>9,2%</td></tr>
-      <tr><td>09/06</td><td><span class="pill video">Vídeo</span></td><td class="desc">Vídeo editado só com hashtags #fyp, sem legenda</td><td>293</td><td>12</td><td>4,1%</td></tr>
-    </tbody>
-  </table>
-</div>
+  <!-- ================= CRESCIMENTO ================= -->
+  <section id="crescimento">
+    <div class="sec-head">
+      <div>
+        <span class="eyebrow">01 · Crescimento</span>
+        <h2>De 0 a 7.626 seguidores em 199 dias</h2>
+        <p>Cada degrau do gráfico é um vídeo específico — passe o mouse para ver o dia. Três saltos reais e um alerta no meio do caminho.</p>
+      </div>
+    </div>
+    <div class="card chart-card">
+      <div class="chart-legend">
+        <div class="item"><span class="sw" style="background:var(--accent)"></span>Seguidores totais (acumulado)</div>
+      </div>
+      <div style="position:relative">
+        <svg id="growthSvg" viewBox="0 0 1000 340" preserveAspectRatio="none"></svg>
+        <div id="tooltip"></div>
+      </div>
+      <div class="annot-list" id="annotList"></div>
+    </div>
+  </section>
 
-<div class="card">
-  <h2>Desempenho por hashtag</h2>
-  <p class="note">Só hashtags usadas em 5+ posts, histórico completo. Atenção: #amor deve boa parte da média ao post viral de 22/03, que usava a tag — não é causalidade pura da tag.</p>
-  <div class="hbar-row"><div class="hbar-label">#amor (n=7)</div><div class="hbar-track"><div class="hbar-fill" style="width:100%; background:var(--s3);"><span>131.826</span></div></div></div>
-  <div class="hbar-row"><div class="hbar-label">#naruto (n=59)</div><div class="hbar-track"><div class="hbar-fill" style="width:22%;"><span>29.468</span></div></div></div>
-  <div class="hbar-row"><div class="hbar-label">#animetiktok (n=6)</div><div class="hbar-track"><div class="hbar-fill" style="width:22%;"><span>28.730</span></div></div></div>
-  <div class="hbar-row"><div class="hbar-label">#otaku (n=65)</div><div class="hbar-track"><div class="hbar-fill" style="width:21%;"><span>27.641</span></div></div></div>
-  <div class="hbar-row"><div class="hbar-label">#animeedit (n=58)</div><div class="hbar-track"><div class="hbar-fill" style="width:20%;"><span>25.993</span></div></div></div>
-  <div class="hbar-row"><div class="hbar-label">#anime (n=79)</div><div class="hbar-track"><div class="hbar-fill" style="width:16%;"><span>21.685</span></div></div></div>
-  <div class="hbar-row"><div class="hbar-label">#narutoshippuden (n=36)</div><div class="hbar-track"><div class="hbar-fill" style="width:16%;"><span>21.614</span></div></div></div>
-  <div class="hbar-row"><div class="hbar-label">#onepiece (n=8)</div><div class="hbar-track"><div class="hbar-fill" style="width:10%;"><span>13.468</span></div></div></div>
-  <div class="hbar-row"><div class="hbar-label">#geek (n=5)</div><div class="hbar-track"><div class="hbar-fill outside" style="width:9%;"><span>12.506</span></div></div></div>
-  <div class="hbar-row"><div class="hbar-label">#fyp (n=18)</div><div class="hbar-track"><div class="hbar-fill outside" style="width:7%;"><span>9.883</span></div></div></div>
-  <div class="hbar-row"><div class="hbar-label">#dragonball (n=5)</div><div class="hbar-track"><div class="hbar-fill outside" style="width:5%;"><span>7.310</span></div></div></div>
-  <div class="hbar-row"><div class="hbar-label">#bleach (n=7)</div><div class="hbar-track"><div class="hbar-fill outside" style="width:5%;"><span>6.266</span></div></div></div>
-  <p class="note" style="margin-top:10px; margin-bottom:0;">Naruto aparece em 59 dos 98 posts (60% do canal). JJK, Demon Slayer, AOT, HxH e My Hero Academia somados aparecem em menos de 10 posts — volume baixo demais pra entrar neste ranking, mas é exatamente o gap de nicho detalhado abaixo.</p>
-</div>
+  <!-- ================= FORMATOS ================= -->
+  <section id="formatos">
+    <div class="sec-head">
+      <div>
+        <span class="eyebrow">02 · O que funciona</span>
+        <h2>Nem todo post "de anime" é igual</h2>
+        <p>Views médias por formato, nos 172 posts. A diferença entre o melhor e o pior formato é de <b style="color:var(--text-primary)">78×</b>.</p>
+      </div>
+    </div>
+    <div class="cat-grid">
+      <div class="card bar-card" id="catBars"></div>
+      <div class="verdict-cards">
+        <div class="verdict good">
+          <div class="vh">✓ O que funciona</div>
+          <p><b>Clipe de anime + legenda reflexiva/filosófica</b> ("anime+frase") é 69% dos posts e domina o ranking: <b>16.177</b> views médias, <b>5,67%</b> de engajamento — e é a categoria por trás de 9 dos 10 vídeos mais vistos do canal. Vilão reinterpretado com empatia (Pain, Gaara) é o gatilho mais forte já testado.</p>
+        </div>
+        <div class="verdict bad">
+          <div class="vh">✕ O que não funciona mais</div>
+          <p><b>Dueto/costura com outros criadores</b> (9 posts, jul/26): média de <b>207 views</b> — praticamente zero alcance. <b>Conteúdo motivacional sem anime</b> (20 posts, ago/26): <b>2.149</b> views médias, 7,5× pior que "anime+frase". Os dois formatos que a conta testou por último foram os dois que menos performaram.</p>
+        </div>
+      </div>
+    </div>
+  </section>
 
-<div class="card">
-  <h2>Leitura do que está funcionando</h2>
-  <ul>
-    <li><strong>Um único post carrega o canal.</strong> O carrossel de 22/03 ("a perspectiva do vilão não é errada") sozinho tem 693.921 views — 36,6% de tudo que o canal já visualizou em 5 meses. O top 10% dos posts (9 de 98) concentra 78% das views totais.</li>
-    <li><strong>O padrão por trás dos maiores hits é bem específico:</strong> não é "frase de anime" genérica, é reflexão emocional sobre vilões de Naruto conectada a temas de amor/perda/humanidade. Esse exato tema aparece 2x no top 10 (22/03 e 31/03) — já foi validado, repetir.</li>
-    <li><strong>Carrossel de fotos domina vídeo editado</strong> em qualquer recorte: 14,8x mais views em média (28.614 vs. 1.928), e os 10 posts de maior alcance de todo o histórico são 100% carrossel.</li>
-    <li><strong>Março foi o auge do canal</strong> (1,2M views em 30 posts) — e maio foi o oposto: só 4 posts publicados e apenas 19.658 views no mês inteiro, uma queda de frequência que coincidiu com o pior resultado por post do histórico. Consistência parece pesar tanto quanto o conteúdo em si.</li>
-    <li><strong>Naruto domina o canal</strong> — está em 60% dos posts (59 de 98). Todo o resto do universo shonen (One Piece, Dragon Ball, Bleach, JJK, Demon Slayer, AOT, HxH, MHA) soma os outros 40%.</li>
-    <li><strong>Reposts e conteúdo fora do nicho</strong> (repost de "Geto pergunta sem resposta", post sobre Copa do Mundo) seguem entre os piores resultados do canal — vale evitar.</li>
-  </ul>
-</div>
+  <!-- ================= O DESVIO ================= -->
+  <section id="desvio">
+    <div class="sec-head">
+      <div>
+        <span class="eyebrow">03 · O desvio de pauta</span>
+        <h2>16–26 de agosto: o canal parou de ser sobre anime</h2>
+      </div>
+    </div>
+    <div class="drift-banner">
+      <div class="drift-head"><span class="flag">Confirmado nos dados</span></div>
+      <h3>43 posts em 11 dias sobre notícias, finanças e frases genéricas — sem nenhum personagem de anime</h3>
+      <p>Isso é exatamente o desvio que você descreveu: "saí de animes para frases motivacionais". Os dados batem com sua percepção — e mostram o custo exato disso. Comparando os 128 posts de anime (fev–15/ago) com os 42 posts do período de desvio (excluindo 1 vídeo de finanças que viralizou por acaso):</p>
+      <div class="drift-compare">
+        <div class="dc-cell">
+          <div class="dc-label">Views por vídeo</div>
+          <div class="dc-nums"><span class="dc-before">16.546</span><span class="dc-after">2.579</span></div>
+          <div class="dc-drop">−84%</div>
+        </div>
+        <div class="dc-cell">
+          <div class="dc-label">Engajamento médio</div>
+          <div class="dc-nums"><span class="dc-before">5,57%</span><span class="dc-after">4,65%</span></div>
+          <div class="dc-drop">−17%</div>
+        </div>
+        <div class="dc-cell">
+          <div class="dc-label">Seguidores novos / vídeo</div>
+          <div class="dc-nums"><span class="dc-before">62,3</span><span class="dc-after">10,3</span></div>
+          <div class="dc-drop">−83%</div>
+        </div>
+        <div class="dc-cell">
+          <div class="dc-label">Formato do post</div>
+          <div class="dc-nums" style="font-family:'Bebas Neue'; font-size:20px; color:var(--critical)">Vídeo → Carrossel</div>
+          <div class="dc-drop">saiu do formato "edit"</div>
+        </div>
+      </div>
+      <p style="margin-top:18px">Um post de finanças viralizou por sorte (276 mil views, 23/ago) — mas olhe o que veio depois: nos 3 dias seguintes, os posts de "anime+frase" no meio dessa leva ficaram entre 93 e 1.289 views. O pico não trouxe tração para o canal, só para aquele vídeo isolado, porque quem assistiu não seguia a conta por causa de anime.</p>
+    </div>
+  </section>
 
-<div class="card">
-  <h2>Oportunidades do nicho e concorrência</h2>
-  <p class="note">Metricool não rastreia concorrentes para TikTok (só disponível para Instagram/Facebook/Twitch/YouTube/Twitter/Bluesky) — leitura abaixo combina os 98 posts escaneados com pesquisa de tendências do nicho de anime edits em 2026.</p>
-  <ul>
-    <li><strong>Concentração de conteúdo em Naruto (60% dos posts) é bem maior do que o dado de 3 meses sugeria.</strong> Jujutsu Kaisen, Demon Slayer, AOT, HxH e My Hero Academia somados aparecem em menos de 10 posts em 5 meses de canal — e seguem dominando o espaço de edits de anime em 2026.</li>
-    <li><strong>O canal já provou que sabe atrair audiência fora do Naruto puro:</strong> o post de 17/06 (citações JJK + Naruto + One Piece) chegou a 100.832 views — prova de que multi-fandom funciona, só falta repetir com mais frequência e cobrir Demon Slayer/AOT, que ainda não tiveram um post dedicado de peso.</li>
-    <li><strong>Contas de "frases de anime" são um nicho consolidado e ainda crescendo</strong> no TikTok em português — o formato que mais funciona no canal (carrossel de citações/reflexão) é exatamente o que domina esse subnicho.</li>
-    <li><strong>Tendência "Twins at the Carousel"</strong> (meme de animação com Hatsune Miku/Kikuo) viralizou entre múltiplos fandoms em 2026, incluindo Dragon Ball e JoJo's — oportunidade de participar com uma versão no estilo shonen se houver capacidade de animação/edição.</li>
-    <li><strong>Gap identificado:</strong> o canal ainda não explora crossovers "qual anime venceria" nem rankings recorrentes de personagens — formato que costuma gerar alto volume de comentários no nicho.</li>
-  </ul>
-</div>
+  <!-- ================= HORÁRIO ================= -->
+  <section id="horario">
+    <div class="sec-head">
+      <div>
+        <span class="eyebrow">04 · Melhor horário</span>
+        <h2>Domingo é, disparado, o melhor dia</h2>
+        <p>Views médias por dia da semana, nos 172 posts reais — não é uma estimativa, é o que já aconteceu.</p>
+      </div>
+    </div>
+    <div class="card wd-card">
+      <div class="wd-bars" id="wdBars"></div>
+    </div>
+  </section>
 
-<div class="card">
-  <h2>Exemplos de conteúdo para os próximos posts</h2>
-  <div class="idea">
-    <span class="tag">Carrossel · replicar o maior hit do canal</span>
-    <h3>"A perspectiva do vilão de [X] não é errada"</h3>
-    <p>O tema exato do maior post do canal (693K views) e do 7º maior (85K views, mesmo tema repetido) — vilão + amor/perda/humanidade. Aplicar a mesma fórmula a vilões de JJK (Sukuna, Geto) e Demon Slayer (Muzan, Akaza) para puxar essa audiência sem sair do formato comprovado.</p>
-  </div>
-  <div class="idea">
-    <span class="tag">Carrossel · cobrir gap de nicho</span>
-    <h3>"3 pares de JJK e Demon Slayer que parecem a mesma pessoa"</h3>
-    <p>Já em produção — usa o formato vencedor (carrossel + legenda reflexiva) pra cobrir o gap identificado: JJK/Demon Slayer somam menos de 10 posts em 98, mas dominam o nicho em 2026.</p>
-  </div>
-  <div class="idea">
-    <span class="tag">Consistência · maior risco do canal</span>
-    <h3>Manter cadência mesmo sem hit recente</h3>
-    <p>Maio teve só 4 posts e o pior resultado médio do histórico — a queda de frequência coincidiu com a queda de performance. Definir uma meta mínima de posts/semana e manter mesmo em meses "fracos" evita esse tipo de vale.</p>
-  </div>
-  <div class="idea">
-    <span class="tag">Vídeo · só se bem executado</span>
-    <h3>Não priorizar vídeo editado sem repensar o formato</h3>
-    <p>Os 34 vídeos publicados em 5 meses têm média de 1.928 views — 14,8x menos que o carrossel. Se for continuar com vídeo, testar gancho nos primeiros 2s e um áudio em alta, ou migrar esse conteúdo pro formato carrossel.</p>
-  </div>
-  <div class="idea">
-    <span class="tag">Consistência de legenda</span>
-    <h3>Evitar reposts e legendas vazias</h3>
-    <p>Os posts sem legenda ou repostados seguem entre os piores resultados do canal. Cada post deve ter uma legenda com contexto/reflexão — é o que diferencia os top 10 dos flop 5.</p>
-  </div>
-</div>
+  <!-- ================= RANKING ================= -->
+  <section id="ranking">
+    <div class="sec-head">
+      <div>
+        <span class="eyebrow">05 · Top &amp; flop</span>
+        <h2>Os 10 melhores e os 10 piores posts</h2>
+      </div>
+    </div>
+    <div class="table-grid">
+      <div class="card tbl-card">
+        <h3>🏆 Top 10 <span class="n">por views</span></h3>
+        <div class="tbl-scroll"><table id="topTable"></table></div>
+      </div>
+      <div class="card tbl-card">
+        <h3>📉 Flop 10 <span class="n">por views</span></h3>
+        <div class="tbl-scroll"><table id="bottomTable"></table></div>
+      </div>
+    </div>
+  </section>
 
-<footer>Painel gerado a partir de dados do Metricool (@shonen.cut) em 13/07/2026 · 98/98 posts escaneados (100%, desde 13/02/2026)</footer>
+  <!-- ================= OPORTUNIDADES ================= -->
+  <section id="oportunidades">
+    <div class="sec-head">
+      <div>
+        <span class="eyebrow">06 · Oportunidades no nicho</span>
+        <h2>Onde o edit de anime está ganhando espectador em 2026</h2>
+        <p>Sem acesso a um raspador de contas concorrentes nesta sessão — o que segue cruza os franquias que a própria conta ainda não explorou com os sinais de tendência confirmados por busca externa.</p>
+      </div>
+    </div>
+    <div class="opp-grid">
+      <div class="card opp-card">
+        <div class="opp-num">01</div>
+        <h4>Franquias com hashtag ativa, zero posts solo</h4>
+        <p>Jujutsu Kaisen, Attack on Titan e Demon Slayer só apareceram <b>misturadas</b> no vídeo cross-fandom de 103 mil views — nunca ganharam um post "solo" no formato vencedor. É audiência gigante e ainda inexplorada dentro do próprio canal.</p>
+      </div>
+      <div class="opp-card card">
+        <div class="opp-num">02</div>
+        <h4>Vilão reinterpretado é o formato que mais gera debate</h4>
+        <p>Busca externa confirma: reenquadrar a motivação de vilões de anime como filosoficamente válida é o que mais está gerando comentário e compartilhamento no nicho agora — exatamente o padrão do seu vídeo #1 (Pain/Gaara, 707 mil views).</p>
+      </div>
+      <div class="opp-card card">
+        <div class="opp-num">03</div>
+        <h4>Conteúdo utilitário dentro do nicho também funciona</h4>
+        <p>O guia "o que é filler e o que pular" (04/ago) fez 11.421 views em meio ao período de desvio — porque continuou sendo 100% sobre anime. Guias de arco, ranking de personagens e "por onde começar" são um formato seguro para variar sem sair do nicho.</p>
+      </div>
+    </div>
+    <p class="source-note">Fontes externas consultadas: <a href="https://www.tiktok.com/discover/anime-quote-edits" target="_blank" rel="noopener">TikTok — Anime Quote Edits</a>, <a href="https://www.tiktok.com/discover/motivational-anime-edits" target="_blank" rel="noopener">TikTok — Motivational Anime Edits</a>. Não há um scanner de contas concorrentes conectado nesta sessão — os números de "quem está ganhando" acima vêm 100% do histórico do próprio canal, não de contas de terceiros.</p>
+  </section>
+
+  <!-- ================= IDEIAS ================= -->
+  <section id="ideias">
+    <div class="sec-head">
+      <div>
+        <span class="eyebrow">07 · Conteúdo pronto para gravar</span>
+        <h2>5 vídeos no formato que já provou funcionar</h2>
+        <p>Mesma fórmula do post de 707 mil views: clipe curto + legenda reflexiva + pergunta que puxa comentário. Franquias escolhidas para preencher os gaps do item 06.</p>
+      </div>
+    </div>
+    <div class="idea-grid">
+      <div class="card idea-card priority">
+        <div class="idea-top">
+          <div><div class="idea-title">5 frases que doem mais que a vida real</div></div>
+          <div class="idea-franchise">Naruto · JJK · One Piece · AOT · Demon Slayer</div>
+        </div>
+        <div class="idea-hook">"Anime não é só porrada — prove que eu tô errado."</div>
+        <div class="idea-why">Já está <b>roteirizado e editado</b> (ver <code>TIKTOK_VIRAL_PLAN.md</code> e <code>content/shonen-cut-parte2-mais-5-que-doem.mp4</code>): cross-fandom + gancho contrariante + CTA de debate — os 3 elementos que mais correlacionam com viralização nesta conta. Só falta postar.</div>
+        <div class="idea-format"><span>Cross-fandom</span><span>32–38s</span><span>Debate</span></div>
+      </div>
+      <div class="card idea-card">
+        <div class="idea-top">
+          <div><div class="idea-title">Sukuna não é louco, é honesto</div></div>
+          <div class="idea-franchise">Jujutsu Kaisen</div>
+        </div>
+        <div class="idea-hook">"Enquanto todo mundo mente sobre poder, ele nunca escondeu o que queria."</div>
+        <div class="idea-why">JJK só apareceu em posts mistos até hoje. Reinterpretação de vilão é o gancho nº1 da conta (vídeo dos 707 mil views usava Pain e Gaara) — aplicar o mesmo raciocínio a Sukuna testa uma franquia nova com uma fórmula já validada.</div>
+        <div class="idea-format"><span>Vilão</span><span>Solo-franquia</span><span>15–20s</span></div>
+      </div>
+      <div class="card idea-card">
+        <div class="idea-top">
+          <div><div class="idea-title">Levi nunca escolheu não se arrepender</div></div>
+          <div class="idea-franchise">Attack on Titan</div>
+        </div>
+        <div class="idea-hook">"Escolher não se arrepender é diferente de escolher sem doer."</div>
+        <div class="idea-why">AOT tem uma das bases de fã mais engajadas do nicho e zero posts solo no canal. Frase já testada no roteiro cross-fandom (item acima) — aqui vira o vídeo inteiro, focado só em Levi.</div>
+        <div class="idea-format"><span>Reflexivo</span><span>Solo-franquia</span><span>15–20s</span></div>
+      </div>
+      <div class="card idea-card">
+        <div class="idea-top">
+          <div><div class="idea-title">Guia: por onde começar Demon Slayer</div></div>
+          <div class="idea-franchise">Demon Slayer</div>
+        </div>
+        <div class="idea-hook">"Antes de assistir o filme, você precisa saber disso."</div>
+        <div class="idea-why">Mesmo formato do guia de fillers de Naruto (11.421 views, 04/ago) — conteúdo utilitário 100% dentro do nicho, sem depender de viés de sorte. Boa forma de variar sem repetir "vilão reinterpretado" toda semana.</div>
+        <div class="idea-format"><span>Guia</span><span>Utilitário</span><span>30–40s</span></div>
+      </div>
+      <div class="card idea-card">
+        <div class="idea-top">
+          <div><div class="idea-title">O erro de Toguro, explicado</div></div>
+          <div class="idea-franchise">Yu Yu Hakusho</div>
+        </div>
+        <div class="idea-hook">"Ele passou tanto tempo tentando nunca mais sofrer que destruiu a própria humanidade."</div>
+        <div class="idea-why">Já postado em 30/ago e é o primeiro vídeo depois do desvio — o retorno certo ao formato. Use o mesmo texto como roteiro de um corte mais curto (15s) para redistribuir o gancho nos Stories/Reels e testar se performa melhor fora do TikTok orgânico.</div>
+        <div class="idea-format"><span>Já postado</span><span>Recortar p/ Reels</span></div>
+      </div>
+      <div class="card idea-card">
+        <div class="idea-top">
+          <div><div class="idea-title">Deku nunca quis ser o mais forte</div></div>
+          <div class="idea-franchise">My Hero Academia</div>
+        </div>
+        <div class="idea-hook">"Ele só queria provar que ser gentil não era ser fraco."</div>
+        <div class="idea-why">MHA está no arquivo da "parte 2" pronta e nunca virou um post solo. Fecha o quinto slot da semana sem repetir franquia, mantendo a variedade que sustentou o crescimento de março a julho.</div>
+        <div class="idea-format"><span>Reflexivo</span><span>Solo-franquia</span><span>15–20s</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= PLANO ================= -->
+  <section id="plano">
+    <div class="sec-head">
+      <div>
+        <span class="eyebrow">08 · Plano de ação</span>
+        <h2>Como voltar à curva de crescimento</h2>
+      </div>
+    </div>
+    <div class="card" style="padding: 6px 26px;">
+      <div class="plan-list">
+        <div class="plan-item">
+          <div>
+            <h4>Pare o formato carrossel de notícias/frases genéricas</h4>
+            <p>É o que mais puxou a média para baixo em agosto. Volte ao formato vídeo-clipe curto (a conta nunca performou bem em posts sem duração de vídeo real).</p>
+          </div>
+        </div>
+        <div class="plan-item">
+          <div>
+            <h4>Toda legenda leva um personagem e uma franquia nomeados</h4>
+            <p>Os posts sem nenhuma referência a anime específico (só hashtags genéricas de "frases") são os que mais flopam. Nome de personagem no início do texto = sinal de nicho para o algoritmo.</p>
+          </div>
+        </div>
+        <div class="plan-item">
+          <div>
+            <h4>Publique domingo, no formato "vilão reinterpretado"</h4>
+            <p>Domingo é o dia com melhor média histórica (34.030 views) e o formato de vilão é o que já gerou o maior vídeo do canal. Comece pela ideia nº1 da seção 07 — já está pronta.</p>
+          </div>
+        </div>
+        <div class="plan-item">
+          <div>
+            <h4>Não poste mais duetos/costuras com outros criadores</h4>
+            <p>207 views de média em 9 posts — abaixo até do pior post orgânico. Esse formato depende do alcance do outro criador, não do seu conteúdo.</p>
+          </div>
+        </div>
+        <div class="plan-item">
+          <div>
+            <h4>Reserve 1 post por semana para conteúdo utilitário (guia/ranking)</h4>
+            <p>Mantém a variedade sem sair do nicho — o guia de fillers de Naruto provou que funciona mesmo fora do pico de crescimento.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <span>Dados: Windsor.ai (conector TikTok Organic) + Metricool · 172/172 posts, 13/fev–30/ago/2026</span>
+    <span>Atualizado em 01/09/2026</span>
+  </footer>
+</div>
 
 <script>
-  const posts = [{"date": "20260213", "views": 982, "likes": 72, "comments": 0, "shares": 1, "type": "VIDEO", "eng": 7.43}, {"date": "20260214", "views": 726, "likes": 57, "comments": 2, "shares": 3, "type": "VIDEO", "eng": 8.54}, {"date": "20260214", "views": 390, "likes": 12, "comments": 0, "shares": 4, "type": "VIDEO", "eng": 4.1}, {"date": "20260214", "views": 571, "likes": 51, "comments": 0, "shares": 3, "type": "VIDEO", "eng": 9.46}, {"date": "20260214", "views": 677, "likes": 62, "comments": 2, "shares": 3, "type": "VIDEO", "eng": 9.9}, {"date": "20260215", "views": 595, "likes": 37, "comments": 6, "shares": 0, "type": "VIDEO", "eng": 7.23}, {"date": "20260215", "views": 656, "likes": 51, "comments": 0, "shares": 2, "type": "VIDEO", "eng": 8.08}, {"date": "20260216", "views": 1068, "likes": 100, "comments": 4, "shares": 1, "type": "VIDEO", "eng": 9.83}, {"date": "20260216", "views": 1747, "likes": 159, "comments": 6, "shares": 5, "type": "VIDEO", "eng": 9.73}, {"date": "20260217", "views": 437, "likes": 29, "comments": 0, "shares": 0, "type": "VIDEO", "eng": 6.64}, {"date": "20260217", "views": 599, "likes": 52, "comments": 2, "shares": 0, "type": "VIDEO", "eng": 9.02}, {"date": "20260217", "views": 1326, "likes": 93, "comments": 11, "shares": 4, "type": "VIDEO", "eng": 8.14}, {"date": "20260220", "views": 5605, "likes": 603, "comments": 19, "shares": 1, "type": "VIDEO", "eng": 11.12}, {"date": "20260221", "views": 906, "likes": 52, "comments": 2, "shares": 8, "type": "VIDEO", "eng": 6.84}, {"date": "20260222", "views": 1143, "likes": 53, "comments": 0, "shares": 2, "type": "VIDEO", "eng": 4.81}, {"date": "20260224", "views": 108740, "likes": 5111, "comments": 93, "shares": 149, "type": "PHOTO", "eng": 4.92}, {"date": "20260224", "views": 695, "likes": 24, "comments": 1, "shares": 0, "type": "VIDEO", "eng": 3.6}, {"date": "20260226", "views": 50451, "likes": 4933, "comments": 88, "shares": 157, "type": "PHOTO", "eng": 10.26}, {"date": "20260226", "views": 4124, "likes": 400, "comments": 22, "shares": 34, "type": "PHOTO", "eng": 11.06}, {"date": "20260227", "views": 6650, "likes": 222, "comments": 51, "shares": 1, "type": "PHOTO", "eng": 4.12}, {"date": "20260228", "views": 871, "likes": 44, "comments": 1, "shares": 0, "type": "VIDEO", "eng": 5.17}, {"date": "20260228", "views": 6427, "likes": 254, "comments": 1, "shares": 3, "type": "VIDEO", "eng": 4.01}, {"date": "20260228", "views": 1043, "likes": 26, "comments": 0, "shares": 0, "type": "VIDEO", "eng": 2.49}, {"date": "20260301", "views": 751, "likes": 55, "comments": 0, "shares": 0, "type": "VIDEO", "eng": 7.32}, {"date": "20260302", "views": 446, "likes": 19, "comments": 0, "shares": 2, "type": "PHOTO", "eng": 4.71}, {"date": "20260304", "views": 24687, "likes": 915, "comments": 59, "shares": 21, "type": "PHOTO", "eng": 4.03}, {"date": "20260305", "views": 2337, "likes": 115, "comments": 3, "shares": 2, "type": "PHOTO", "eng": 5.13}, {"date": "20260306", "views": 1725, "likes": 62, "comments": 6, "shares": 1, "type": "PHOTO", "eng": 4.0}, {"date": "20260307", "views": 34250, "likes": 999, "comments": 31, "shares": 20, "type": "PHOTO", "eng": 3.07}, {"date": "20260308", "views": 1172, "likes": 78, "comments": 4, "shares": 2, "type": "VIDEO", "eng": 7.17}, {"date": "20260308", "views": 555, "likes": 24, "comments": 1, "shares": 0, "type": "VIDEO", "eng": 4.5}, {"date": "20260308", "views": 495, "likes": 28, "comments": 0, "shares": 0, "type": "VIDEO", "eng": 5.66}, {"date": "20260309", "views": 2519, "likes": 66, "comments": 4, "shares": 0, "type": "PHOTO", "eng": 2.78}, {"date": "20260310", "views": 1378, "likes": 47, "comments": 0, "shares": 1, "type": "PHOTO", "eng": 3.48}, {"date": "20260311", "views": 39086, "likes": 1960, "comments": 135, "shares": 42, "type": "PHOTO", "eng": 5.47}, {"date": "20260312", "views": 685, "likes": 4, "comments": 0, "shares": 0, "type": "VIDEO", "eng": 0.58}, {"date": "20260312", "views": 99337, "likes": 4566, "comments": 158, "shares": 72, "type": "PHOTO", "eng": 4.83}, {"date": "20260313", "views": 1245, "likes": 56, "comments": 3, "shares": 3, "type": "PHOTO", "eng": 4.98}, {"date": "20260314", "views": 1548, "likes": 71, "comments": 0, "shares": 1, "type": "PHOTO", "eng": 4.65}, {"date": "20260316", "views": 1957, "likes": 51, "comments": 2, "shares": 1, "type": "PHOTO", "eng": 2.76}, {"date": "20260317", "views": 19069, "likes": 1100, "comments": 51, "shares": 56, "type": "PHOTO", "eng": 6.33}, {"date": "20260317", "views": 1886, "likes": 77, "comments": 1, "shares": 4, "type": "PHOTO", "eng": 4.35}, {"date": "20260318", "views": 12015, "likes": 355, "comments": 14, "shares": 2, "type": "PHOTO", "eng": 3.09}, {"date": "20260322", "views": 693921, "likes": 64762, "comments": 370, "shares": 4286, "type": "PHOTO", "eng": 10.0}, {"date": "20260324", "views": 112866, "likes": 9204, "comments": 42, "shares": 401, "type": "PHOTO", "eng": 8.55}, {"date": "20260325", "views": 28076, "likes": 1787, "comments": 9, "shares": 81, "type": "PHOTO", "eng": 6.69}, {"date": "20260325", "views": 1719, "likes": 73, "comments": 1, "shares": 5, "type": "VIDEO", "eng": 4.6}, {"date": "20260326", "views": 39418, "likes": 2856, "comments": 35, "shares": 138, "type": "PHOTO", "eng": 7.68}, {"date": "20260328", "views": 3427, "likes": 93, "comments": 4, "shares": 4, "type": "PHOTO", "eng": 2.95}, {"date": "20260329", "views": 948, "likes": 18, "comments": 0, "shares": 0, "type": "VIDEO", "eng": 1.9}, {"date": "20260329", "views": 1569, "likes": 69, "comments": 1, "shares": 8, "type": "PHOTO", "eng": 4.97}, {"date": "20260331", "views": 2435, "likes": 131, "comments": 0, "shares": 5, "type": "VIDEO", "eng": 5.59}, {"date": "20260331", "views": 85616, "likes": 7474, "comments": 35, "shares": 317, "type": "PHOTO", "eng": 9.14}, {"date": "20260401", "views": 1907, "likes": 46, "comments": 0, "shares": 1, "type": "VIDEO", "eng": 2.46}, {"date": "20260405", "views": 25174, "likes": 1209, "comments": 15, "shares": 31, "type": "VIDEO", "eng": 4.99}, {"date": "20260406", "views": 193690, "likes": 7885, "comments": 107, "shares": 744, "type": "PHOTO", "eng": 4.51}, {"date": "20260412", "views": 5056, "likes": 190, "comments": 3, "shares": 6, "type": "PHOTO", "eng": 3.94}, {"date": "20260413", "views": 1359, "likes": 18, "comments": 0, "shares": 4, "type": "VIDEO", "eng": 1.62}, {"date": "20260415", "views": 1091, "likes": 34, "comments": 3, "shares": 0, "type": "PHOTO", "eng": 3.39}, {"date": "20260420", "views": 6322, "likes": 136, "comments": 2, "shares": 3, "type": "PHOTO", "eng": 2.23}, {"date": "20260421", "views": 2576, "likes": 60, "comments": 21, "shares": 2, "type": "PHOTO", "eng": 3.22}, {"date": "20260426", "views": 1487, "likes": 81, "comments": 0, "shares": 1, "type": "PHOTO", "eng": 5.51}, {"date": "20260429", "views": 2005, "likes": 118, "comments": 0, "shares": 1, "type": "PHOTO", "eng": 5.94}, {"date": "20260502", "views": 4494, "likes": 158, "comments": 2, "shares": 3, "type": "PHOTO", "eng": 3.63}, {"date": "20260503", "views": 893, "likes": 11, "comments": 1, "shares": 1, "type": "PHOTO", "eng": 1.46}, {"date": "20260504", "views": 1507, "likes": 52, "comments": 6, "shares": 2, "type": "PHOTO", "eng": 3.98}, {"date": "20260510", "views": 12764, "likes": 669, "comments": 6, "shares": 18, "type": "PHOTO", "eng": 5.43}, {"date": "20260601", "views": 12692, "likes": 427, "comments": 3, "shares": 3, "type": "PHOTO", "eng": 3.41}, {"date": "20260604", "views": 2256, "likes": 127, "comments": 2, "shares": 11, "type": "PHOTO", "eng": 6.21}, {"date": "20260606", "views": 1904, "likes": 25, "comments": 0, "shares": 0, "type": "PHOTO", "eng": 1.31}, {"date": "20260607", "views": 651, "likes": 72, "comments": 0, "shares": 4, "type": "PHOTO", "eng": 11.67}, {"date": "20260607", "views": 3817, "likes": 61, "comments": 3, "shares": 2, "type": "PHOTO", "eng": 1.73}, {"date": "20260608", "views": 1039, "likes": 73, "comments": 1, "shares": 4, "type": "PHOTO", "eng": 7.51}, {"date": "20260609", "views": 293, "likes": 12, "comments": 0, "shares": 0, "type": "VIDEO", "eng": 4.1}, {"date": "20260609", "views": 432, "likes": 19, "comments": 0, "shares": 0, "type": "VIDEO", "eng": 4.4}, {"date": "20260610", "views": 6479, "likes": 475, "comments": 10, "shares": 30, "type": "PHOTO", "eng": 7.95}, {"date": "20260611", "views": 32822, "likes": 2228, "comments": 370, "shares": 91, "type": "PHOTO", "eng": 8.19}, {"date": "20260612", "views": 527, "likes": 30, "comments": 4, "shares": 1, "type": "PHOTO", "eng": 6.64}, {"date": "20260614", "views": 2428, "likes": 103, "comments": 4, "shares": 3, "type": "PHOTO", "eng": 4.53}, {"date": "20260615", "views": 331, "likes": 20, "comments": 0, "shares": 1, "type": "PHOTO", "eng": 6.34}, {"date": "20260615", "views": 945, "likes": 31, "comments": 2, "shares": 2, "type": "PHOTO", "eng": 3.7}, {"date": "20260616", "views": 57, "likes": 2, "comments": 0, "shares": 0, "type": "PHOTO", "eng": 3.51}, {"date": "20260616", "views": 3099, "likes": 140, "comments": 6, "shares": 1, "type": "PHOTO", "eng": 4.74}, {"date": "20260617", "views": 100832, "likes": 7968, "comments": 47, "shares": 379, "type": "PHOTO", "eng": 8.32}, {"date": "20260617", "views": 340, "likes": 11, "comments": 0, "shares": 0, "type": "PHOTO", "eng": 3.24}, {"date": "20260620", "views": 1039, "likes": 67, "comments": 1, "shares": 4, "type": "VIDEO", "eng": 6.93}, {"date": "20260622", "views": 386, "likes": 28, "comments": 1, "shares": 1, "type": "PHOTO", "eng": 7.77}, {"date": "20260622", "views": 122, "likes": 5, "comments": 1, "shares": 0, "type": "PHOTO", "eng": 4.92}, {"date": "20260622", "views": 107, "likes": 3, "comments": 1, "shares": 0, "type": "PHOTO", "eng": 3.74}, {"date": "20260622", "views": 3435, "likes": 122, "comments": 5, "shares": 1, "type": "PHOTO", "eng": 3.73}, {"date": "20260625", "views": 29777, "likes": 1614, "comments": 45, "shares": 51, "type": "PHOTO", "eng": 5.74}, {"date": "20260629", "views": 12763, "likes": 850, "comments": 7, "shares": 50, "type": "PHOTO", "eng": 7.11}, {"date": "20260630", "views": 1590, "likes": 129, "comments": 1, "shares": 1, "type": "PHOTO", "eng": 8.24}, {"date": "20260704", "views": 532, "likes": 13, "comments": 1, "shares": 0, "type": "PHOTO", "eng": 2.63}, {"date": "20260706", "views": 1354, "likes": 85, "comments": 8, "shares": 5, "type": "PHOTO", "eng": 7.24}, {"date": "20260708", "views": 468, "likes": 45, "comments": 1, "shares": 1, "type": "PHOTO", "eng": 10.04}, {"date": "20260710", "views": 342, "likes": 39, "comments": 0, "shares": 1, "type": "PHOTO", "eng": 11.7}, {"date": "20260711", "views": 141, "likes": 13, "comments": 0, "shares": 0, "type": "VIDEO", "eng": 9.22}];
-  const maxViews = Math.max(...posts.map(p=>p.views));
-  const container = document.getElementById('barsChart');
-  const tooltip = document.getElementById('tooltip');
-  const sorted = [...posts].map(p=>p.views).sort((a,b)=>b-a);
-  const hitCount = Math.max(1, Math.floor(posts.length * 0.10));
-  const hitThreshold = sorted[hitCount - 1]; // top 10% = "hit"
+const DAILY = [{"date": "2026-02-13", "followers": 0}, {"date": "2026-02-14", "followers": 10}, {"date": "2026-02-15", "followers": 15}, {"date": "2026-02-16", "followers": 19}, {"date": "2026-02-17", "followers": 24}, {"date": "2026-02-18", "followers": 26}, {"date": "2026-02-19", "followers": 66}, {"date": "2026-02-20", "followers": 68}, {"date": "2026-02-21", "followers": 69}, {"date": "2026-02-22", "followers": 72}, {"date": "2026-02-23", "followers": 72}, {"date": "2026-02-24", "followers": 74}, {"date": "2026-02-25", "followers": 74}, {"date": "2026-02-26", "followers": 75}, {"date": "2026-02-27", "followers": 81}, {"date": "2026-02-28", "followers": 83}, {"date": "2026-03-01", "followers": 84}, {"date": "2026-03-02", "followers": 83}, {"date": "2026-03-03", "followers": 85}, {"date": "2026-03-04", "followers": 94}, {"date": "2026-03-05", "followers": 97}, {"date": "2026-03-06", "followers": 102}, {"date": "2026-03-07", "followers": 108}, {"date": "2026-03-08", "followers": 108}, {"date": "2026-03-09", "followers": 113}, {"date": "2026-03-10", "followers": 121}, {"date": "2026-03-11", "followers": 127}, {"date": "2026-03-12", "followers": 135}, {"date": "2026-03-13", "followers": 149}, {"date": "2026-03-14", "followers": 156}, {"date": "2026-03-15", "followers": 162}, {"date": "2026-03-16", "followers": 171}, {"date": "2026-03-17", "followers": 176}, {"date": "2026-03-18", "followers": 181}, {"date": "2026-03-19", "followers": 183}, {"date": "2026-03-20", "followers": 183}, {"date": "2026-03-21", "followers": 186}, {"date": "2026-03-22", "followers": 189}, {"date": "2026-03-23", "followers": 470}, {"date": "2026-03-24", "followers": 978}, {"date": "2026-03-25", "followers": 1404}, {"date": "2026-03-26", "followers": 1803}, {"date": "2026-03-27", "followers": 2015}, {"date": "2026-03-28", "followers": 2183}, {"date": "2026-03-29", "followers": 2317}, {"date": "2026-03-30", "followers": 2418}, {"date": "2026-03-31", "followers": 2579}, {"date": "2026-04-01", "followers": 2741}, {"date": "2026-04-02", "followers": 2861}, {"date": "2026-04-03", "followers": 2981}, {"date": "2026-04-04", "followers": 3059}, {"date": "2026-04-05", "followers": 3128}, {"date": "2026-04-06", "followers": 3215}, {"date": "2026-04-07", "followers": 3289}, {"date": "2026-04-08", "followers": 3347}, {"date": "2026-04-09", "followers": 3410}, {"date": "2026-04-10", "followers": 3462}, {"date": "2026-04-11", "followers": 3505}, {"date": "2026-04-12", "followers": 3527}, {"date": "2026-04-13", "followers": 3559}, {"date": "2026-04-14", "followers": 3595}, {"date": "2026-04-15", "followers": 3629}, {"date": "2026-04-16", "followers": 3687}, {"date": "2026-04-17", "followers": 3795}, {"date": "2026-04-18", "followers": 3882}, {"date": "2026-04-19", "followers": 3927}, {"date": "2026-04-20", "followers": 3996}, {"date": "2026-04-21", "followers": 4044}, {"date": "2026-04-22", "followers": 4102}, {"date": "2026-04-23", "followers": 4167}, {"date": "2026-04-24", "followers": 4269}, {"date": "2026-04-25", "followers": 4375}, {"date": "2026-04-26", "followers": 4484}, {"date": "2026-04-27", "followers": 4603}, {"date": "2026-04-28", "followers": 4721}, {"date": "2026-04-29", "followers": 4798}, {"date": "2026-04-30", "followers": 4842}, {"date": "2026-05-01", "followers": 4884}, {"date": "2026-05-02", "followers": 4911}, {"date": "2026-05-03", "followers": 4938}, {"date": "2026-05-04", "followers": 4961}, {"date": "2026-05-05", "followers": 4987}, {"date": "2026-05-06", "followers": 5016}, {"date": "2026-05-07", "followers": 5047}, {"date": "2026-05-08", "followers": 5092}, {"date": "2026-05-09", "followers": 5117}, {"date": "2026-05-10", "followers": 5155}, {"date": "2026-05-11", "followers": 5188}, {"date": "2026-05-12", "followers": 5226}, {"date": "2026-05-13", "followers": 5243}, {"date": "2026-05-14", "followers": 5270}, {"date": "2026-05-15", "followers": 5293}, {"date": "2026-05-16", "followers": 5314}, {"date": "2026-05-17", "followers": 5335}, {"date": "2026-05-18", "followers": 5343}, {"date": "2026-05-19", "followers": 5351}, {"date": "2026-05-20", "followers": 5370}, {"date": "2026-05-21", "followers": 5383}, {"date": "2026-05-22", "followers": 5392}, {"date": "2026-05-23", "followers": 5398}, {"date": "2026-05-24", "followers": 5411}, {"date": "2026-05-25", "followers": 5419}, {"date": "2026-05-26", "followers": 5426}, {"date": "2026-05-27", "followers": 5439}, {"date": "2026-05-28", "followers": 5449}, {"date": "2026-05-29", "followers": 5461}, {"date": "2026-05-30", "followers": 5476}, {"date": "2026-05-31", "followers": 5493}, {"date": "2026-06-01", "followers": 5502}, {"date": "2026-06-02", "followers": 5508}, {"date": "2026-06-03", "followers": 5515}, {"date": "2026-06-04", "followers": 5520}, {"date": "2026-06-05", "followers": 5534}, {"date": "2026-06-06", "followers": 5555}, {"date": "2026-06-07", "followers": 5558}, {"date": "2026-06-08", "followers": 5568}, {"date": "2026-06-09", "followers": 5576}, {"date": "2026-06-10", "followers": 5589}, {"date": "2026-06-11", "followers": 5600}, {"date": "2026-06-12", "followers": 5621}, {"date": "2026-06-13", "followers": 5631}, {"date": "2026-06-14", "followers": 5639}, {"date": "2026-06-15", "followers": 5649}, {"date": "2026-06-16", "followers": 5663}, {"date": "2026-06-17", "followers": 5697}, {"date": "2026-06-18", "followers": 5982}, {"date": "2026-06-19", "followers": 6190}, {"date": "2026-06-20", "followers": 6271}, {"date": "2026-06-21", "followers": 6306}, {"date": "2026-06-22", "followers": 6319}, {"date": "2026-06-23", "followers": 6332}, {"date": "2026-06-24", "followers": 6351}, {"date": "2026-06-25", "followers": 6376}, {"date": "2026-06-26", "followers": 6412}, {"date": "2026-06-27", "followers": 6440}, {"date": "2026-06-28", "followers": 6446}, {"date": "2026-06-29", "followers": 6449}, {"date": "2026-06-30", "followers": 6459}, {"date": "2026-07-01", "followers": 6465}, {"date": "2026-07-02", "followers": 6463}, {"date": "2026-07-03", "followers": 6462}, {"date": "2026-07-04", "followers": 6471}, {"date": "2026-07-05", "followers": 6472}, {"date": "2026-07-06", "followers": 6474}, {"date": "2026-07-07", "followers": 6471}, {"date": "2026-07-08", "followers": 6475}, {"date": "2026-07-09", "followers": 6474}, {"date": "2026-07-10", "followers": 6476}, {"date": "2026-07-11", "followers": 6477}, {"date": "2026-07-12", "followers": 6478}, {"date": "2026-07-13", "followers": 6479}, {"date": "2026-07-14", "followers": 6481}, {"date": "2026-07-15", "followers": 6482}, {"date": "2026-07-16", "followers": 6486}, {"date": "2026-07-17", "followers": 6492}, {"date": "2026-07-18", "followers": 6502}, {"date": "2026-07-19", "followers": 6502}, {"date": "2026-07-20", "followers": 6505}, {"date": "2026-07-21", "followers": 6507}, {"date": "2026-07-22", "followers": 6508}, {"date": "2026-07-23", "followers": 6508}, {"date": "2026-07-24", "followers": 6507}, {"date": "2026-07-25", "followers": 6506}, {"date": "2026-07-26", "followers": 6514}, {"date": "2026-07-27", "followers": 6518}, {"date": "2026-07-28", "followers": 6537}, {"date": "2026-07-29", "followers": 6540}, {"date": "2026-07-30", "followers": 6545}, {"date": "2026-07-31", "followers": 6540}, {"date": "2026-08-01", "followers": 6543}, {"date": "2026-08-02", "followers": 6543}, {"date": "2026-08-03", "followers": 6545}, {"date": "2026-08-04", "followers": 6549}, {"date": "2026-08-05", "followers": 6549}, {"date": "2026-08-06", "followers": 6556}, {"date": "2026-08-07", "followers": 6560}, {"date": "2026-08-08", "followers": 6561}, {"date": "2026-08-09", "followers": 6565}, {"date": "2026-08-10", "followers": 6567}, {"date": "2026-08-11", "followers": 6566}, {"date": "2026-08-12", "followers": 6565}, {"date": "2026-08-13", "followers": 6563}, {"date": "2026-08-14", "followers": 6574}, {"date": "2026-08-15", "followers": 6615}, {"date": "2026-08-16", "followers": 6785}, {"date": "2026-08-17", "followers": 6990}, {"date": "2026-08-18", "followers": 7006}, {"date": "2026-08-19", "followers": 7036}, {"date": "2026-08-20", "followers": 7054}, {"date": "2026-08-21", "followers": 7057}, {"date": "2026-08-22", "followers": 7086}, {"date": "2026-08-23", "followers": 7204}, {"date": "2026-08-24", "followers": 7465}, {"date": "2026-08-25", "followers": 7570}, {"date": "2026-08-26", "followers": 7606}, {"date": "2026-08-27", "followers": 7622}, {"date": "2026-08-28", "followers": 7623}, {"date": "2026-08-29", "followers": 7623}, {"date": "2026-08-30", "followers": 7626}, {"date": "2026-08-31", "followers": 7626}, {"date": "2026-09-01", "followers": 7626}];
+const AGG = {"cats": [{"cat": "outro", "n": 6, "avg_views": 48852, "avg_er": 2.61, "total_views": 293114}, {"cat": "anime+frase", "n": 119, "avg_views": 16177, "avg_er": 5.67, "total_views": 1925009}, {"cat": "anime-clip", "n": 18, "avg_views": 13346, "avg_er": 4.57, "total_views": 240231}, {"cat": "motivacional", "n": 20, "avg_views": 2149, "avg_er": 4.77, "total_views": 42986}, {"cat": "anime-duet", "n": 9, "avg_views": 207, "avg_er": 5.31, "total_views": 1867}], "weekday": [{"day": "Seg", "n": 33, "avg_views": 8154}, {"day": "Ter", "n": 33, "avg_views": 15022}, {"day": "Qua", "n": 25, "avg_views": 9734}, {"day": "Qui", "n": 17, "avg_views": 17219}, {"day": "Sex", "n": 14, "avg_views": 1580}, {"day": "Sáb", "n": 18, "avg_views": 5068}, {"day": "Dom", "n": 32, "avg_views": 34030}], "top10": [{"date": "22/03/26", "cat": "anime+frase", "views": 707234, "likes": 65416, "comments": 376, "shares": 4373, "er": 9.92, "caption": "Concordo que algumas frases dos vilões de Naruto parecem simbolizar o amor. O Pain, por exemplo, falou que as ", "url": "https://www.tiktok.com/@shonen.cut/video/7620175698690428181?utm_campaign=tt4d_open_api&utm_source=7288613544411529218"}, {"date": "23/08/26", "cat": "outro", "views": 276361, "likes": 4064, "comments": 33, "shares": 3869, "er": 2.88, "caption": "Muitas vezes, o problema não é quanto dinheiro entra, mas o quanto sai sem perceber. Pequenos gastos, parcel", "url": "https://www.tiktok.com/@shonen.cut/video/7677298596722625810?utm_campaign=tt4d_open_api&utm_source=7288613544411529218"}, {"date": "06/04/26", "cat": "anime+frase", "views": 194092, "likes": 7882, "comments": 107, "shares": 746, "er": 4.5, "caption": "Naruto trouxe muitos personagens impressionantes, lutas épicas mais uma delas foi muito forçado. #naruto  #nar", "url": "https://www.tiktok.com/@shonen.cut/video/7625599474273881351?utm_campaign=tt4d_open_api&utm_source=7288613544411529218"}, {"date": "24/03/26", "cat": "anime+frase", "views": 117238, "likes": 9342, "comments": 42, "shares": 403, "er": 8.35, "caption": "Naruto traz um tom leve, mas tem uma profundidade sensível que nos faz refletir. Ele nos ajuda a nos identific", "url": "https://www.tiktok.com/@shonen.cut/video/7620943503488519444?utm_campaign=tt4d_open_api&utm_source=7288613544411529218"}, {"date": "28/07/26", "cat": "anime+frase", "views": 116873, "likes": 4462, "comments": 12, "shares": 579, "er": 4.32, "caption": "#anime #frases #pensamentos #fyp #amor", "url": "https://www.tiktok.com/@shonen.cut/video/7667373935377468690?utm_campaign=tt4d_open_api&utm_source=7288613544411529218"}, {"date": "24/02/26", "cat": "anime+frase", "views": 109000, "likes": 5115, "comments": 93, "shares": 149, "er": 4.91, "caption": "#animeedit #naruto #narutoshippuden #otaku #animetiktok  @Shonen Cut", "url": "https://www.tiktok.com/@shonen.cut/video/7610495718876384519?utm_campaign=tt4d_open_api&utm_source=7288613544411529218"}, {"date": "17/06/26", "cat": "anime+frase", "views": 102802, "likes": 7976, "comments": 47, "shares": 382, "er": 8.18, "caption": "Quem disse que anime é só porrada? Acho que dá pra tirar muitos ensinamentos de todas as palavras já ditas nos", "url": "https://www.tiktok.com/@shonen.cut/video/7652442603467640072?utm_campaign=tt4d_open_api&utm_source=7288613544411529218"}, {"date": "12/03/26", "cat": "anime-clip", "views": 99425, "likes": 4565, "comments": 158, "shares": 72, "er": 4.82, "caption": "#otaku #naruto #narutoshippuden #anime #animeedit", "url": "https://www.tiktok.com/@shonen.cut/video/7616402880349654293?utm_campaign=tt4d_open_api&utm_source=7288613544411529218"}, {"date": "31/03/26", "cat": "anime+frase", "views": 86399, "likes": 7479, "comments": 35, "shares": 321, "er": 9.07, "caption": "A perspectiva na visão do vilão acaba não sendo errada se você vive essa realidade. #naruto #narutoshippuden #", "url": "https://www.tiktok.com/@shonen.cut/video/7623337016129752338?utm_campaign=tt4d_open_api&utm_source=7288613544411529218"}, {"date": "26/02/26", "cat": "anime+frase", "views": 50602, "likes": 4936, "comments": 86, "shares": 157, "er": 10.23, "caption": "#animeedit #naruto #narutoshippuden #animetiktok #fyp  @Shonen Cut", "url": "https://www.tiktok.com/@shonen.cut/video/7611186706498293000?utm_campaign=tt4d_open_api&utm_source=7288613544411529218"}], "bottom10": [{"date": "27/07/26", "cat": "anime-duet", "views": 63, "likes": 2, "comments": 0, "shares": 1, "er": 4.76, "caption": "#dueto com @Project_Madara #yoruichi #bleach", "url": "https://www.tiktok.com/@shonen.cut/video/7667255191544040711?utm_campaign=tt4d_open_api&utm_source=7288613544411529218"}, {"date": "25/08/26", "cat": "anime+frase", "views": 93, "likes": 7, "comments": 0, "shares": 0, "er": 7.53, "caption": "Um relacionamento forte não é aquele em que duas pessoas nunca discordam. É aquele em que, mesmo nos moment", "url": "https://www.tiktok.com/@shonen.cut/video/7677997275066436872?utm_campaign=tt4d_open_api&utm_source=7288613544411529218"}, {"date": "27/07/26", "cat": "anime-duet", "views": 94, "likes": 6, "comments": 0, "shares": 1, "er": 7.45, "caption": "#dueto com @ONIKAGE #naruto #narutoshippuden #otaku #anime", "url": "https://www.tiktok.com/@shonen.cut/video/7667328543428431111?utm_campaign=tt4d_open_api&utm_source=7288613544411529218"}, {"date": "27/07/26", "cat": "anime-duet", "views": 98, "likes": 3, "comments": 0, "shares": 1, "er": 4.08, "caption": "#costura com @ONIKAGE  #naruto #anime #lutas", "url": "https://www.tiktok.com/@shonen.cut/video/7667257585963126034?utm_campaign=tt4d_open_api&utm_source=7288613544411529218"}, {"date": "27/07/26", "cat": "anime-duet", "views": 101, "likes": 4, "comments": 0, "shares": 0, "er": 3.96, "caption": "#dueto com @AnimeForge 🐉 #dragonball eu quero muito! #anime #animetiktok #fyp", "url": "https://www.tiktok.com/@shonen.cut/video/7667349366759279879?utm_campaign=tt4d_open_api&utm_source=7288613544411529218"}, {"date": "27/07/26", "cat": "anime-duet", "views": 109, "likes": 5, "comments": 0, "shares": 2, "er": 6.42, "caption": "#dueto com @snauzk #Anime #jjk #animetiktok #animeedit", "url": "https://www.tiktok.com/@shonen.cut/video/7667267843670510855?utm_campaign=tt4d_open_api&utm_source=7288613544411529218"}, {"date": "28/07/26", "cat": "anime-duet", "views": 109, "likes": 7, "comments": 0, "shares": 0, "er": 6.42, "caption": "#dueto com @Shadow compilação Uchiha Itachi, o mais f**da de todos. #naruto #itachi #otaku #animetiktok", "url": "https://www.tiktok.com/@shonen.cut/video/7667507862557510919?utm_campaign=tt4d_open_api&utm_source=7288613544411529218"}, {"date": "28/07/26", "cat": "anime-duet", "views": 109, "likes": 7, "comments": 0, "shares": 2, "er": 8.26, "caption": "#dueto com @Cortzin pra quem não conhece bleach, segue a árvore do Ichigo. #Anime #bleach #ichigo #otaku", "url": "https://www.tiktok.com/@shonen.cut/video/7667569715832884488?utm_campaign=tt4d_open_api&utm_source=7288613544411529218"}, {"date": "24/08/26", "cat": "motivacional", "views": 118, "likes": 14, "comments": 3, "shares": 0, "er": 14.41, "caption": "Na Espanha 🇪🇸 existe um festival onde milhares de pessoas participam de uma enorme “guerra de tomates”. O even", "url": "https://www.tiktok.com/@shonen.cut/video/7677513076819774727?utm_campaign=tt4d_open_api&utm_source=7288613544411529218"}, {"date": "26/08/26", "cat": "anime+frase", "views": 123, "likes": 4, "comments": 0, "shares": 1, "er": 4.07, "caption": "Você começou a existir dentro de alguém… e, de certa forma, nunca saiu completamente de lá. A ciência cha", "url": "https://www.tiktok.com/@shonen.cut/video/7678281052565114120?utm_campaign=tt4d_open_api&utm_source=7288613544411529218"}], "total_posts": 172};
 
-  posts.forEach(p=>{
-    const bar = document.createElement('div');
-    const heightPct = Math.max((p.views/maxViews)*100, 1);
-    bar.className = 'bar' + (p.views>=hitThreshold ? ' hit' : (p.type==='VIDEO' ? ' video' : ''));
-    bar.style.height = heightPct + '%';
-    bar.addEventListener('mousemove', (e)=>{
-      tooltip.style.opacity = 1;
-      tooltip.style.left = (e.clientX+12)+'px';
-      tooltip.style.top = (e.clientY+12)+'px';
-      const d = p.date;
-      const dateFmt = d.slice(6,8)+'/'+d.slice(4,6);
-      tooltip.innerHTML = `<strong>${dateFmt}</strong> · ${p.type==='PHOTO'?'Carrossel':'Vídeo'}<br>${p.views.toLocaleString('pt-BR')} views · ${p.likes.toLocaleString('pt-BR')} curtidas · ${p.eng}% eng.`;
-    });
-    bar.addEventListener('mouseleave', ()=>{ tooltip.style.opacity = 0; });
-    container.appendChild(bar);
+const CAT_META = {
+  "anime+frase": { label: "Clipe + legenda reflexiva", color: "var(--accent)", short:"Anime+frase" },
+  "anime-clip":  { label: "Clipe só com hashtags",     color: "var(--blue)",   short:"Anime-clipe" },
+  "outro":       { label: "Fora do nicho (notícias/finanças)", color: "var(--yellow)", short:"Fora do nicho" },
+  "motivacional":{ label: "Frase motivacional sem anime", color: "var(--magenta)", short:"Motivacional" },
+  "anime-duet":  { label: "Dueto / costura",           color: "var(--aqua)",   short:"Dueto/costura" },
+};
+
+function resolveVar(v){
+  if(!v.startsWith('var(')) return v;
+  const name = v.slice(4,-1);
+  return getComputedStyle(document.body).getPropertyValue(name).trim();
+}
+function fmt(n){ return new Intl.NumberFormat('pt-BR').format(Math.round(n)); }
+
+/* ---------------- Growth chart ---------------- */
+(function(){
+  const svg = document.getElementById('growthSvg');
+  const W = 1000, H = 340, padL = 46, padR = 14, padT = 18, padB = 34;
+  const plotW = W - padL - padR, plotH = H - padT - padB;
+  const maxF = Math.max(...DAILY.map(d=>d.followers));
+  const n = DAILY.length;
+  const x = i => padL + (i/(n-1)) * plotW;
+  const y = f => padT + plotH - (f/maxF) * plotH;
+
+  const ns = "http://www.w3.org/2000/svg";
+  const defs = document.createElementNS(ns,'defs');
+  defs.innerHTML = `<linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="${resolveVar('var(--accent)')}" stop-opacity="0.28"/>
+      <stop offset="100%" stop-color="${resolveVar('var(--accent)')}" stop-opacity="0"/>
+    </linearGradient>`;
+  svg.appendChild(defs);
+
+  // gridlines + y labels
+  const steps = 4;
+  for(let s=0;s<=steps;s++){
+    const val = (maxF/steps)*s;
+    const gy = y(val);
+    const line = document.createElementNS(ns,'line');
+    line.setAttribute('x1',padL); line.setAttribute('x2',W-padR);
+    line.setAttribute('y1',gy); line.setAttribute('y2',gy);
+    line.setAttribute('class','gridline');
+    svg.appendChild(line);
+    const lbl = document.createElementNS(ns,'text');
+    lbl.setAttribute('x', 4); lbl.setAttribute('y', gy+3);
+    lbl.setAttribute('class','axislabel');
+    lbl.textContent = val>=1000? (val/1000).toFixed(1).replace('.0','')+'k' : Math.round(val);
+    svg.appendChild(lbl);
+  }
+  // month labels
+  const monthTicks = {};
+  DAILY.forEach((d,i)=>{ const m = d.date.slice(0,7); if(!(m in monthTicks)) monthTicks[m]=i; });
+  const monthNames = {'02':'Fev','03':'Mar','04':'Abr','05':'Mai','06':'Jun','07':'Jul','08':'Ago','09':'Set'};
+  Object.entries(monthTicks).forEach(([m,i])=>{
+    const lbl = document.createElementNS(ns,'text');
+    lbl.setAttribute('x', x(i)); lbl.setAttribute('y', H-14);
+    lbl.setAttribute('class','axislabel');
+    lbl.textContent = monthNames[m.slice(5,7)];
+    svg.appendChild(lbl);
   });
+
+  // area + line path
+  let d = `M ${x(0)} ${y(DAILY[0].followers)}`;
+  DAILY.forEach((pt,i)=>{ if(i>0) d += ` L ${x(i)} ${y(pt.followers)}`; });
+  const areaPath = document.createElementNS(ns,'path');
+  areaPath.setAttribute('d', d + ` L ${x(n-1)} ${y(0)} L ${x(0)} ${y(0)} Z`);
+  areaPath.setAttribute('class','growth-area');
+  svg.appendChild(areaPath);
+  const linePath = document.createElementNS(ns,'path');
+  linePath.setAttribute('d', d);
+  linePath.setAttribute('class','growth-line');
+  svg.appendChild(linePath);
+
+  // annotations
+  const ANNOTATIONS = [
+    { date:'2026-03-23', kind:'good', label:'Vídeo dos vilões de Naruto viraliza', detail:'707 mil views em um post só — maior vídeo do canal até hoje. +1.6 mil seguidores em 4 dias.' },
+    { date:'2026-06-18', kind:'good', label:'"Anime não é só porrada" viraliza', detail:'103 mil views, formato cross-fandom (Naruto+JJK+One Piece). +490 seguidores em 2 dias.' },
+    { date:'2026-08-16', kind:'warn', label:'Início do desvio de pauta', detail:'Primeiros posts sem nenhum personagem de anime — só frases e carrosséis de notícia.' },
+    { date:'2026-08-23', kind:'warn', label:'Vídeo de finanças viraliza (fora do nicho)', detail:'276 mil views, mas sobre organização financeira — não trouxe audiência de anime.' },
+    { date:'2026-08-30', kind:'good', label:'Volta ao formato anime', detail:'Post sobre Toguro (Yu Yu Hakusho) — primeiro vídeo 100% anime desde o desvio.' },
+  ];
+  const annotListEl = document.getElementById('annotList');
+  ANNOTATIONS.forEach(a=>{
+    const idx = DAILY.findIndex(pt=>pt.date===a.date);
+    if(idx<0) return;
+    const cx = x(idx), cy = y(DAILY[idx].followers);
+    const vline = document.createElementNS(ns,'line');
+    vline.setAttribute('x1',cx); vline.setAttribute('x2',cx);
+    vline.setAttribute('y1',cy); vline.setAttribute('y2',H-padB);
+    vline.setAttribute('class','gridline marker-line');
+    svg.appendChild(vline);
+    const dot = document.createElementNS(ns,'circle');
+    dot.setAttribute('cx',cx); dot.setAttribute('cy',cy); dot.setAttribute('r',5);
+    dot.setAttribute('class','marker-dot ' + (a.kind==='warn'?'warn':'good'));
+    svg.appendChild(dot);
+
+    const row = document.createElement('div');
+    row.className = 'annot-item';
+    row.innerHTML = `<span class="tag" style="background:${a.kind==='warn'?resolveVar('var(--critical)'):resolveVar('var(--good)')}">${a.kind==='warn'?'!':'✓'}</span>
+      <span><b>${a.date.split('-').reverse().join('/')} — ${a.label}.</b> ${a.detail}</span>`;
+    annotListEl.appendChild(row);
+  });
+
+  // hover crosshair
+  const crossLine = document.createElementNS(ns,'line');
+  crossLine.setAttribute('class','crosshair'); crossLine.setAttribute('y1',padT); crossLine.setAttribute('y2',H-padB);
+  svg.appendChild(crossLine);
+  const hoverDot = document.createElementNS(ns,'circle');
+  hoverDot.setAttribute('r',4.5); hoverDot.setAttribute('class','hover-dot');
+  svg.appendChild(hoverDot);
+  const hitRect = document.createElementNS(ns,'rect');
+  hitRect.setAttribute('x',padL); hitRect.setAttribute('y',0);
+  hitRect.setAttribute('width',plotW); hitRect.setAttribute('height',H);
+  hitRect.setAttribute('fill','transparent');
+  svg.appendChild(hitRect);
+
+  const tooltip = document.getElementById('tooltip');
+  const wrapEl = svg.parentElement;
+  function handleMove(evt){
+    const rect = svg.getBoundingClientRect();
+    const px = (evt.clientX - rect.left) / rect.width * W;
+    let i = Math.round(((px - padL) / plotW) * (n-1));
+    i = Math.max(0, Math.min(n-1, i));
+    const pt = DAILY[i];
+    const cx = x(i), cy = y(pt.followers);
+    crossLine.setAttribute('x1',cx); crossLine.setAttribute('x2',cx); crossLine.style.opacity = 1;
+    hoverDot.setAttribute('cx',cx); hoverDot.setAttribute('cy',cy); hoverDot.style.opacity = 1;
+    tooltip.style.opacity = 1;
+    tooltip.style.left = (cx/W*rect.width + 14) + 'px';
+    tooltip.style.top = (cy/H*rect.height - 8) + 'px';
+    tooltip.innerHTML = `<b>${pt.date.split('-').reverse().join('/')}</b><br>${fmt(pt.followers)} seguidores`;
+  }
+  svg.addEventListener('mousemove', handleMove);
+  svg.addEventListener('mouseleave', ()=>{ crossLine.style.opacity=0; hoverDot.style.opacity=0; tooltip.style.opacity=0; });
+})();
+
+/* ---------------- Category bars ---------------- */
+(function(){
+  const el = document.getElementById('catBars');
+  const max = Math.max(...AGG.cats.map(c=>c.avg_views));
+  AGG.cats.forEach(c=>{
+    const meta = CAT_META[c.cat] || {label:c.cat, color:'var(--text-tertiary)', short:c.cat};
+    const pct = Math.max((c.avg_views/max)*100, 3);
+    const row = document.createElement('div');
+    row.className = 'bar-row';
+    row.innerHTML = `
+      <div class="bar-top">
+        <span class="bar-name">${meta.short} <span style="font-weight:400;color:var(--text-tertiary)">— ${meta.label}</span></span>
+        <span class="bar-meta">n=${c.n} · ER ${c.avg_er}%</span>
+      </div>
+      <div class="bar-track">
+        <div class="bar-fill ${pct<22?'tiny':''}" style="width:${pct}%; background:${resolveVar(meta.color)}" title="${fmt(c.avg_views)} views médias">
+          <span class="bar-val">${fmt(c.avg_views)} views</span>
+        </div>
+      </div>`;
+    el.appendChild(row);
+  });
+})();
+
+/* ---------------- Weekday bars ---------------- */
+(function(){
+  const el = document.getElementById('wdBars');
+  const max = Math.max(...AGG.weekday.map(w=>w.avg_views));
+  const best = Math.max(...AGG.weekday.map(w=>w.avg_views));
+  AGG.weekday.forEach(w=>{
+    const pct = Math.max((w.avg_views/max)*100, 2);
+    const isBest = w.avg_views === best;
+    const col = document.createElement('div');
+    col.className = 'wd-col';
+    col.innerHTML = `
+      <div style="font-size:10.5px; font-family:'JetBrains Mono',monospace; color:var(--text-tertiary)">${fmt(w.avg_views)}</div>
+      <div class="wd-bar-wrap"><div class="wd-bar" style="height:${pct}%; background:${isBest? resolveVar('var(--accent)') : resolveVar('var(--blue)')}" title="${w.day}: ${fmt(w.avg_views)} views médias (n=${w.n})"></div></div>
+      <div class="wd-day ${isBest?'best':''}">${w.day}</div>`;
+    el.appendChild(col);
+  });
+})();
+
+/* ---------------- Tables ---------------- */
+function renderTable(id, rows, rankStart, rankColor){
+  const table = document.getElementById(id);
+  let html = `<thead><tr><th>#</th><th>Data</th><th>Formato</th><th>Post</th><th class="num">Views</th><th class="num">ER</th></tr></thead><tbody>`;
+  rows.forEach((r,i)=>{
+    const meta = CAT_META[r.cat] || {short:r.cat, color:'var(--text-tertiary)'};
+    html += `<tr>
+      <td class="mono" style="color:${resolveVar(rankColor)}">${rankStart + i}</td>
+      <td class="mono">${r.date}</td>
+      <td><span class="pill" style="background:${resolveVar(meta.color)}">${meta.short}</span></td>
+      <td class="cap"><a href="${r.url}" target="_blank" rel="noopener">${r.caption}${r.caption.length>=110?'…':''}</a></td>
+      <td class="num">${fmt(r.views)}</td>
+      <td class="num">${r.er}%</td>
+    </tr>`;
+  });
+  html += '</tbody>';
+  table.innerHTML = html;
+}
+renderTable('topTable', AGG.top10, 1, 'var(--good)');
+renderTable('bottomTable', AGG.bottom10, AGG.total_posts-9, 'var(--critical)');
 </script>
