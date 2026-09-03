@@ -1,286 +1,527 @@
-<title>Painel TikTok — @shonen.cut</title>
+<title>Painel shonen.cut</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <style>
-  :root{
-    --surface-1:#fcfcfb; --page:#f9f9f7; --surface-2:#ffffff;
-    --ink-1:#0b0b0b; --ink-2:#52514e; --ink-muted:#898781;
-    --grid:#e1e0d9; --baseline:#c3c2b7; --border:rgba(11,11,11,0.10);
-    --s1:#2a78d6; /* blue - primary series */
-    --s2:#1baf7a; /* aqua */
-    --s3:#eda100; /* yellow */
-    --s6:#e34948; /* red */
-    --s8:#eb6834; /* orange */
-    --good:#0ca30c; --warning:#fab219; --critical:#d03b3b;
+:root{
+  --plane:#f7f6f2; --surface:#ffffff; --surface-2:#efeee7;
+  --ink:#15130f; --ink-2:#55524a; --muted:#8c887c;
+  --border:rgba(21,19,15,0.11); --border-strong:rgba(21,19,15,0.18);
+  --accent:#4a3aa7; --accent-ink:#ffffff; --accent-soft:#ece9fb;
+  --cat-anime:#2a78d6; --cat-fin:#eb6834; --cat-frases:#1baf7a;
+  --cat-news:#eda100; --cat-curio:#e87ba4; --cat-outros:#7d6fce;
+  --good:#0ca30c; --warning:#c98500; --critical:#d03b3b;
+  --grid:#e3e1d8; --shadow:0 1px 2px rgba(21,19,15,.06),0 8px 24px -12px rgba(21,19,15,.18);
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --plane:#0f0f0d; --surface:#1a1a18; --surface-2:#232320;
+    --ink:#f5f4f0; --ink-2:#c7c4b8; --muted:#928e82;
+    --border:rgba(255,255,255,0.10); --border-strong:rgba(255,255,255,0.18);
+    --accent:#9085e9; --accent-ink:#0f0f0d; --accent-soft:#2a2650;
+    --cat-anime:#3987e5; --cat-fin:#d95926; --cat-frases:#199e70;
+    --cat-news:#c98500; --cat-curio:#d55181; --cat-outros:#9085e9;
+    --good:#0ca30c; --warning:#fab219; --critical:#e66767;
+    --grid:#2c2c28; --shadow:0 1px 2px rgba(0,0,0,.3),0 8px 24px -12px rgba(0,0,0,.5);
+    color-scheme:dark;
   }
-  @media (prefers-color-scheme: dark){
-    :root{
-      --surface-1:#1a1a19; --page:#0d0d0d; --surface-2:#202020;
-      --ink-1:#ffffff; --ink-2:#c3c2b7; --ink-muted:#898781;
-      --grid:#2c2c2a; --baseline:#383835; --border:rgba(255,255,255,0.10);
-      --s1:#3987e5; --s2:#199e70; --s3:#c98500; --s6:#e66767; --s8:#d95926;
-      --good:#0ca30c; --warning:#fab219; --critical:#d03b3b;
-    }
-  }
-  :root[data-theme="dark"]{
-    --surface-1:#1a1a19; --page:#0d0d0d; --surface-2:#202020;
-    --ink-1:#ffffff; --ink-2:#c3c2b7; --ink-muted:#898781;
-    --grid:#2c2c2a; --baseline:#383835; --border:rgba(255,255,255,0.10);
-    --s1:#3987e5; --s2:#199e70; --s3:#c98500; --s6:#e66767; --s8:#d95926;
-  }
-  :root[data-theme="light"]{
-    --surface-1:#fcfcfb; --page:#f9f9f7; --surface-2:#ffffff;
-    --ink-1:#0b0b0b; --ink-2:#52514e; --ink-muted:#898781;
-    --grid:#e1e0d9; --baseline:#c3c2b7; --border:rgba(11,11,11,0.10);
-    --s1:#2a78d6; --s2:#1baf7a; --s3:#eda100; --s6:#e34948; --s8:#eb6834;
-  }
-  *{box-sizing:border-box;}
-  body{
-    margin:0; background:var(--page); color:var(--ink-1);
-    font-family:system-ui,-apple-system,"Segoe UI",sans-serif;
-    padding:24px; max-width:1180px; margin-inline:auto;
-  }
-  h1{font-size:1.5rem; margin:0 0 4px;}
-  .subtitle{color:var(--ink-2); font-size:0.92rem; margin:0 0 24px;}
-  .card{
-    background:var(--surface-1); border:1px solid var(--border); border-radius:12px;
-    padding:20px; margin-bottom:20px;
-  }
-  .card h2{font-size:1.02rem; margin:0 0 4px; color:var(--ink-1);}
-  .card .note{color:var(--ink-muted); font-size:0.82rem; margin:0 0 16px;}
-  .kpi-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:14px;}
-  .kpi{background:var(--surface-2); border:1px solid var(--border); border-radius:10px; padding:14px 16px;}
-  .kpi .label{font-size:0.75rem; color:var(--ink-muted); text-transform:uppercase; letter-spacing:.03em;}
-  .kpi .value{font-size:1.6rem; font-weight:600; margin-top:4px; font-variant-numeric:tabular-nums;}
-  .kpi .delta{font-size:0.8rem; margin-top:2px;}
-  .delta.good{color:var(--good);}
-  .delta.crit{color:var(--critical);}
-  .bars{position:relative; height:230px; display:flex; align-items:flex-end; gap:3px; border-bottom:1px solid var(--baseline); padding-bottom:2px;}
-  .bar{flex:1; background:var(--s1); border-radius:4px 4px 0 0; min-height:2px; position:relative; cursor:pointer;}
-  .bar.hit{background:var(--s6);}
-  .bar.video{background:var(--s8);}
-  .axis-labels{display:flex; gap:3px; margin-top:6px;}
-  .axis-labels span{flex:1; font-size:0.62rem; color:var(--ink-muted); text-align:center; white-space:nowrap; overflow:hidden;}
-  .legend{display:flex; gap:16px; margin-bottom:10px; font-size:0.8rem; color:var(--ink-2);}
-  .legend .dot{display:inline-block; width:9px; height:9px; border-radius:50%; margin-right:6px;}
-  .tooltip{
-    position:fixed; background:var(--ink-1); color:var(--surface-1); font-size:0.75rem;
-    padding:6px 9px; border-radius:6px; pointer-events:none; opacity:0; transition:opacity .1s;
-    z-index:50; white-space:nowrap; font-variant-numeric:tabular-nums;
-  }
-  .hbar-row{display:flex; align-items:center; gap:10px; margin-bottom:8px;}
-  .hbar-label{width:150px; font-size:0.8rem; color:var(--ink-2); flex-shrink:0; text-align:right;}
-  .hbar-track{flex:1; background:var(--surface-2); border-radius:4px; height:20px; position:relative;}
-  .hbar-fill{height:100%; border-radius:4px; background:var(--s1); display:flex; align-items:center;}
-  .hbar-fill span{margin-left:8px; font-size:0.72rem; color:#fff; font-variant-numeric:tabular-nums; white-space:nowrap;}
-  .hbar-fill.outside{overflow:visible;}
-  .hbar-fill.outside span{margin-left:calc(100% + 8px); color:var(--ink-1);}
-  table{width:100%; border-collapse:collapse; font-size:0.85rem;}
-  th{text-align:left; color:var(--ink-muted); font-weight:500; font-size:0.72rem; text-transform:uppercase; letter-spacing:.03em; padding:6px 10px; border-bottom:1px solid var(--grid);}
-  td{padding:8px 10px; border-bottom:1px solid var(--grid); color:var(--ink-2); font-variant-numeric:tabular-nums;}
-  td.desc{color:var(--ink-1); font-variant-numeric:normal;}
-  tr.top td{color:var(--ink-1);}
-  a{color:var(--s1);}
-  .grid2{display:grid; grid-template-columns:1fr 1fr; gap:20px;}
-  @media (max-width:820px){ .grid2{grid-template-columns:1fr;} }
-  .pill{display:inline-block; padding:2px 8px; border-radius:20px; font-size:0.7rem; font-weight:600;}
-  .pill.photo{background:color-mix(in srgb, var(--s1) 18%, transparent); color:var(--s1);}
-  .pill.video{background:color-mix(in srgb, var(--s8) 18%, transparent); color:var(--s8);}
-  ul{color:var(--ink-2); font-size:0.88rem; line-height:1.6; padding-left:20px;}
-  li strong{color:var(--ink-1);}
-  .idea{background:var(--surface-2); border:1px solid var(--border); border-radius:10px; padding:14px 16px; margin-bottom:10px;}
-  .idea h3{margin:0 0 4px; font-size:0.92rem;}
-  .idea p{margin:0; font-size:0.83rem; color:var(--ink-2); line-height:1.5;}
-  .tag{font-size:0.68rem; color:var(--ink-muted); text-transform:uppercase; letter-spacing:.03em;}
-  footer{color:var(--ink-muted); font-size:0.75rem; text-align:center; margin-top:30px; padding-bottom:10px;}
+}
+:root[data-theme="dark"]{
+  --plane:#0f0f0d; --surface:#1a1a18; --surface-2:#232320;
+  --ink:#f5f4f0; --ink-2:#c7c4b8; --muted:#928e82;
+  --border:rgba(255,255,255,0.10); --border-strong:rgba(255,255,255,0.18);
+  --accent:#9085e9; --accent-ink:#0f0f0d; --accent-soft:#2a2650;
+  --cat-anime:#3987e5; --cat-fin:#d95926; --cat-frases:#199e70;
+  --cat-news:#c98500; --cat-curio:#d55181; --cat-outros:#9085e9;
+  --good:#0ca30c; --warning:#fab219; --critical:#e66767;
+  --grid:#2c2c28; --shadow:0 1px 2px rgba(0,0,0,.3),0 8px 24px -12px rgba(0,0,0,.5);
+  color-scheme:dark;
+}
+*{box-sizing:border-box;}
+body{background:var(--plane);color:var(--ink);font-family:"IBM Plex Sans",system-ui,-apple-system,sans-serif;line-height:1.5;}
+h1,h2,h3,.num{font-family:"Sora",system-ui,sans-serif;}
+h1,h2,h3{text-wrap:balance;margin:0;}
+code,.mono,.timecode,.caption-text,td.desc-cell{font-family:"IBM Plex Mono",ui-monospace,monospace;}
+.wrap{max-width:1180px;margin:0 auto;padding:28px 20px 80px;}
+
+/* header */
+.top{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:28px;flex-wrap:wrap;}
+.brand{display:flex;align-items:center;gap:14px;}
+.avatar{width:52px;height:52px;border-radius:14px;background:linear-gradient(135deg,var(--accent),var(--cat-anime));display:flex;align-items:center;justify-content:center;color:#fff;font-family:"Sora",sans-serif;font-weight:700;font-size:20px;flex:none;}
+.brand h1{font-size:22px;font-weight:700;}
+.brand .sub{color:var(--muted);font-size:13px;margin-top:2px;}
+.scan-pill{display:inline-flex;align-items:center;gap:7px;background:var(--accent-soft);color:var(--accent);border:1px solid var(--border-strong);border-radius:100px;padding:7px 14px;font-size:12.5px;font-weight:600;}
+.scan-pill .dot{width:7px;height:7px;border-radius:50%;background:var(--good);}
+
+/* eyebrow / section header */
+.eyebrow{font-size:11.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);}
+section{margin-top:44px;}
+.section-head{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;margin-bottom:16px;flex-wrap:wrap;}
+.section-head h2{font-size:19px;font-weight:600;margin-top:4px;}
+.section-head p{color:var(--ink-2);font-size:13.5px;max-width:60ch;margin-top:4px;}
+
+/* KPI strip */
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1px;background:var(--border);border:1px solid var(--border);border-radius:14px;overflow:hidden;}
+.kpi{background:var(--surface);padding:18px 18px;}
+.kpi .num{font-size:26px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1.1;}
+.kpi .lbl{font-size:12px;color:var(--muted);margin-top:6px;}
+.kpi .delta{font-size:11.5px;font-weight:600;margin-top:6px;display:inline-flex;align-items:center;gap:4px;}
+.delta.up{color:var(--good);} .delta.down{color:var(--critical);}
+
+/* cards */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:14px;box-shadow:var(--shadow);}
+.card-pad{padding:20px;}
+
+/* category chip */
+.chip{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;padding:3px 9px;border-radius:100px;white-space:nowrap;}
+.chip .sw{width:7px;height:7px;border-radius:50%;flex:none;}
+
+/* two-col grid */
+.grid-2{display:grid;grid-template-columns:1.3fr 1fr;gap:20px;}
+@media (max-width:860px){.grid-2{grid-template-columns:1fr;}}
+
+/* stacked bar chart (monthly) */
+.chart-legend{display:flex;flex-wrap:wrap;gap:10px 16px;margin-bottom:14px;}
+.month-chart{display:flex;align-items:flex-end;gap:10px;height:200px;padding:4px 4px 0;}
+.month-col{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;gap:6px;}
+.month-bar{width:100%;max-width:46px;display:flex;flex-direction:column-reverse;border-radius:3px 3px 0 0;overflow:hidden;background:var(--surface-2);}
+.month-bar .seg{width:100%;}
+.month-col .mlbl{font-size:11px;color:var(--muted);font-weight:600;}
+.month-col .mval{font-size:10.5px;color:var(--ink-2);font-variant-numeric:tabular-nums;}
+
+/* median comparison bars */
+.cmp-row{display:grid;grid-template-columns:130px 1fr 70px;align-items:center;gap:12px;padding:9px 0;border-bottom:1px solid var(--border);font-size:13px;}
+.cmp-row:last-child{border-bottom:none;}
+.cmp-track{background:var(--surface-2);border-radius:5px;height:16px;position:relative;overflow:hidden;}
+.cmp-fill{height:100%;border-radius:5px;}
+.cmp-val{text-align:right;font-variant-numeric:tabular-nums;font-weight:600;font-size:12.5px;}
+
+/* ranked list */
+.rank-item{display:grid;grid-template-columns:28px 1fr auto;gap:14px;align-items:start;padding:14px 0;border-bottom:1px solid var(--border);}
+.rank-item:last-child{border-bottom:none;}
+.rank-num{font-family:"Sora",sans-serif;font-weight:700;color:var(--muted);font-size:15px;padding-top:1px;}
+.rank-item.win .rank-num{color:var(--good);}
+.rank-cap{font-size:13px;color:var(--ink-2);}
+.rank-cap .capt{color:var(--ink);}
+.rank-meta{display:flex;gap:8px;align-items:center;margin-top:6px;flex-wrap:wrap;}
+.rank-meta .date{font-size:11px;color:var(--muted);}
+.rank-stats{text-align:right;flex:none;}
+.rank-stats .v{font-weight:700;font-variant-numeric:tabular-nums;font-size:15px;}
+.rank-stats .e{font-size:11px;color:var(--muted);}
+
+/* flop list */
+.flop-item{display:flex;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid var(--border);font-size:12.5px;}
+.flop-item:last-child{border-bottom:none;}
+.flop-item .capt{color:var(--ink-2);}
+.flop-item .v{flex:none;font-weight:700;color:var(--critical);font-variant-numeric:tabular-nums;}
+
+/* formula steps */
+.formula{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;}
+@media (max-width:760px){.formula{grid-template-columns:1fr;}}
+.fstep{border:1px solid var(--border);border-radius:12px;padding:16px;background:var(--surface-2);}
+.fstep .fnum{font-family:"Sora",sans-serif;font-weight:700;color:var(--accent);font-size:13px;}
+.fstep h3{font-size:14px;margin-top:6px;}
+.fstep p{font-size:12.5px;color:var(--ink-2);margin-top:6px;}
+
+/* best time heatmap */
+.heat{display:grid;grid-template-columns:repeat(24,1fr);gap:2px;}
+.heat .cell{aspect-ratio:1;border-radius:2px;}
+.heat-row-lbl{font-size:10.5px;color:var(--muted);width:34px;flex:none;}
+.heat-hours{display:flex;gap:2px;margin-left:38px;margin-bottom:4px;}
+.heat-hours span{flex:1;text-align:center;font-size:9px;color:var(--muted);}
+.heat-row{display:flex;align-items:center;gap:0;margin-bottom:2px;}
+
+/* content examples */
+.ex-card{border:1px solid var(--border);border-radius:14px;overflow:hidden;background:var(--surface);}
+.ex-head{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:10px;background:var(--surface-2);}
+.ex-head h3{font-size:14.5px;}
+.ex-body{padding:16px 18px;}
+.ex-body .lbl{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:600;margin-top:12px;}
+.ex-body .lbl:first-child{margin-top:0;}
+.ex-body .capt{font-size:12.5px;color:var(--ink-2);margin-top:4px;}
+.tag{display:inline-block;background:var(--accent-soft);color:var(--accent);font-size:11px;padding:2px 8px;border-radius:6px;margin:6px 6px 0 0;}
+
+/* opportunity note */
+.note{border:1px dashed var(--border-strong);border-radius:12px;padding:16px 18px;background:var(--surface-2);font-size:13px;color:var(--ink-2);}
+.note strong{color:var(--ink);}
+
+/* table */
+.tbl-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:14px;background:var(--surface);}
+table{width:100%;border-collapse:collapse;font-size:12.5px;min-width:760px;}
+th{text-align:left;padding:11px 14px;font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);border-bottom:1px solid var(--border);cursor:pointer;user-select:none;white-space:nowrap;background:var(--surface-2);position:sticky;top:0;}
+th:hover{color:var(--ink);}
+th .arrow{opacity:.5;font-size:10px;margin-left:3px;}
+td{padding:9px 14px;border-bottom:1px solid var(--border);vertical-align:top;}
+tr:last-child td{border-bottom:none;}
+td.num-cell{text-align:right;font-variant-numeric:tabular-nums;font-weight:600;white-space:nowrap;}
+td.desc-cell{max-width:340px;color:var(--ink-2);font-size:11.5px;white-space:normal;}
+.filters{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px;}
+.fbtn{border:1px solid var(--border-strong);background:var(--surface);color:var(--ink-2);border-radius:100px;padding:6px 13px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;}
+.fbtn.active{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);}
+.tbl-foot{padding:10px 14px;font-size:11.5px;color:var(--muted);}
+
+footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--border);color:var(--muted);font-size:11.5px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;}
+a{color:var(--accent);}
 </style>
 
-<h1>Painel de Performance — @shonen.cut (TikTok)</h1>
-<p class="subtitle">98 posts escaneados (100% do histórico do canal, 13/fev a 11/jul/2026) · dados via Metricool</p>
+<div class="wrap">
 
-<div class="card">
-  <h2>Indicadores principais</h2>
-  <p class="note">Período completo analisado — quase 5 meses de canal</p>
-  <div class="kpi-grid">
-    <div class="kpi"><div class="label">Posts escaneados</div><div class="value">98</div><div class="delta">100% do histórico</div></div>
-    <div class="kpi"><div class="label">Visualizações totais</div><div class="value">1,90M</div></div>
-    <div class="kpi"><div class="label">Média views/post</div><div class="value">19.356</div><div class="delta">mediana: 1.569</div></div>
-    <div class="kpi"><div class="label">Engajamento médio</div><div class="value">5,68%</div></div>
-    <div class="kpi"><div class="label">Seguidores atuais</div><div class="value">6.478</div><div class="delta good">▲ +812 desde 15/jun</div></div>
-    <div class="kpi"><div class="label">Cadência</div><div class="value">1 post/1,5 dias</div><div class="delta">varia muito por mês, ver abaixo</div></div>
-  </div>
-</div>
-
-<div class="card">
-  <h2>Views por mês</h2>
-  <p class="note">Total de visualizações por mês. Março foi o pico absoluto do canal; maio teve uma queda severa tanto na frequência de posts quanto no resultado por post.</p>
-  <div class="hbar-row"><div class="hbar-label">Fev/26 (n=23)</div><div class="hbar-track"><div class="hbar-fill outside" style="width:16.1%;"><span>196.429</span></div></div></div>
-  <div class="hbar-row"><div class="hbar-label">Mar/26 (n=30)</div><div class="hbar-track"><div class="hbar-fill" style="width:100%;"><span>1.217.138 · 🔺 pico do canal</span></div></div></div>
-  <div class="hbar-row"><div class="hbar-label">Abr/26 (n=10)</div><div class="hbar-track"><div class="hbar-fill outside" style="width:19.8%;"><span>240.667</span></div></div></div>
-  <div class="hbar-row"><div class="hbar-label">Mai/26 (n=4)</div><div class="hbar-track"><div class="hbar-fill outside" style="width:1.6%;"><span>19.658 · 🔻 queda de atividade</span></div></div></div>
-  <div class="hbar-row"><div class="hbar-label">Jun/26 (n=26)</div><div class="hbar-track"><div class="hbar-fill outside" style="width:18.1%;"><span>220.163</span></div></div></div>
-  <div class="hbar-row"><div class="hbar-label">Jul/26 (n=5)*</div><div class="hbar-track"><div class="hbar-fill outside" style="width:0.2%;"><span>2.837</span></div></div></div>
-  <p class="note" style="margin-top:10px; margin-bottom:0;">*Julho parcial (só 11 dias no ar até a data do painel).</p>
-</div>
-
-<div class="card">
-  <h2>Views por post ao longo do tempo</h2>
-  <p class="note">Cada barra é um post publicado (ordem cronológica, 98 posts). Em vermelho, o top 10% (9 posts) que sozinho concentra 78% de todas as views do canal — incluindo um único post em 22/mar com 693.921 views (36,6% do total histórico).</p>
-  <div class="legend">
-    <span><span class="dot" style="background:var(--s1)"></span>Carrossel de fotos</span>
-    <span><span class="dot" style="background:var(--s8)"></span>Vídeo editado</span>
-    <span><span class="dot" style="background:var(--s6)"></span>Top 10% (hit)</span>
-  </div>
-  <div class="bars" id="barsChart"></div>
-  <div id="tooltip" class="tooltip"></div>
-</div>
-
-<div class="grid2">
-  <div class="card">
-    <h2>Formato: carrossel de fotos vs. vídeo</h2>
-    <p class="note">Média de views por post, por tipo de conteúdo (histórico completo)</p>
-    <div class="hbar-row">
-      <div class="hbar-label">Carrossel (n=64)</div>
-      <div class="hbar-track"><div class="hbar-fill" style="width:100%; background:var(--s1);"><span>28.614</span></div></div>
+  <div class="top">
+    <div class="brand">
+      <div class="avatar">SC</div>
+      <div>
+        <h1>@shonen.cut</h1>
+        <div class="sub">Painel de performance TikTok &middot; 13 fev&ndash;30 ago 2026</div>
+      </div>
     </div>
-    <div class="hbar-row">
-      <div class="hbar-label">Vídeo editado (n=34)</div>
-      <div class="hbar-track"><div class="hbar-fill outside" style="width:6.7%; background:var(--s8);"><span>1.928</span></div></div>
+    <div class="scan-pill"><span class="dot"></span> 178/178 posts escaneados (100%)</div>
+  </div>
+
+  <section style="margin-top:0">
+    <div class="kpis">
+      <div class="kpi"><div class="num">2,49M</div><div class="lbl">Views acumuladas</div></div>
+      <div class="kpi"><div class="num">178</div><div class="lbl">Posts publicados</div></div>
+      <div class="kpi"><div class="num">151,9K</div><div class="lbl">Curtidas totais</div></div>
+      <div class="kpi"><div class="num">12,3K</div><div class="lbl">Compartilhamentos</div></div>
+      <div class="kpi"><div class="num">2.202</div><div class="lbl">Comentários</div></div>
+      <div class="kpi"><div class="num">6,90%</div><div class="lbl">Engajamento médio</div></div>
     </div>
-    <p class="note" style="margin-top:10px; margin-bottom:0;">14,8x mais views em média. Mediana conta a mesma história (2.519 vs. 906) e os 10 posts de maior alcance de todo o histórico são <strong>100% carrossel</strong> — nenhum vídeo entre eles.</p>
-  </div>
-  <div class="card">
-    <h2>Melhor dia da semana</h2>
-    <p class="note">Mediana de views por dia de publicação. Amostra pequena por dia (7-19 posts) — leia como direção, não regra fixa.</p>
-    <div class="hbar-row"><div class="hbar-label">Quinta (n=9)</div><div class="hbar-track"><div class="hbar-fill" style="width:100%;"><span>29.777</span></div></div></div>
-    <div class="hbar-row"><div class="hbar-label">Quarta (n=12)</div><div class="hbar-track"><div class="hbar-fill" style="width:22%;"><span>6.479</span></div></div></div>
-    <div class="hbar-row"><div class="hbar-label">Terça (n=17)</div><div class="hbar-track"><div class="hbar-fill outside" style="width:5%;"><span>1.590</span></div></div></div>
-    <div class="hbar-row"><div class="hbar-label">Segunda (n=19)</div><div class="hbar-track"><div class="hbar-fill outside" style="width:5%;"><span>1.359</span></div></div></div>
-    <div class="hbar-row"><div class="hbar-label">Sexta (n=7)</div><div class="hbar-track"><div class="hbar-fill outside" style="width:4%;"><span>1.245</span></div></div></div>
-    <div class="hbar-row"><div class="hbar-label">Domingo (n=18)</div><div class="hbar-track"><div class="hbar-fill outside" style="width:4%;"><span>1.172</span></div></div></div>
-    <div class="hbar-row"><div class="hbar-label">Sábado (n=16)</div><div class="hbar-track"><div class="hbar-fill outside" style="width:3%;"><span>1.039</span></div></div></div>
-  </div>
-</div>
+  </section>
 
-<div class="card">
-  <h2>O que está funcionando (top 10) vs. o que não funciona mais (flop 5)</h2>
-  <p class="note">Agora com o histórico completo desde fevereiro — o ranking muda bastante em relação a uma leitura de só 3 meses.</p>
-  <table>
-    <thead><tr><th>Data</th><th>Formato</th><th>Legenda</th><th>Views</th><th>Curtidas</th><th>Engaj.</th></tr></thead>
-    <tbody>
-      <tr class="top"><td>22/03</td><td><span class="pill photo">Carrossel</span></td><td class="desc">"A perspectiva do vilão não é errada" — frases de vilões de Naruto ligadas ao amor</td><td>693.921</td><td>64.762</td><td>10,0%</td></tr>
-      <tr class="top"><td>06/04</td><td><span class="pill photo">Carrossel</span></td><td class="desc">"Luta muito forçada em Naruto" — crítica/opinião sobre o roteiro</td><td>193.690</td><td>7.885</td><td>4,5%</td></tr>
-      <tr class="top"><td>24/03</td><td><span class="pill photo">Carrossel</span></td><td class="desc">Frases de Naruto que "tocam fundo" — reflexão + amor</td><td>112.866</td><td>9.204</td><td>8,6%</td></tr>
-      <tr class="top"><td>24/02</td><td><span class="pill photo">Carrossel</span></td><td class="desc">Carrossel só com hashtags de Naruto, sem legenda autoral</td><td>108.740</td><td>5.111</td><td>4,9%</td></tr>
-      <tr class="top"><td>17/06</td><td><span class="pill photo">Carrossel</span></td><td class="desc">Citações JJK + Naruto + One Piece ("anime não é só porrada")</td><td>100.832</td><td>7.968</td><td>8,3%</td></tr>
-      <tr class="top"><td>12/03</td><td><span class="pill photo">Carrossel</span></td><td class="desc">Carrossel só com hashtags de Naruto, sem legenda autoral</td><td>99.337</td><td>4.566</td><td>4,8%</td></tr>
-      <tr class="top"><td>31/03</td><td><span class="pill photo">Carrossel</span></td><td class="desc">"A perspectiva do vilão não é errada" — mesmo tema do post nº1, repetido com sucesso</td><td>85.616</td><td>7.474</td><td>9,1%</td></tr>
-      <tr class="top"><td>26/02</td><td><span class="pill photo">Carrossel</span></td><td class="desc">Carrossel só com hashtags de Naruto, sem legenda autoral</td><td>50.451</td><td>4.933</td><td>10,3%</td></tr>
-      <tr class="top"><td>26/03</td><td><span class="pill photo">Carrossel</span></td><td class="desc">"Você já se identificou com Naruto?" — pergunta direta pra comentários</td><td>39.418</td><td>2.856</td><td>7,7%</td></tr>
-      <tr class="top"><td>11/03</td><td><span class="pill photo">Carrossel</span></td><td class="desc">Carrossel só com hashtags de Naruto, sem legenda autoral</td><td>39.086</td><td>1.960</td><td>5,5%</td></tr>
-      <tr><td>16/06</td><td><span class="pill photo">Carrossel</span></td><td class="desc">Repost de "Geto pergunta sem resposta" (conteúdo duplicado no feed)</td><td>57</td><td>2</td><td>3,5%</td></tr>
-      <tr><td>22/06</td><td><span class="pill photo">Carrossel</span></td><td class="desc">"Lutas polêmicas cross universo" — sem gancho, legenda genérica</td><td>107</td><td>3</td><td>3,7%</td></tr>
-      <tr><td>22/06</td><td><span class="pill photo">Carrossel</span></td><td class="desc">Referência à Copa do Mundo + Akatsuki (tema fora do nicho)</td><td>122</td><td>5</td><td>4,9%</td></tr>
-      <tr><td>11/07</td><td><span class="pill video">Vídeo</span></td><td class="desc">"Naruto sempre foi gênio" — vídeo editado de 71s</td><td>141</td><td>13</td><td>9,2%</td></tr>
-      <tr><td>09/06</td><td><span class="pill video">Vídeo</span></td><td class="desc">Vídeo editado só com hashtags #fyp, sem legenda</td><td>293</td><td>12</td><td>4,1%</td></tr>
-    </tbody>
-  </table>
-</div>
+  <section>
+    <div class="section-head">
+      <div><div class="eyebrow">A virada de agosto</div><h2>De anime para frases &mdash; o que os números mostram</h2>
+      <p>Views por mês, coloridas por tema. Julho ainda era 100% anime; em agosto o mix virou para frases, notícias positivas, curiosidades e finanças.</p></div>
+    </div>
+    <div class="card card-pad">
+      <div class="chart-legend" id="legend"></div>
+      <div class="month-chart" id="monthChart"></div>
+    </div>
+  </section>
 
-<div class="card">
-  <h2>Desempenho por hashtag</h2>
-  <p class="note">Só hashtags usadas em 5+ posts, histórico completo. Atenção: #amor deve boa parte da média ao post viral de 22/03, que usava a tag — não é causalidade pura da tag.</p>
-  <div class="hbar-row"><div class="hbar-label">#amor (n=7)</div><div class="hbar-track"><div class="hbar-fill" style="width:100%; background:var(--s3);"><span>131.826</span></div></div></div>
-  <div class="hbar-row"><div class="hbar-label">#naruto (n=59)</div><div class="hbar-track"><div class="hbar-fill" style="width:22%;"><span>29.468</span></div></div></div>
-  <div class="hbar-row"><div class="hbar-label">#animetiktok (n=6)</div><div class="hbar-track"><div class="hbar-fill" style="width:22%;"><span>28.730</span></div></div></div>
-  <div class="hbar-row"><div class="hbar-label">#otaku (n=65)</div><div class="hbar-track"><div class="hbar-fill" style="width:21%;"><span>27.641</span></div></div></div>
-  <div class="hbar-row"><div class="hbar-label">#animeedit (n=58)</div><div class="hbar-track"><div class="hbar-fill" style="width:20%;"><span>25.993</span></div></div></div>
-  <div class="hbar-row"><div class="hbar-label">#anime (n=79)</div><div class="hbar-track"><div class="hbar-fill" style="width:16%;"><span>21.685</span></div></div></div>
-  <div class="hbar-row"><div class="hbar-label">#narutoshippuden (n=36)</div><div class="hbar-track"><div class="hbar-fill" style="width:16%;"><span>21.614</span></div></div></div>
-  <div class="hbar-row"><div class="hbar-label">#onepiece (n=8)</div><div class="hbar-track"><div class="hbar-fill" style="width:10%;"><span>13.468</span></div></div></div>
-  <div class="hbar-row"><div class="hbar-label">#geek (n=5)</div><div class="hbar-track"><div class="hbar-fill outside" style="width:9%;"><span>12.506</span></div></div></div>
-  <div class="hbar-row"><div class="hbar-label">#fyp (n=18)</div><div class="hbar-track"><div class="hbar-fill outside" style="width:7%;"><span>9.883</span></div></div></div>
-  <div class="hbar-row"><div class="hbar-label">#dragonball (n=5)</div><div class="hbar-track"><div class="hbar-fill outside" style="width:5%;"><span>7.310</span></div></div></div>
-  <div class="hbar-row"><div class="hbar-label">#bleach (n=7)</div><div class="hbar-track"><div class="hbar-fill outside" style="width:5%;"><span>6.266</span></div></div></div>
-  <p class="note" style="margin-top:10px; margin-bottom:0;">Naruto aparece em 59 dos 98 posts (60% do canal). JJK, Demon Slayer, AOT, HxH e My Hero Academia somados aparecem em menos de 10 posts — volume baixo demais pra entrar neste ranking, mas é exatamente o gap de nicho detalhado abaixo.</p>
-</div>
+  <section>
+    <div class="section-head">
+      <div><div class="eyebrow">Média engana, mediana não</div><h2>O post típico caiu pouco &mdash; o teto de viralização é que sumiu</h2>
+      <p>A média de views despenca ao comparar eras porque 3 posts de anime (707K, 194K, 117K) distorcem tudo. Olhando o post <em>mediano</em> (o "post normal", sem os fenômenos), frases motivacionais está quase empatado com anime.</p></div>
+    </div>
+    <div class="grid-2">
+      <div class="card card-pad">
+        <h3 style="font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:10px;">Mediana de views por tema</h3>
+        <div class="cmp-row"><div>Anime</div><div class="cmp-track"><div class="cmp-fill" style="width:100%;background:var(--cat-anime)"></div></div><div class="cmp-val">1.148</div></div>
+        <div class="cmp-row"><div>Frases motivacionais</div><div class="cmp-track"><div class="cmp-fill" style="width:92%;background:var(--cat-frases)"></div></div><div class="cmp-val">1.059</div></div>
+        <h3 style="font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin:18px 0 10px;">Mediana de views por formato</h3>
+        <div class="cmp-row"><div>Foto/Carrossel</div><div class="cmp-track"><div class="cmp-fill" style="width:100%;background:var(--accent)"></div></div><div class="cmp-val">1.545</div></div>
+        <div class="cmp-row"><div>Vídeo</div><div class="cmp-track"><div class="cmp-fill" style="width:44%;background:var(--muted)"></div></div><div class="cmp-val">677</div></div>
+      </div>
+      <div class="card card-pad">
+        <h3 style="font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:12px;">Leitura rápida</h3>
+        <p style="font-size:13px;color:var(--ink-2);">133 dos 178 posts são carrossel de fotos, apenas 45 são vídeo &mdash; e o carrossel converte quase o dobro em mediana. O formato vídeo tem muitos testes de poucos segundos (9 a 100 views) que puxam a mediana pra baixo.</p>
+        <p style="font-size:13px;color:var(--ink-2);margin-top:10px;">A virada de tema não matou o alcance típico. O que sumiu foi a <strong style="color:var(--ink)">frequência de fenômenos virais</strong>: em 6 meses de anime, 3 posts passaram de 100K views. Em 1 mês de frases/curiosidades, o maior post (dinheiro, 276K) já prova que o formato consegue viralizar &mdash; só ainda não virou rotina.</p>
+      </div>
+    </div>
+  </section>
 
-<div class="card">
-  <h2>Leitura do que está funcionando</h2>
-  <ul>
-    <li><strong>Um único post carrega o canal.</strong> O carrossel de 22/03 ("a perspectiva do vilão não é errada") sozinho tem 693.921 views — 36,6% de tudo que o canal já visualizou em 5 meses. O top 10% dos posts (9 de 98) concentra 78% das views totais.</li>
-    <li><strong>O padrão por trás dos maiores hits é bem específico:</strong> não é "frase de anime" genérica, é reflexão emocional sobre vilões de Naruto conectada a temas de amor/perda/humanidade. Esse exato tema aparece 2x no top 10 (22/03 e 31/03) — já foi validado, repetir.</li>
-    <li><strong>Carrossel de fotos domina vídeo editado</strong> em qualquer recorte: 14,8x mais views em média (28.614 vs. 1.928), e os 10 posts de maior alcance de todo o histórico são 100% carrossel.</li>
-    <li><strong>Março foi o auge do canal</strong> (1,2M views em 30 posts) — e maio foi o oposto: só 4 posts publicados e apenas 19.658 views no mês inteiro, uma queda de frequência que coincidiu com o pior resultado por post do histórico. Consistência parece pesar tanto quanto o conteúdo em si.</li>
-    <li><strong>Naruto domina o canal</strong> — está em 60% dos posts (59 de 98). Todo o resto do universo shonen (One Piece, Dragon Ball, Bleach, JJK, Demon Slayer, AOT, HxH, MHA) soma os outros 40%.</li>
-    <li><strong>Reposts e conteúdo fora do nicho</strong> (repost de "Geto pergunta sem resposta", post sobre Copa do Mundo) seguem entre os piores resultados do canal — vale evitar.</li>
-  </ul>
-</div>
+  <section>
+    <div class="section-head">
+      <div><div class="eyebrow">Top 10 de todos os tempos</div><h2>O que já fez sucesso</h2></div>
+    </div>
+    <div class="card card-pad" id="topList"></div>
+  </section>
 
-<div class="card">
-  <h2>Oportunidades do nicho e concorrência</h2>
-  <p class="note">Metricool não rastreia concorrentes para TikTok (só disponível para Instagram/Facebook/Twitch/YouTube/Twitter/Bluesky) — leitura abaixo combina os 98 posts escaneados com pesquisa de tendências do nicho de anime edits em 2026.</p>
-  <ul>
-    <li><strong>Concentração de conteúdo em Naruto (60% dos posts) é bem maior do que o dado de 3 meses sugeria.</strong> Jujutsu Kaisen, Demon Slayer, AOT, HxH e My Hero Academia somados aparecem em menos de 10 posts em 5 meses de canal — e seguem dominando o espaço de edits de anime em 2026.</li>
-    <li><strong>O canal já provou que sabe atrair audiência fora do Naruto puro:</strong> o post de 17/06 (citações JJK + Naruto + One Piece) chegou a 100.832 views — prova de que multi-fandom funciona, só falta repetir com mais frequência e cobrir Demon Slayer/AOT, que ainda não tiveram um post dedicado de peso.</li>
-    <li><strong>Contas de "frases de anime" são um nicho consolidado e ainda crescendo</strong> no TikTok em português — o formato que mais funciona no canal (carrossel de citações/reflexão) é exatamente o que domina esse subnicho.</li>
-    <li><strong>Tendência "Twins at the Carousel"</strong> (meme de animação com Hatsune Miku/Kikuo) viralizou entre múltiplos fandoms em 2026, incluindo Dragon Ball e JoJo's — oportunidade de participar com uma versão no estilo shonen se houver capacidade de animação/edição.</li>
-    <li><strong>Gap identificado:</strong> o canal ainda não explora crossovers "qual anime venceria" nem rankings recorrentes de personagens — formato que costuma gerar alto volume de comentários no nicho.</li>
-  </ul>
-</div>
+  <section>
+    <div class="section-head">
+      <div><div class="eyebrow">O que não faz mais sucesso</div><h2>Os posts que menos performaram na virada</h2>
+      <p>Todos os posts abaixo de 500 views em agosto têm uma coisa em comum: legenda genérica só com hashtag (<code class="mono">#frases #motivacao #fyp</code>), sem gancho, sem afirmação específica.</p></div>
+    </div>
+    <div class="card card-pad" id="flopList"></div>
+  </section>
 
-<div class="card">
-  <h2>Exemplos de conteúdo para os próximos posts</h2>
-  <div class="idea">
-    <span class="tag">Carrossel · replicar o maior hit do canal</span>
-    <h3>"A perspectiva do vilão de [X] não é errada"</h3>
-    <p>O tema exato do maior post do canal (693K views) e do 7º maior (85K views, mesmo tema repetido) — vilão + amor/perda/humanidade. Aplicar a mesma fórmula a vilões de JJK (Sukuna, Geto) e Demon Slayer (Muzan, Akaza) para puxar essa audiência sem sair do formato comprovado.</p>
-  </div>
-  <div class="idea">
-    <span class="tag">Carrossel · cobrir gap de nicho</span>
-    <h3>"3 pares de JJK e Demon Slayer que parecem a mesma pessoa"</h3>
-    <p>Já em produção — usa o formato vencedor (carrossel + legenda reflexiva) pra cobrir o gap identificado: JJK/Demon Slayer somam menos de 10 posts em 98, mas dominam o nicho em 2026.</p>
-  </div>
-  <div class="idea">
-    <span class="tag">Consistência · maior risco do canal</span>
-    <h3>Manter cadência mesmo sem hit recente</h3>
-    <p>Maio teve só 4 posts e o pior resultado médio do histórico — a queda de frequência coincidiu com a queda de performance. Definir uma meta mínima de posts/semana e manter mesmo em meses "fracos" evita esse tipo de vale.</p>
-  </div>
-  <div class="idea">
-    <span class="tag">Vídeo · só se bem executado</span>
-    <h3>Não priorizar vídeo editado sem repensar o formato</h3>
-    <p>Os 34 vídeos publicados em 5 meses têm média de 1.928 views — 14,8x menos que o carrossel. Se for continuar com vídeo, testar gancho nos primeiros 2s e um áudio em alta, ou migrar esse conteúdo pro formato carrossel.</p>
-  </div>
-  <div class="idea">
-    <span class="tag">Consistência de legenda</span>
-    <h3>Evitar reposts e legendas vazias</h3>
-    <p>Os posts sem legenda ou repostados seguem entre os piores resultados do canal. Cada post deve ter uma legenda com contexto/reflexão — é o que diferencia os top 10 dos flop 5.</p>
-  </div>
-</div>
+  <section>
+    <div class="section-head">
+      <div><div class="eyebrow">A fórmula que já provou funcionar</div><h2>3 elementos, 2 temas, o mesmo resultado</h2>
+      <p>O post recorde de anime (707K) e o post recorde da nova fase (276K, sobre dinheiro) usam exatamente a mesma estrutura &mdash; só trocaram o assunto.</p></div>
+    </div>
+    <div class="formula">
+      <div class="fstep"><div class="fnum">01</div><h3>Gancho contrariando o senso comum</h3><p>"Anime não é só porrada" / "O problema não é quanto entra, é quanto sai sem perceber" &mdash; a primeira frase quebra uma expectativa óbvia.</p></div>
+      <div class="fstep"><div class="fnum">02</div><h3>Afirmação específica, não genérica</h3><p>Nomeia personagens/situações reais (Pain, Gaara) em vez de "frases motivacionais" soltas. Quanto mais concreto o exemplo, maior o alcance.</p></div>
+      <div class="fstep"><div class="fnum">03</div><h3>CTA de debate nos comentários</h3><p>"Prove que eu tô errado" / pergunta direta. Gera comentários de discordância &mdash; o sinal mais forte pro algoritmo do TikTok.</p></div>
+    </div>
+  </section>
 
-<footer>Painel gerado a partir de dados do Metricool (@shonen.cut) em 13/07/2026 · 98/98 posts escaneados (100%, desde 13/02/2026)</footer>
+  <div class="grid-2">
+  <section>
+    <div class="section-head"><div><div class="eyebrow">Quando postar</div><h2>Melhor horário (fuso Brasília)</h2></div></div>
+    <div class="card card-pad">
+      <p style="font-size:13px;color:var(--ink-2);margin-bottom:14px;">Pico absoluto: <strong style="color:var(--ink)">quarta-feira, 10h</strong> (score 1432). Alternativas fortes: quarta 18h, quinta 10h e quinta 18h.</p>
+      <div id="heatmap"></div>
+    </div>
+  </section>
+  <section>
+    <div class="section-head"><div><div class="eyebrow">Oportunidades &amp; concorrência</div><h2>O que dá pra explorar no nicho</h2></div></div>
+    <div class="card card-pad">
+      <p style="font-size:13px;color:var(--ink-2);">Sem uma conta de concorrente conectada, não dá pra puxar os números exatos de quem está ganhando espectadores no nicho &mdash; isso exigiria conectar handles específicos (via Metricool ou Windsor.ai) ou uma ferramenta de scraping de TikTok, que não está disponível aqui.</p>
+      <p style="font-size:13px;color:var(--ink-2);margin-top:10px;">O que dá pra afirmar com os dados públicos: o nicho de "frases motivacionais de anime" está em alta e é menos disputado que "anime edit" puro (saturado com Blue Lock, Demon Slayer, Re:Zero). Curiosidades com número específico ("86 bilhões de neurônios", "Everest cresce todo ano") e educação financeira com gancho contra-intuitivo são os dois formatos novos que já bateram 5+ dígitos de views na própria conta &mdash; sinal de que têm audiência disponível no FYP brasileiro.</p>
+      <p style="font-size:13px;color:var(--ink-2);margin-top:10px;">Próximo passo recomendado: me passe 2&ndash;3 handles de concorrentes diretos e eu conecto para comparar frequência, formato e crescimento lado a lado.</p>
+    </div>
+  </section>
+  </div>
+
+  <section>
+    <div class="section-head">
+      <div><div class="eyebrow">Prontos para gravar/postar</div><h2>Exemplos de conteúdo &mdash; ajustando a virada</h2>
+      <p>4 roteiros aplicando a fórmula de 3 elementos aos dois mundos: o público de anime que já existe (6.475 seguidores) e o novo tema de frases/reflexão.</p></div>
+    </div>
+    <div id="examples" style="display:grid;grid-template-columns:repeat(2,1fr);gap:18px;"></div>
+  </section>
+
+  <section>
+    <div class="section-head">
+      <div><div class="eyebrow">Base completa &mdash; 100% dos posts</div><h2>Todos os 178 posts escaneados</h2></div>
+    </div>
+    <div class="filters" id="filters"></div>
+    <div class="tbl-wrap">
+      <table id="postTable">
+        <thead><tr>
+          <th data-key="date">Data<span class="arrow"></span></th>
+          <th data-key="cat">Tema<span class="arrow"></span></th>
+          <th data-key="type">Formato<span class="arrow"></span></th>
+          <th data-key="views" class="num-cell">Views<span class="arrow"></span></th>
+          <th data-key="likes" class="num-cell">Curtidas<span class="arrow"></span></th>
+          <th data-key="eng" class="num-cell">Engaj.%<span class="arrow"></span></th>
+          <th>Legenda</th>
+        </tr></thead>
+        <tbody id="tbody"></tbody>
+      </table>
+      <div class="tbl-foot" id="tblFoot"></div>
+    </div>
+  </section>
+
+  <footer>
+    <div>Fonte: Metricool (conector TikTok orgânico) &middot; período 13/02/2026&ndash;03/09/2026</div>
+    <div>Atualizado em 03/09/2026</div>
+  </footer>
+
+</div>
 
 <script>
-  const posts = [{"date": "20260213", "views": 982, "likes": 72, "comments": 0, "shares": 1, "type": "VIDEO", "eng": 7.43}, {"date": "20260214", "views": 726, "likes": 57, "comments": 2, "shares": 3, "type": "VIDEO", "eng": 8.54}, {"date": "20260214", "views": 390, "likes": 12, "comments": 0, "shares": 4, "type": "VIDEO", "eng": 4.1}, {"date": "20260214", "views": 571, "likes": 51, "comments": 0, "shares": 3, "type": "VIDEO", "eng": 9.46}, {"date": "20260214", "views": 677, "likes": 62, "comments": 2, "shares": 3, "type": "VIDEO", "eng": 9.9}, {"date": "20260215", "views": 595, "likes": 37, "comments": 6, "shares": 0, "type": "VIDEO", "eng": 7.23}, {"date": "20260215", "views": 656, "likes": 51, "comments": 0, "shares": 2, "type": "VIDEO", "eng": 8.08}, {"date": "20260216", "views": 1068, "likes": 100, "comments": 4, "shares": 1, "type": "VIDEO", "eng": 9.83}, {"date": "20260216", "views": 1747, "likes": 159, "comments": 6, "shares": 5, "type": "VIDEO", "eng": 9.73}, {"date": "20260217", "views": 437, "likes": 29, "comments": 0, "shares": 0, "type": "VIDEO", "eng": 6.64}, {"date": "20260217", "views": 599, "likes": 52, "comments": 2, "shares": 0, "type": "VIDEO", "eng": 9.02}, {"date": "20260217", "views": 1326, "likes": 93, "comments": 11, "shares": 4, "type": "VIDEO", "eng": 8.14}, {"date": "20260220", "views": 5605, "likes": 603, "comments": 19, "shares": 1, "type": "VIDEO", "eng": 11.12}, {"date": "20260221", "views": 906, "likes": 52, "comments": 2, "shares": 8, "type": "VIDEO", "eng": 6.84}, {"date": "20260222", "views": 1143, "likes": 53, "comments": 0, "shares": 2, "type": "VIDEO", "eng": 4.81}, {"date": "20260224", "views": 108740, "likes": 5111, "comments": 93, "shares": 149, "type": "PHOTO", "eng": 4.92}, {"date": "20260224", "views": 695, "likes": 24, "comments": 1, "shares": 0, "type": "VIDEO", "eng": 3.6}, {"date": "20260226", "views": 50451, "likes": 4933, "comments": 88, "shares": 157, "type": "PHOTO", "eng": 10.26}, {"date": "20260226", "views": 4124, "likes": 400, "comments": 22, "shares": 34, "type": "PHOTO", "eng": 11.06}, {"date": "20260227", "views": 6650, "likes": 222, "comments": 51, "shares": 1, "type": "PHOTO", "eng": 4.12}, {"date": "20260228", "views": 871, "likes": 44, "comments": 1, "shares": 0, "type": "VIDEO", "eng": 5.17}, {"date": "20260228", "views": 6427, "likes": 254, "comments": 1, "shares": 3, "type": "VIDEO", "eng": 4.01}, {"date": "20260228", "views": 1043, "likes": 26, "comments": 0, "shares": 0, "type": "VIDEO", "eng": 2.49}, {"date": "20260301", "views": 751, "likes": 55, "comments": 0, "shares": 0, "type": "VIDEO", "eng": 7.32}, {"date": "20260302", "views": 446, "likes": 19, "comments": 0, "shares": 2, "type": "PHOTO", "eng": 4.71}, {"date": "20260304", "views": 24687, "likes": 915, "comments": 59, "shares": 21, "type": "PHOTO", "eng": 4.03}, {"date": "20260305", "views": 2337, "likes": 115, "comments": 3, "shares": 2, "type": "PHOTO", "eng": 5.13}, {"date": "20260306", "views": 1725, "likes": 62, "comments": 6, "shares": 1, "type": "PHOTO", "eng": 4.0}, {"date": "20260307", "views": 34250, "likes": 999, "comments": 31, "shares": 20, "type": "PHOTO", "eng": 3.07}, {"date": "20260308", "views": 1172, "likes": 78, "comments": 4, "shares": 2, "type": "VIDEO", "eng": 7.17}, {"date": "20260308", "views": 555, "likes": 24, "comments": 1, "shares": 0, "type": "VIDEO", "eng": 4.5}, {"date": "20260308", "views": 495, "likes": 28, "comments": 0, "shares": 0, "type": "VIDEO", "eng": 5.66}, {"date": "20260309", "views": 2519, "likes": 66, "comments": 4, "shares": 0, "type": "PHOTO", "eng": 2.78}, {"date": "20260310", "views": 1378, "likes": 47, "comments": 0, "shares": 1, "type": "PHOTO", "eng": 3.48}, {"date": "20260311", "views": 39086, "likes": 1960, "comments": 135, "shares": 42, "type": "PHOTO", "eng": 5.47}, {"date": "20260312", "views": 685, "likes": 4, "comments": 0, "shares": 0, "type": "VIDEO", "eng": 0.58}, {"date": "20260312", "views": 99337, "likes": 4566, "comments": 158, "shares": 72, "type": "PHOTO", "eng": 4.83}, {"date": "20260313", "views": 1245, "likes": 56, "comments": 3, "shares": 3, "type": "PHOTO", "eng": 4.98}, {"date": "20260314", "views": 1548, "likes": 71, "comments": 0, "shares": 1, "type": "PHOTO", "eng": 4.65}, {"date": "20260316", "views": 1957, "likes": 51, "comments": 2, "shares": 1, "type": "PHOTO", "eng": 2.76}, {"date": "20260317", "views": 19069, "likes": 1100, "comments": 51, "shares": 56, "type": "PHOTO", "eng": 6.33}, {"date": "20260317", "views": 1886, "likes": 77, "comments": 1, "shares": 4, "type": "PHOTO", "eng": 4.35}, {"date": "20260318", "views": 12015, "likes": 355, "comments": 14, "shares": 2, "type": "PHOTO", "eng": 3.09}, {"date": "20260322", "views": 693921, "likes": 64762, "comments": 370, "shares": 4286, "type": "PHOTO", "eng": 10.0}, {"date": "20260324", "views": 112866, "likes": 9204, "comments": 42, "shares": 401, "type": "PHOTO", "eng": 8.55}, {"date": "20260325", "views": 28076, "likes": 1787, "comments": 9, "shares": 81, "type": "PHOTO", "eng": 6.69}, {"date": "20260325", "views": 1719, "likes": 73, "comments": 1, "shares": 5, "type": "VIDEO", "eng": 4.6}, {"date": "20260326", "views": 39418, "likes": 2856, "comments": 35, "shares": 138, "type": "PHOTO", "eng": 7.68}, {"date": "20260328", "views": 3427, "likes": 93, "comments": 4, "shares": 4, "type": "PHOTO", "eng": 2.95}, {"date": "20260329", "views": 948, "likes": 18, "comments": 0, "shares": 0, "type": "VIDEO", "eng": 1.9}, {"date": "20260329", "views": 1569, "likes": 69, "comments": 1, "shares": 8, "type": "PHOTO", "eng": 4.97}, {"date": "20260331", "views": 2435, "likes": 131, "comments": 0, "shares": 5, "type": "VIDEO", "eng": 5.59}, {"date": "20260331", "views": 85616, "likes": 7474, "comments": 35, "shares": 317, "type": "PHOTO", "eng": 9.14}, {"date": "20260401", "views": 1907, "likes": 46, "comments": 0, "shares": 1, "type": "VIDEO", "eng": 2.46}, {"date": "20260405", "views": 25174, "likes": 1209, "comments": 15, "shares": 31, "type": "VIDEO", "eng": 4.99}, {"date": "20260406", "views": 193690, "likes": 7885, "comments": 107, "shares": 744, "type": "PHOTO", "eng": 4.51}, {"date": "20260412", "views": 5056, "likes": 190, "comments": 3, "shares": 6, "type": "PHOTO", "eng": 3.94}, {"date": "20260413", "views": 1359, "likes": 18, "comments": 0, "shares": 4, "type": "VIDEO", "eng": 1.62}, {"date": "20260415", "views": 1091, "likes": 34, "comments": 3, "shares": 0, "type": "PHOTO", "eng": 3.39}, {"date": "20260420", "views": 6322, "likes": 136, "comments": 2, "shares": 3, "type": "PHOTO", "eng": 2.23}, {"date": "20260421", "views": 2576, "likes": 60, "comments": 21, "shares": 2, "type": "PHOTO", "eng": 3.22}, {"date": "20260426", "views": 1487, "likes": 81, "comments": 0, "shares": 1, "type": "PHOTO", "eng": 5.51}, {"date": "20260429", "views": 2005, "likes": 118, "comments": 0, "shares": 1, "type": "PHOTO", "eng": 5.94}, {"date": "20260502", "views": 4494, "likes": 158, "comments": 2, "shares": 3, "type": "PHOTO", "eng": 3.63}, {"date": "20260503", "views": 893, "likes": 11, "comments": 1, "shares": 1, "type": "PHOTO", "eng": 1.46}, {"date": "20260504", "views": 1507, "likes": 52, "comments": 6, "shares": 2, "type": "PHOTO", "eng": 3.98}, {"date": "20260510", "views": 12764, "likes": 669, "comments": 6, "shares": 18, "type": "PHOTO", "eng": 5.43}, {"date": "20260601", "views": 12692, "likes": 427, "comments": 3, "shares": 3, "type": "PHOTO", "eng": 3.41}, {"date": "20260604", "views": 2256, "likes": 127, "comments": 2, "shares": 11, "type": "PHOTO", "eng": 6.21}, {"date": "20260606", "views": 1904, "likes": 25, "comments": 0, "shares": 0, "type": "PHOTO", "eng": 1.31}, {"date": "20260607", "views": 651, "likes": 72, "comments": 0, "shares": 4, "type": "PHOTO", "eng": 11.67}, {"date": "20260607", "views": 3817, "likes": 61, "comments": 3, "shares": 2, "type": "PHOTO", "eng": 1.73}, {"date": "20260608", "views": 1039, "likes": 73, "comments": 1, "shares": 4, "type": "PHOTO", "eng": 7.51}, {"date": "20260609", "views": 293, "likes": 12, "comments": 0, "shares": 0, "type": "VIDEO", "eng": 4.1}, {"date": "20260609", "views": 432, "likes": 19, "comments": 0, "shares": 0, "type": "VIDEO", "eng": 4.4}, {"date": "20260610", "views": 6479, "likes": 475, "comments": 10, "shares": 30, "type": "PHOTO", "eng": 7.95}, {"date": "20260611", "views": 32822, "likes": 2228, "comments": 370, "shares": 91, "type": "PHOTO", "eng": 8.19}, {"date": "20260612", "views": 527, "likes": 30, "comments": 4, "shares": 1, "type": "PHOTO", "eng": 6.64}, {"date": "20260614", "views": 2428, "likes": 103, "comments": 4, "shares": 3, "type": "PHOTO", "eng": 4.53}, {"date": "20260615", "views": 331, "likes": 20, "comments": 0, "shares": 1, "type": "PHOTO", "eng": 6.34}, {"date": "20260615", "views": 945, "likes": 31, "comments": 2, "shares": 2, "type": "PHOTO", "eng": 3.7}, {"date": "20260616", "views": 57, "likes": 2, "comments": 0, "shares": 0, "type": "PHOTO", "eng": 3.51}, {"date": "20260616", "views": 3099, "likes": 140, "comments": 6, "shares": 1, "type": "PHOTO", "eng": 4.74}, {"date": "20260617", "views": 100832, "likes": 7968, "comments": 47, "shares": 379, "type": "PHOTO", "eng": 8.32}, {"date": "20260617", "views": 340, "likes": 11, "comments": 0, "shares": 0, "type": "PHOTO", "eng": 3.24}, {"date": "20260620", "views": 1039, "likes": 67, "comments": 1, "shares": 4, "type": "VIDEO", "eng": 6.93}, {"date": "20260622", "views": 386, "likes": 28, "comments": 1, "shares": 1, "type": "PHOTO", "eng": 7.77}, {"date": "20260622", "views": 122, "likes": 5, "comments": 1, "shares": 0, "type": "PHOTO", "eng": 4.92}, {"date": "20260622", "views": 107, "likes": 3, "comments": 1, "shares": 0, "type": "PHOTO", "eng": 3.74}, {"date": "20260622", "views": 3435, "likes": 122, "comments": 5, "shares": 1, "type": "PHOTO", "eng": 3.73}, {"date": "20260625", "views": 29777, "likes": 1614, "comments": 45, "shares": 51, "type": "PHOTO", "eng": 5.74}, {"date": "20260629", "views": 12763, "likes": 850, "comments": 7, "shares": 50, "type": "PHOTO", "eng": 7.11}, {"date": "20260630", "views": 1590, "likes": 129, "comments": 1, "shares": 1, "type": "PHOTO", "eng": 8.24}, {"date": "20260704", "views": 532, "likes": 13, "comments": 1, "shares": 0, "type": "PHOTO", "eng": 2.63}, {"date": "20260706", "views": 1354, "likes": 85, "comments": 8, "shares": 5, "type": "PHOTO", "eng": 7.24}, {"date": "20260708", "views": 468, "likes": 45, "comments": 1, "shares": 1, "type": "PHOTO", "eng": 10.04}, {"date": "20260710", "views": 342, "likes": 39, "comments": 0, "shares": 1, "type": "PHOTO", "eng": 11.7}, {"date": "20260711", "views": 141, "likes": 13, "comments": 0, "shares": 0, "type": "VIDEO", "eng": 9.22}];
-  const maxViews = Math.max(...posts.map(p=>p.views));
-  const container = document.getElementById('barsChart');
-  const tooltip = document.getElementById('tooltip');
-  const sorted = [...posts].map(p=>p.views).sort((a,b)=>b-a);
-  const hitCount = Math.max(1, Math.floor(posts.length * 0.10));
-  const hitThreshold = sorted[hitCount - 1]; // top 10% = "hit"
+const POSTS = [["20260213221246", 985, 72, 0, 1, "VIDEO", "Anime", "Você vai se arrepender! Yusuke vs Sensui #fy #yuyuhakusho #anime #animes #brasil "], ["20260214110805", 677, 62, 2, 3, "VIDEO", "Anime", "O Melhor de Yuyu Hakusho! #fy #yuyuhakusho #anime #nostalgia "], ["20260214144206", 571, 51, 0, 3, "VIDEO", "Anime", "Rock Lee vs Gaara, um clássico de Naruto. #fy #fyp #naruto #rockleevsgaara #anime "], ["20260214173713", 414, 12, 0, 4, "VIDEO", "Anime", "Yusuke retoma o controle de RAIZEN! #fyp #fy #anime #yuyuhakusho "], ["20260214223419", 726, 57, 2, 3, "VIDEO", "Anime", "Naruto Clássico. Rock Lee vs Gaara. #fyp #anime #naruto #nostalgia "], ["20260215145824", 659, 51, 0, 2, "VIDEO", "Anime", "Rock Lee Vs Gaara, parte 3. #fyp #naruto #anime #fy "], ["20260215231142", 595, 37, 6, 0, "VIDEO", "Anime", "Os melhores animes! Nostalgia! #fyp #anime #cdz #naruto #yuyuhakusho "], ["20260216091218", 1747, 159, 6, 5, "VIDEO", "Anime", "Começando a semana com Yuyu Hakusho! #fyp #animes #nostalgia #fy #tiktok "], ["20260216204003", 1068, 100, 4, 1, "VIDEO", "Anime", "Samurai Warriors Clássico! #fyp #tiktoker #animes #tiktok #brasil "], ["20260217012225", 1330, 93, 11, 4, "VIDEO", "Anime", "Eu Declaro você o mais forte! #fyp #narutoshippuden #madara #animeedit #tiktok "], ["20260217115218", 599, 52, 2, 0, "VIDEO", "Anime", "Mais Yuyu #fyp #tiktoker #animes #tiktok "], ["20260217163606", 438, 29, 0, 0, "VIDEO", "Anime", "Ban…Kai Getsuga #fyp #bleach #animeedit #tiktok "], ["20260220222016", 5606, 603, 19, 1, "VIDEO", "Anime", "Quem derrotou cada membro da Akatsuki? #naruto #itachi #narutoshippuden #anime #animeedit "], ["20260221201534", 916, 52, 2, 8, "VIDEO", "Anime", "Polícia da Akatsuki #itachi #policia #animeedit #naruto "], ["20260222122649", 1299, 54, 0, 2, "VIDEO", "Anime", "A Transformação de Toguro! 100% de Poder. #toguro #animeedit #yuyuhakusho #anime "], ["20260224034105", 695, 24, 1, 0, "VIDEO", "Anime", "A melhor técnica visual? #anime #naruto #otaku #animetiktok #itachi "], ["20260224181023", 108808, 5111, 93, 149, "PHOTO", "Anime", "#animeedit #naruto #narutoshippuden #otaku #animetiktok "], ["20260226000313", 4164, 400, 22, 34, "PHOTO", "Anime", "#anime #animeedit #naruto #animetiktok #narutoshippuden "], ["20260226145145", 50507, 4932, 86, 157, "PHOTO", "Anime", "#animeedit #naruto #narutoshippuden #animetiktok #fyp "], ["20260227142957", 6652, 222, 51, 1, "PHOTO", "Anime", "#anime #naruto #animeedit #animetiktok #narutoshippuden "], ["20260228190449", 1069, 27, 0, 0, "VIDEO", "Anime", "A voz do Ichigo gritando BANKAI. #animeedit #animerecommendations #nostalgia #geek #fyp "], ["20260228200520", 8587, 287, 2, 4, "VIDEO", "Anime", "Do Gamabunta aos sábios Fukasaku e Shima. #naruto #anime #otaku #narutoshippuden #animeedit "], ["20260228210728", 871, 44, 1, 0, "VIDEO", "Anime", "Qual o Bankai mais apelão de Bleach? #bleachanime #tybw #bankai #animeedit #anime "], ["20260301144203", 751, 55, 0, 0, "VIDEO", "Anime", "6 Lutas de Naruto que você não Viu! #naruto #narutoshippuden #animeedit #animerecommendations #fyp "], ["20260302230100", 460, 19, 0, 2, "PHOTO", "Anime", "#naruto #narutoshippuden #anime #otaku #kakashi "], ["20260304172652", 24715, 915, 59, 21, "PHOTO", "Anime", "#naruto #anime #otaku #narutoshippuden #geek "], ["20260305165737", 2471, 116, 3, 2, "PHOTO", "Anime", "#naruto #narutoshippuden #otaku #anime #animeedit "], ["20260306181839", 1742, 62, 6, 1, "PHOTO", "Anime", "#otaku #anime #naruto #itachi #animeedit "], ["20260307155707", 34345, 1002, 31, 20, "PHOTO", "Anime", "#anime #otaku #bleach #animeedit #geek "], ["20260308014041", 497, 28, 0, 0, "VIDEO", "Anime", "Você percebeu esse detalhe... sorriso final de Itachi. #naruto #narutoshippuden #itachi #animeedit #otaku "], ["20260308100058", 576, 24, 1, 0, "VIDEO", "Anime", "Shisui x Itachi - quem venceria? #itachi #naruto #narutoshippuden #otaku #animeedit "], ["20260308204008", 1214, 78, 4, 2, "VIDEO", "Anime", "Meu Top 3 aberturas. #anime #animeedit #otaku #yuyuhakusho #geek "], ["20260309164424", 2526, 67, 4, 0, "PHOTO", "Anime", "#bleach #anime #animeedit #otaku #ichigo "], ["20260310144352", 1468, 47, 0, 2, "PHOTO", "Anime", "Fullmetal Alchemist não é apenas luta, é filosofia e fraternidade. #fma #otaku #anime #animeedit #geek "], ["20260311141934", 39165, 1961, 134, 42, "PHOTO", "Anime", "#naruto #narutoshippuden #otaku #anime #animeedit "], ["20260312161317", 99422, 4565, 158, 72, "PHOTO", "Anime", "#otaku #naruto #narutoshippuden #anime #animeedit "], ["20260312204451", 685, 4, 0, 0, "VIDEO", "Anime", "Será que um dia Ichigo será capitão? #ichigo #bleach #anime #animeedit #otaku "], ["20260313133518", 1249, 56, 3, 3, "PHOTO", "Anime", "#naruto #narutoshippuden #otaku #anime #animeedit "], ["20260314194855", 1553, 71, 0, 1, "PHOTO", "Anime", "Se não fosse pela genialidade de Itachi... #naruto #narutoshippuden #otaku #anime #animeedit "], ["20260316184658", 1965, 51, 2, 1, "PHOTO", "Anime", "Nenhum personagem representa o Clássico do Naruto quanto o Rock Lee."], ["20260317133852", 1930, 78, 1, 3, "PHOTO", "Anime", "Cada Membro da Akatsuki tem sua representação. #naruto #narutoshippuden #otaku #anime #itachi "], ["20260317173612", 19487, 1107, 51, 56, "PHOTO", "Anime", "Digimon nos ensinava sobre responsabilidade. #digimon #otaku #nostalgia #anime #animeedit "], ["20260318173611", 12405, 365, 14, 2, "PHOTO", "Anime", "#digimon #otaku #anime #animeedit #nostalgia "], ["20260322201347", 707026, 65398, 376, 4372, "PHOTO", "Anime", "Algumas frases dos vilões de Naruto parecem simbolizar o amor (Pain, Gaara). #naruto #anime #amor #animeedit #otaku "], ["20260324215322", 117195, 9341, 42, 403, "PHOTO", "Anime", "Naruto traz um tom leve, mas profundo. #naruto #amor #anime #otaku #fyp "], ["20260325083752", 1733, 74, 1, 5, "VIDEO", "Anime", "Você diria? #otaku #anime #animetiktok #dragonball #nostalgia "], ["20260325223200", 28152, 1789, 8, 81, "PHOTO", "Anime", "Independente de qual anime é melhor, muitos ensinam a lidar com frustrações. #anime #otaku #amor #animeedit #naruto "], ["20260326200910", 39959, 2860, 33, 139, "PHOTO", "Anime", "Você já se identificou com alguma cena de Naruto? #naruto #otaku #narutoshippuden #anime #animeedit "], ["20260328002111", 3451, 93, 4, 4, "PHOTO", "Anime", "Na minha opinião, esses membros da Akatsuki foram muito nerfados. "], ["20260329190301", 1598, 72, 1, 8, "PHOTO", "Anime", "Seja como for, não desista. #naruto #kakashi #otaku #anime #animeedit "], ["20260329194247", 961, 19, 0, 0, "VIDEO", "Anime", "#dueto com @SKII #Anime #anime#animeeditto #nostalgia "], ["20260331084113", 86389, 7477, 35, 321, "PHOTO", "Anime", "A perspectiva na visão do vilão. #naruto #narutoshippuden #otaku #anime #amor "], ["20260331205922", 2517, 133, 0, 5, "VIDEO", "Anime", "E se os vilões de Naruto nunca estivessem errados? #naruto #narutoshippuden #otaku #anime #animeedit "], ["20260401220636", 1987, 47, 0, 1, "VIDEO", "Anime", "Naruto mexe com muitas pessoas! #naruto #narutoshippuden #otaku #anime #animeedit "], ["20260405191356", 25465, 1222, 15, 31, "VIDEO", "Anime", "A verdade sobre Sasori! #naruto #narutoshippuden #otaku #anime #animeedit "], ["20260406110040", 194098, 7882, 107, 746, "PHOTO", "Anime", "Naruto trouxe muitos personagens impressionantes. #naruto #narutoshippuden #otaku #anime #animeedit "], ["20260412162855", 5073, 190, 3, 6, "PHOTO", "Anime", "Fontes da minha própria cabeça, o Uchiha mas forte é… #uchiha #naruto #narutoshippuden #otaku #anime "], ["20260413224031", 1376, 18, 0, 4, "VIDEO", "Anime", "Será que você conhece seu Namorado? #amor #anime #animeedit #fyp #meme "], ["20260415092237", 1122, 34, 3, 0, "PHOTO", "Anime", "Seja Goku, Luffy ou Naruto, a gente se identifica com vários deles. #naruto #onepiece #dragonball #anime #otaku "], ["20260420145848", 6395, 137, 2, 3, "PHOTO", "Anime", "A promessa de Naruto e Nagato... #naruto #narutoshippuden #otaku #anime #animeedit "], ["20260421095523", 2601, 60, 21, 2, "PHOTO", "Anime", "Da minha lista são vários, começamos apaixonados pela história e aventura e terminamos com a tristeza de um fim de uma era. #anime #animeedit #saudades #otaku #fyp "], ["20260426143242", 1505, 83, 0, 1, "PHOTO", "Anime", "Pra mim a frase do Zoro é a mais real de todas, ainda mais quando penso na minha filha. #onepiece #onepunchman #anime #animeedit #otaku "], ["20260429104000", 2015, 118, 0, 1, "PHOTO", "Anime", "#naruto #narutoshippuden #otaku #anime #animeedit "], ["20260502163629", 4510, 159, 2, 3, "PHOTO", "Sem legenda", ""], ["20260503150349", 899, 11, 1, 1, "PHOTO", "Sem legenda", ""], ["20260504003133", 1540, 52, 6, 2, "PHOTO", "Anime", "Apenas alguns motivos porque Pain foi um vilão bem melhor construído!! #otaku #anime #naruto #animeedit #narutoshippuden "], ["20260510175538", 13569, 717, 9, 19, "PHOTO", "Anime", "#naruto #narutoshippuden #anime #animeedit #otaku "], ["20260601163030", 15901, 539, 3, 4, "PHOTO", "Anime", "A resposta vai te deixar desconfortável. #naruto #narutoshippuden #otaku #anime #animeedits "], ["20260604162530", 2281, 127, 2, 11, "PHOTO", "Anime", "Essa é o meu Jeito Ninja de ser!! #anime #animeedit #naruto #otaku #nostalgia "], ["20260606101331", 3181, 34, 0, 0, "PHOTO", "Anime", "Com certeza a melhor e inesperada luta do clássico. #naruto #otaku #anime #animeedit #narutoshippuden "], ["20260607024548", 4006, 64, 4, 2, "PHOTO", "Anime", "Quem está faltando nessa lista? #anime #otaku #LIVEIncentiveProgram #SideHustleLIVE #PaidPartnership "], ["20260607223248", 840, 76, 0, 4, "PHOTO", "Anime", "Concordo que algumas frases dos vilões de Naruto parecem simbolizar o amor. O Pain, por exemplo, falou que as pessoas só vão entender umas às outras quando sentir a mesma dor. O Gaara também comentou que nos apegamos às memórias porque elas não mudam, mesmo que as pessoas mudem. Acho interessante pensar como esses personagens, mesmo sendo vilões, têm umas verdades sobre a vida que fazem a gente refletir.  #naruto #Anime #amor #animeedit #otaku "], ["20260608154128", 1148, 79, 1, 4, "PHOTO", "Anime", "As melhores frases dos melhores vilões!! #naruto #narutoshippuden #otaku #anime #animeedit "], ["20260609091307", 441, 19, 0, 0, "VIDEO", "Anime", "#naruto #fyp #anime #animeedit #otaku  @Shonen "], ["20260609150353", 306, 12, 0, 0, "VIDEO", "Anime", "#fyp #anime #naruto #amor #guerra "], ["20260610051648", 8049, 595, 11, 35, "PHOTO", "Anime", "Jiraya foi um mestre, em todos os sentidos, como um pai para Naruto, Nagato, Yahoo e Konan. Sem falar de Minato. Aqui temos algumas grandes frases dessa lenda. Ele morreu sorrindo. E quando você entender o porquê, vai chorar. A última frase… a essa me apertou o peito… Um lugar onde alguém ainda pensa em você… é um lugar que você pode chamar de lar. Uma pessoa só cresce quando é capaz de superar as dificuldades. Não é o número de técnicas que faz um shinobi. O que você precisa é a coragem de nunca desistir. Eu sei que a dor não desaparece. Mas ela fica mais leve com o tempo. 💭🤍 #Naruto #Jiraiya #Frases #Anime #otaku "], ["20260611161724", 36913, 2494, 435, 100, "PHOTO", "Anime", "Sei que deve ser difícil, mas aqui é onde o Homem chora e a mãe não vê!! Me prove que estou errado!!! #goku #dragonball #otaku #animeedit #anime "], ["20260612193005", 545, 31, 4, 1, "PHOTO", "Anime", "#onepiece #anime #otaku #copadomundo #animeedit "], ["20260614021117", 2447, 103, 4, 3, "PHOTO", "Anime", "Não importa o anime, se é estilo Shonen, temos um padrão que se repete. #naruto #onepiece #bleach #otaku #myheroacademia "], ["20260615194130", 1018, 31, 2, 3, "PHOTO", "Anime", "Luffy nunca quis ser o mais forte. Ele só queria ser livre. E foi exatamente por isso que todo mundo quis segui-lo. One piece não é sobre achar um tesouro. É sobre quem você vira enquanto procura. #onepiece #luffy #otaku #animeedit #anime "], ["20260615225346", 345, 20, 0, 1, "PHOTO", "Anime", "Às vezes, acabamos admirando uma obra além do que ela mostra na primeira vista. Muitas vezes, nos conectamos com a alma dos personagens e sentimos que aquela realidade poderia ser nossa. São essas emoções que fazem tudo valer a pena. E vocês, já tiveram uma experiência assim? #onepiece #arte #otaku #anime #animeedit "], ["20260616132528", 3139, 139, 6, 1, "PHOTO", "Anime", "Mas ele nunca mentiu uma vez sequer. Ele só escolheu o irmão em vez da própria reputação. Escolheu o amor em vez da verdade. E morreu sem ouvir um obrigado. Naruto não é sobre ninjas, é sobre o que você carrega em silêncio por quem ama. #itachi #naruto #anime #otaku #uchiha "], ["20260616202750", 57, 2, 0, 0, "PHOTO", "Anime", "Geto só fez a pergunta que não tinha resposta. Por que a gente sacrifica tudo por quem nunca vai entender o sacrifício? Nem todo vilão nasce mau, alguns só ficam sozinhos com as perguntas erradas. #jjk #geto #jujutsukaisen #otaku #anime "], ["20260617092456", 366, 11, 0, 0, "PHOTO", "Anime", "Geto só fez a pergunta que não tinha resposta. Por que a gente sacrifica tudo por quem nunca vai entender o sacrifício? Nem todo vilão nasce mau, alguns só ficam sozinhos com as perguntas erradas. #jjk #geto #jujutsukaisen #otaku #anime "], ["20260617190550", 102827, 7975, 47, 382, "PHOTO", "Anime", "Quem disse que anime é só porrada? Acho que dá pra tirar muitos ensinamentos de todas as palavras já ditas nos animes.  Aqui compartilho só algumas citações de Jujutsu Kaisen, Naruto e One Piece, mas com certeza tem milhões de outras que dá pra aplicar na nossa vida.  Não passe pro lado se não quiser ver a verdade.  #jujutsukaisen #naruto #onepiece #anime #otaku "], ["20260620125402", 1060, 67, 1, 4, "VIDEO", "Anime", "Poucas palavras resumem esse acontecimento. Uma obra, vários grandes personagens, 2 protagonistas, um super vilão para o fim… #naruto #anime #narutoshippuden #otaku #shonen  @Shonen "], ["20260622112348", 3702, 134, 2, 1, "PHOTO", "Anime", "#bleach #ichigo #otaku #anime #animeedit "], ["20260622112956", 107, 3, 1, 0, "PHOTO", "Anime", "Lutas polêmicas se existisse uma maneira de cruzar os universos. #naruto #goku #onepiece #anime #bleach "], ["20260622154214", 122, 5, 1, 0, "PHOTO", "Anime", "Acho que geral, pelo menos no Brasil, tem apoiado a seleção do Japão!! Muito sangue no olho e raça. Me faz lembrar muito a Akatsuki. Comenta aqui se concorda. #copadomundo #japan #naruto #anime #otaku "], ["20260622173208", 428, 29, 1, 1, "PHOTO", "Anime", "São apenas personagens de animes? Ou são os únicos que disseram a verdade que a gente precisava ouvir. #naruto #dragonball #anime #otaku #shonen "], ["20260625094421", 39382, 2212, 52, 66, "PHOTO", "Anime", "Temos muitos, mas muitos momentos legais, frases e ensinamentos que levamos para a vida, porém nem tudo são rosas. Temos muitas falhas de roteiros, personagens esquecidos, potenciais protagonistas e abordagem que não se sustentam ao longo da história. Essa crítica é só um ponto de vista do que poderia ser melhor abordados. #naruto #anime #otaku #animeedit #narutoshippuden "], ["20260629125628", 18136, 1143, 11, 61, "PHOTO", "Anime", "Sempre falo aqui e repito em meus posts, muito do que temos nos animes, são lições de vida. Ensinamentos que as vezes passa despercebido durante as batalhas. Tudo isso pode ser visto nessas obras. #frases #anime #otaku #kungfu #animeedit "], ["20260630112011", 1703, 138, 1, 1, "PHOTO", "Anime", "Shikamaru passou a série inteira sendo o personagem que \"não fazia muita coisa\". Dormia em aula, reclamava de tudo, evitava responsabilidade sempre que podia. Enquanto Naruto queria ser Hokage e Lee treinava até desmaiar, ele só queria uma vida tranquila — sem complicação, sem pressão, sem holofote. E é exatamente por isso que quase ninguém percebeu o que estava acontecendo. Porque enquanto todo mundo tentava ser protagonista, Shikamaru estava aprendendo a pensar. E pensar virou uma das armas mais poderosas da Vila da Folha. Só que a vida muda completamente quando ele perde o Asuma. Até aquele momento ele era só um garoto inteligente. Depois disso, ele precisou virar adulto de verdade — e entender, pela primeira vez, que estratégia não é jogo. Que decisões têm consequência real. É aqui que muita gente que cresceu vendo Naruto se reconhece. Porque a vida adulta chega como avalanche. Um dia você só se preocupa com coisas simples, no outro está carregando responsabilidades que nunca imaginou que teria. E aquela pessoa que parecia despreocupada de repente precisa sustentar peso que ninguém mais vê. Talvez o maior impacto do Shikamaru nunca tenha sido vencer batalhas. Foi mostrar que amadurecer não significa virar outra pessoa. Significa continuar sendo você mesmo — só que agora carregando mais peso nas costas. #naruto #anime #animeedit #shonen #narutoshippuden "], ["20260704221902", 595, 13, 1, 0, "PHOTO", "Anime", "Goku salvou a terra porque apareceu um inimigo mais forte do que ele. Pai ausente, marido ausente, herói por acidente. E a gente chama isso de lenda. #goku #anime #animeedit #otaku #dragonball "], ["20260706160730", 1475, 90, 7, 5, "PHOTO", "Anime", "Hoje é o dia do julgamento, e pelo seu anime favorito dá pra perceber alguns perfis que se destacam. Você se encaixa em algum deles? Conta aí nos comentários!  #anime #hxh #naruto #aot #demonslayer "], ["20260708205206", 562, 51, 1, 1, "PHOTO", "Anime", "Momentos difíceis em Naruto fazem a gente enxergar quem realmente importa. Às vezes só percebemos depois que perdemos alguém importante. Então, aproveite para valorizar quem faz a diferença na sua vida agora.  #naruto #narutoshippuden #otaku #anime #animeedit "], ["20260710091537", 579, 46, 0, 2, "PHOTO", "Anime", "A dor não é fraqueza. É a origem de todo poder.” 😈🌧️ Pain sempre teve razão? #naruto #narutoshippuden #otaku #anime #animeedit "], ["20260711170628", 172, 13, 0, 0, "VIDEO", "Anime", "Naruto sempre foi gênio. #naruto #otaku #narutoshippuden #anime #animeedit "], ["20260713143019", 1545, 47, 5, 3, "PHOTO", "Anime", "Ambos parecem muito diferentes, mas será que são tão diferentes assim? Qual sua opinião? Comenta se concorda ou se errei feio. #jujutsukaisen #demonslayer #anime #otaku #kimetsunoyaiba "], ["20260713213000", 1210, 78, 1, 3, "PHOTO", "Anime", "Gojo, Itachi, Levi e Geto - Todos carregam o próprio poder praticamente sozinhos. Qual dessas frases mais pesou pra vc? #anime #animetiktok #naruto #jjk #amor "], ["20260714213000", 786, 39, 1, 2, "PHOTO", "Anime", "Se você cresceu assistindo Naruto, One Piece ou Bleach, comenta aqui 👇 — com conteúdo novo rolando ao mesmo tempo, é um momento bem diferente. Esses animes marcaram muito minha infância e agora tudo está mudando de novo. Quem mais está acompanhando essa fase?  #anime #animetiktok #naruto #onepiece #bleach "], ["20260715133000", 559, 33, 2, 3, "PHOTO", "Anime", "#creatorsearchinsights #animespopulares #shonen #animetiktok #naruto "], ["20260716150000", 8262, 458, 9, 13, "PHOTO", "Anime", "Óbito não virou vilão do dia para a noite, foi exceção atrás de exceção, desculpa atrás de desculpa,até ele parar de reconhecer quem era.  As escolhas que vc faz hoje, são as mesmas que decidem quem vc vai ser daqui a 10 anos.  Comenta aquil um personagem pra eu fazer o próximo. #naruto #amor #animebrasil #motivacao #reflexao "], ["20260717215400", 496, 43, 3, 1, "PHOTO", "Anime", "🔥 Avatar é cheio de detalhes que só quem presta atenção percebe. E é exatamente isso que faz esse anime ser um dos melhores de todos os tempos. Qual desses detalhes vc não sabia?  Segue pra mais curiosidades. #animetiktok #avatarthelastairbender #avatar #animebrasil #edit "], ["20260719173000", 325, 17, 0, 1, "PHOTO", "Anime", "Todo mundo trava nessa ideia de que a Azula é simplesmente “mais forte” que o Zuko. Mas o Avatar clássico nunca foi sobre Power Scaling. 🔥 A história dele é sobre paz interior, trabalho duro e evolução como pessoa. Ela nasceu prodígio, ele teve que construir tudo isso do zero, sozinho, remando contra a maré. Chegou pertinho do nível dela. Nunca superou. É isso não é demitido nenhum. Afinal… Azula superou Zuko ou o roteiro se perdeu? #avatarthelastairbender #avataredit #animeedit #shonen #fyp "], ["20260727005616", 1402, 83, 0, 4, "PHOTO", "Anime", "As obras retratam os cenários reais e em muitas delas, podemos nos conectar ao lugar de verdade. #anime #animeedit #shonen #avatarthelastairbender #animetiktok "], ["20260727012728", 108, 16, 0, 0, "VIDEO", "Anime", "Não sei vcs, mas pra mim, sempre que me imagino no Japão, é em uma cena de anime. Digimon tem vários locais que com certeza vou conhecer. #digmon #anime #animeedit #animetiktok #shonen "], ["20260727170613", 63, 2, 0, 1, "VIDEO", "Anime", "#dueto com @Project_Madara #yoruichi #bleach "], ["20260727171527", 98, 3, 0, 1, "VIDEO", "Anime", "#costura com @ONIKAGE  #naruto #anime #lutas "], ["20260727175516", 109, 5, 0, 2, "VIDEO", "Anime", "#dueto com @snauzk #Anime #jjk #animetiktok #animeedit "], ["20260727190320", 733, 33, 0, 3, "PHOTO", "Anime", "Em um filme de ficção, em uma série, um desenho ou em uma sitcom.  Separei 6 frases que não foram feitas para ensinar nada… e mesmo assim ensinaram. #amor #anime #animetiktok #frasesdeamor #fyp "], ["20260727215100", 94, 6, 0, 1, "VIDEO", "Anime", "#dueto com @ONIKAGE #naruto #narutoshippuden #otaku #anime "], ["20260727231140", 101, 4, 0, 0, "VIDEO", "Anime", "#dueto com @AnimeForge 🐉 #dragonball eu quero muito! #anime #animetiktok #fyp "], ["20260728004700", 116961, 4465, 12, 579, "PHOTO", "Anime", "#anime #frases #pensamentos #fyp #amor "], ["20260728084641", 222, 9, 0, 1, "VIDEO", "Anime", "#dueto com @SpeckVitor.Exe #jjk #geto #anime #otaku "], ["20260728090203", 9, 3, 0, 0, "VIDEO", "Anime", "#dueto com @SpeckVitor.Exe a vinganca de Mali #anime #jjk #otaku #fup "], ["20260728092638", 109, 7, 0, 0, "VIDEO", "Anime", "#dueto com @Shadow compilação Uchiha Itachi, o mais f**da de todos. #naruto #itachi #otaku #animetiktok "], ["20260728132638", 109, 7, 0, 2, "VIDEO", "Anime", "#dueto com @Cortzin pra quem não conhece bleach, segue a árvore do Ichigo. #Anime #bleach #ichigo #otaku "], ["20260729101205", 916, 84, 3, 2, "PHOTO", "Anime", "Comenta aqui qual frase ou personagem te marcou. Aproveita e siga o Shonen. #naruto #amor #otaku #shonen #animeedit "], ["20260729221113", 171, 6, 0, 2, "PHOTO", "Anime", "Com certeza a Akatsuki, pelo tamanho do poder deles, parecia indestrutível. Fazer parte desses grupos sempre dá aquela impressão de que ninguém consegue vencer, né? #naruto #narutoshippuden #otaku #animetiktok #anime "], ["20260730112533", 677, 26, 2, 5, "PHOTO", "Anime", "Se você gosta de histórias com protagonistas buscando vingança, deixa seu like e me segue! Você já assistiu algum desses? “It’s just an anime.” #creatorsearchinsights #anime #animeedit #otaku #animebrasil "], ["20260730165823", 437, 27, 0, 4, "PHOTO", "Anime", "Se hoje está difícil, deixa esse post ser seu lembrete: até o Naruto quase desistiu - e olha até onde ele chegou. Marca ou manda pra alguém que precisa ler isso hoje. 🧡 #naruto #resiliencia #animetiktok #nuncadesista #saudemental "], ["20260730221634", 922, 79, 2, 2, "PHOTO", "Anime", "@todo mundo já passou por isso, né? Parece que é só luta, grito e bomba, mas acho que tem algo mais por trás. Quem mais pensa assim? #naruto #anime #reflexão #desenho #boruto "], ["20260731155532", 1144, 69, 5, 2, "PHOTO", "Anime", "Essa obra é realmente espetacular, com um roteiro muito bom. Mas achei o final meio fraco para um vilão do calibre do Madara. Concorda? Deixe seu comentário!  #anime #naruto #narutoshippuden #otaku #desenho "], ["20260731173042", 304, 16, 1, 1, "PHOTO", "Anime", "Ninguém apostava nele, até o dia em quase morreu tentando proteger gente que nem sabia o nome dele. Daí em diante, virar forte deixou de ser opção. Vira essa história até o fim e me conta: em qual parte você se viu? #sololeveling #sungjinwoo #otaku #fyp #animetiktok "], ["20260731192334", 200, 13, 0, 1, "VIDEO", "Anime", "#naruto #otaku #anime #fyp #fypシ  @Shonen "], ["20260802012053", 1003, 64, 2, 2, "PHOTO", "Anime", "Nem tudo que amamos foi feito pra ficar pra sempre. 🍥🍃 Naruto nos ensinou isso em cada despedida: Jiraiya, Neji, Minato e Kushina, Itachi… todos amaram da forma mais difícil — deixando ir. Às vezes a maior prova de amor não é segurar, é permitir que a pessoa (ou o ciclo) exista longe de você. Salva esse post pra lembrar disso quando precisar. E me conta nos comentários: qual dessas despedidas mais te marcou? 👇 #naruto #frasesdeanime #animeedits #otaku #creatorsearchinsights "], ["20260802191844", 1792, 63, 1, 1, "PHOTO", "Anime", "Tobirama, o Segundo Hokage, sentiu mais de 20 assinaturas de chakra vindas da Vila da Nuvem — um esquadrão de assassinos rank S a caminho. Em vez de sacrificar alguém, ele decidiu ficar lá sozinho, porque sabia que Hiruzen era o futuro da vila. Quem mais acha que o Tobirama é super subestimado? Comentem aqui!  #naruto #otaku #frasesdeanime #anime #animeedits "], ["20260803180501", 851, 38, 0, 2, "PHOTO", "Anime", "Levo, Naruto, Itachi, Luffy e Jiraya nunca tiveram garantias de nada, só confiaram que dariam conta do que viesse depois. Cada um seguiu seu caminho mesmo sem certezas, e é assim que a gente também aprende. Conta aí, qual deles você acha mais forte? Comenta aqui embaixo 👇🏾  #anime #otaku #shone #animebrasil #frasesdeanime "], ["20260804194822", 11530, 368, 6, 10, "PHOTO", "Anime", "Deixei aqui o guia completo do clássico, explicando o que são fillers e quais arcos dá para pular. Para quem quer um resumo: episódio 1 a 135 é o original, de 136 a 219 são fillers, e o clássico termina no episódio 220. O filler do clã Kaguya, entre 152 e 157, é interessante. No Shippuden, a história começa a ficar mais séria, como Itachi e Sasuke do episódio 134 ao 143, e Pain contra Kon. Salve esse guia para consultar na hora de assistir!  #naruto #narutoshippuden #anime #otaku #fyp"], ["20260806183929", 1837, 54, 0, 2, "PHOTO", "Anime", "Desde Kabuto até o modo Sábio de naruto, mas o verdadeiro jutsu supremo não precisava de chacra. É só um grito. Konoha caiu, tudo parecia perdido….. concorda que foi o jutsu mais forte? Comenta aqui. #naruto #narutoshippuden #anime #animebrasil #pain "], ["20260807170041", 983, 38, 0, 1, "PHOTO", "Anime", "Naruto, jjk, Demon Slayer entre outros animes nos mostram o quanto alguns heróis não são tão evoluídos. #anime #naruto #jjk #demonslayer #animetiktok "], ["20260809194019", 826, 51, 4, 1, "PHOTO", "Anime", "Quem você mudaria? Deixa nos comentários. #naruto #narutoshippuden #animetiktok #fyp #otaku "], ["20260809202339", 938, 32, 1, 2, "PHOTO", "Anime", "#naruto #narutoshippuden #fyp #otaku #animetiktok "], ["20260816181930", 3120, 112, 1, 19, "PHOTO", "Anime", "Motivação ou indireta, domingo é dia de critica social. #frasesmotivadoras #amor #domingo #fyp #frasesdeanime "], ["20260818005710", 1138, 61, 2, 3, "PHOTO", "Anime", "#frasesmotivadoras #frasedeanime #fyp #amor #motivational "], ["20260818122737", 179, 12, 0, 1, "PHOTO", "Anime", "Todos erramos, aqui trago alguns exemplos de erros que cometemos com base em Naruto. #naruto #reflexao #motivacao #anime #fyp "], ["20260819003519", 375, 20, 0, 7, "PHOTO", "Frases motivacionais", "#fe #motivacao #frasesdeamor #palavradedeus #amor "], ["20260819094133", 3831, 177, 4, 15, "PHOTO", "Frases motivacionais", "#frases #motivacao #amor #fyp #frasesdeamor "], ["20260819153244", 5718, 308, 4, 21, "PHOTO", "Anime", "#frases #amor #fyp #frasesdeamor #frasesdeanime "], ["20260820122454", 3789, 139, 2, 10, "PHOTO", "Frases motivacionais", "#frases #fyp #amor #motivacao #homem "], ["20260820125455", 172, 20, 0, 0, "PHOTO", "Frases motivacionais", "Quando for a hora certa, eu o senhor… #fé #fyp #versiculosbiblicos #frases #amor "], ["20260820155947", 952, 54, 3, 0, "PHOTO", "Anime", "Como os vilões mesmo dizem, nada se pode contar com ninguém, nem mesmos os heróis. Ou melhor, nunca esconda seu lado ruim, mostre seu lado ruim e veja quem escolhe ficar. Se vc concorda, já compartilha com 1 amigo. #frases #anime #fyp #amor #reflexao "], ["20260821114358", 675, 10, 0, 0, "PHOTO", "Frases motivacionais", "Bom dia! Da tempo sim! Estamos alinhados! Faz sentido. #trabalho #frases #fyp #amo #dia "], ["20260821180236", 933, 59, 1, 1, "PHOTO", "Frases motivacionais", "#frases #pensamentos #fyp #leao #frasesmotivadoras "], ["20260822011431", 18934, 735, 2, 61, "PHOTO", "Frases motivacionais", "🦉 As corujas parecem criaturas saídas de um filme… mas a natureza conseguiu torná-las ainda mais impressionantes. Elas conseguem girar a cabeça em até 270 graus sem causar danos às artérias. 😳 Isso acontece porque seus olhos são fixos e não conseguem se mover para os lados como os nossos. 👀 Mas talvez a característica mais surpreendente seja o voo. 🤫 Suas penas possuem uma estrutura especial que reduz o ruído do ar, permitindo que voem quase sem fazer som. Muitas presas nem percebem quando elas estão se aproximando. ⚠️ 👂 Algumas espécies possuem ouvidos em posições diferentes, o que ajuda a localizar sons com extrema precisão, mesmo no escuro ou sob folhas. 🌙 Além disso, sua visão noturna é altamente desenvolvida, permitindo enxergar em ambientes com pouca luz. 🗿 A natureza está repleta de adaptações que parecem impossíveis, mas são reais. #frases #amor #fyp #frasesmotivadoras #nature  @Shonen  @Shonen "], ["20260822133457", 143, 9, 0, 1, "PHOTO", "Frases motivacionais", "🧠 O cérebro humano possui cerca de 86 bilhões de neurônios… e cada um deles pode formar milhares de conexões. 😳 ⚡ É graças a essa incrível rede que conseguimos aprender, criar memórias, tomar decisões e desenvolver novas habilidades ao longo da vida. 📚 Quanto mais você pratica uma atividade, mais fortes essas conexões se tornam. Por isso, a repetição é uma das maiores aliadas do aprendizado. 😴 Durante o sono, o cérebro continua trabalhando: organiza informações, fortalece memórias e ajuda a eliminar resíduos produzidos ao longo do dia. 🌍 Mesmo sendo um dos órgãos mais estudados pela ciência, ele ainda guarda inúmeros mistérios que pesquisadores tentam compreender. ✨ Cuidar da mente com boas noites de sono, alimentação equilibrada e aprendizado constante faz toda a diferença para o funcionamento do cérebro. #frases #fyp #amor #frasesmotivadoras #motivacional  @Shonen  @Shonen "], ["20260822154709", 238, 11, 0, 0, "PHOTO", "Frases motivacionais", "🏛️ Durante muito tempo, Plutão era apenas um pequeno ponto distante nos telescópios. Isso começou a mudar quando a missão New Horizons se aproximou dele em 2015. 📸 As imagens revelaram uma superfície muito mais complexa do que se imaginava, incluindo montanhas, geleiras e uma enorme região clara em formato semelhante a um coração. ❤️ Essa área ficou conhecida como Tombaugh Regio, em homenagem ao astrônomo Clyde Tombaugh, responsável pela descoberta de Plutão em 1930. 🧊 Parte dessa região contém grandes planícies de gelo de nitrogênio, mostrando que Plutão pode apresentar processos geológicos mesmo estando extremamente distante do Sol. ✨ Às vezes, aquilo que parece simples quando visto de longe revela um universo inteiro de detalhes quando finalmente conseguimos chegar mais perto. #polemica #fyp #frases #frasesmotivadoras #amor❤️ "], ["20260823004034", 2128, 103, 6, 2, "PHOTO", "Frases motivacionais", "🌎 O mundo está mudando (e você precisa ver isso) Nem tudo que acontece vira manchete… mas muita coisa importante está acontecendo agora. Hoje, o foco é no que está funcionando: 🇫🇷 França proibiu influenciadores de promover cirurgias perigosas e produtos extremos Protegendo milhões de jovens de riscos invisíveis 🇯🇵 Cientistas no Japão criaram um plástico que se dissolve completamente na água salgada Sem deixar microplásticos para trás 🇺🇸 Pesquisadoras de Stanford descobriram uma forma de regenerar a cartilagem Abrindo caminho para reverter a artrite 🏴 Escócia se tornou o primeiro país a oferecer produtos de higiene gratuitamente Garantindo dignidade básica para todos 🇰🇿 O Cazaquistão trouxe o Mar de Aral de volta à vida O nível da água subiu e os peixes voltaram 🇮🇸 A Islândia tornou ilegal a diferença salarial entre homens e mulheres Um novo padrão de igualdade no mundo 🇲🇽 O México proibiu testes de cosméticos em animais Um avanço importante na ética científica 🇦🇺 A Austrália pode se tornar o primeiro país a eliminar o câncer de colo do útero Com prevenção e tecnologia 🌱 Uma flor de 32.000 anos voltou a florescer Provando que a vida sempre encontra um caminho O mundo não está piorando… você só não estava vendo esse lado. Qual dessas te surpreendeu mais? Provavelmente essa será a última vez que irá nos ver. Então se isso fez sentido para você... #frases #amor #fyp #frasesmotivadoras #motivacional "], ["20260823112443", 6656, 307, 7, 11, "PHOTO", "Anime", "Em meio a tantas notícias pesadas, muita coisa boa continua acontecendo pelo mundo — só que nem sempre recebe a mesma atenção. Animais voltam a ocupar lugares onde haviam desaparecido, projetos ambientais recuperam áreas gigantescas, pessoas antes rejeitadas encontram maneiras de criar oportunidades para outras e iniciativas de saúde ampliam o acesso de quem mais precisa. Algumas dessas mudanças levaram décadas para acontecer. A recuperação de espécies ameaçadas, novas políticas públicas, avanços na saúde e grandes projetos de reflorestamento mostram que resultados positivos raramente surgem de uma hora para outra. Talvez o mundo esteja longe de ser perfeito. Mas olhar apenas para aquilo que está dando errado também cria uma visão incompleta da realidade. Enquanto problemas continuam existindo, milhões de pessoas também trabalham todos os dias para resolver uma pequena parte deles. E às vezes vale lembrar disso: nem toda mudança faz barulho enquanto acontece. Algumas simplesmente crescem, salvam vidas, recuperam a natureza e deixam o mundo um pouco melhor do que encontraram. Provavelmente essa será a última vez que irá nos ver. Então se isso fez sentido para você… #amorpropio #frasesdeamor #fyp #mudanca #anime Siga o @shonen.cut"], ["20260823121914", 12394, 584, 10, 113, "PHOTO", "Frases motivacionais", "🌍 Em meio a tantas notícias negativas, também existem conquistas que mostram que a humanidade continua evoluindo. 🧬 Cientistas japoneses desenvolveram uma técnica experimental capaz de remover o cromossomo extra associado à Síndrome de Down em células humanas, abrindo novas possibilidades para pesquisas futuras. 👁️ A primeira córnea impressa em 3D do mundo devolveu a visão a um paciente, trazendo esperança para milhões de pessoas que aguardam tratamentos semelhantes. 🌐 O Japão bateu um recorde de velocidade de internet, mostrando o enorme potencial das tecnologias que irão transformar a comunicação e a inovação nos próximos anos. 🇧🇷 O Brasil também foi destaque ao desenvolver uma vacina experimental capaz de bloquear os efeitos da cocaína e do crack antes que a droga chegue ao cérebro, representando uma nova esperança no combate à dependência química. 🚶‍♂️ A Coreia do Sul começou a testar faixas separadas para pedestres que caminham rápido e devagar, buscando reduzir o estresse e melhorar a mobilidade nas cidades. 👓 Novos colírios capazes de corrigir temporariamente a visão de perto prometem oferecer uma alternativa prática para quem depende dos óculos de leitura. ❤️ A França apresentou um coração artificial de longa duração, enquanto cientistas desenvolveram um mini-pâncreas biológico capaz de produzir insulina, dois avanços que podem transformar a medicina nos próximos anos. ✨ A ciência e a tecnologia continuam provando que o futuro está sendo construído todos os dias. Enquanto muitos enxergam apenas problemas, pesquisadores seguem criando soluções que podem melhorar a vida de milhões de pessoas. #frases #amor❤️ #fyp #amorpropio #felicidade "], ["20260823155213", 904, 41, 1, 3, "PHOTO", "Frases motivacionais", "💙 Em meio a tantas manchetes negativas, também existem conquistas que mostram que a humanidade continua evoluindo e encontrando soluções para grandes desafios. 🇸🇻 El Salvador aprovou a possibilidade de prisão perpétua para assassinos, estupradores e terroristas após uma mudança em sua Constituição. 🇪🇸 A Espanha recebeu 100 palestinos vindos da Faixa de Gaza, incluindo 20 crianças gravemente feridas ou doentes, acompanhadas de suas famílias. 🇧🇷 A pesquisadora brasileira Suélia Rodrigues, da Universidade de Brasília, criou o Rapha, uma tecnologia que combina curativos de látex com luz LED para acelerar a cicatrização de pessoas com diabetes. 🇨🇳 A China adaptou um avião comercial C909 para funcionar como um hospital aéreo, preparado para realizar atendimentos médicos durante o transporte. 🇸🇪 A Suécia voltou a incentivar o uso de livros impressos e da escrita à mão nas escolas, reforçando a importância desses hábitos na aprendizagem. 🇦🇺 Em hospitais de Sydney, uma técnica permite congelar tumores durante exames de ressonância magnética, possibilitando que muitos pacientes recebam alta no mesmo dia. 🇬🇧 Pesquisadores do Reino Unido desenvolveram o peixe robótico Gillbert, projetado para ajudar na remoção de microplásticos presentes na água. 🇸🇬 Cientistas de Singapura e da Alemanha conseguiram regenerar células dos rins danificadas ao bloquear a proteína IL-11, abrindo novas possibilidades para tratamentos. 🇦🇺 Com vacinação gratuita contra o HPV e programas de prevenção, a Austrália está cada vez mais próxima de eliminar o câncer do colo do útero como problema de saúde pública. ✨ Em um mundo onde as notícias ruins costumam ganhar mais espaço, vale lembrar que o progresso também acontece todos os dias. Ciência, educação, saúde e solidariedade continuam transformando vidas ao redor do planeta. 💬 Qual dessas conquistas mais chamou sua atenção? Conte nos comentários. #amor #frases #positividade #fyp #amor❤️ "], ["20260823183941", 276503, 4065, 33, 3872, "PHOTO", "Educação financeira", "Muitas vezes, o problema não é quanto dinheiro entra, mas o quanto sai sem perceber. Pequenos gastos, parcelas acumuladas e compras no automático podem consumir uma renda que parecia suficiente. Organizar as finanças começa quando você enxerga para onde o dinheiro está indo, define prioridades e aprende a dizer “não” para aquilo que compromete sua própria casa. Prosperidade não é apenas ganhar mais. É conseguir administrar melhor o que você já ganha e fazer o dinheiro sobrar no fim do mês. Provavelmente essa será a última vez que irá nos ver. Então se isso fez sentido para você… #financas #organizacao #casal #fyp #amor "], ["20260823202953", 8249, 258, 1, 16, "PHOTO", "Frases motivacionais", "Algumas informações parecem pequenas demais para importar — até o dia em que você precisa delas em uma situação de emergência. Saber como agir diante de um vazamento de gás, uma corrente de retorno, um incêndio elétrico ou uma situação de perigo pode fazer diferença justamente quando não há tempo para pesquisar o que fazer. Mas cuidado: dicas rápidas não substituem orientações oficiais, e algumas situações exigem procedimentos específicos. Em uma emergência real, priorize sair do perigo e acionar os serviços de emergência adequados. Conhecimento útil não pesa, não ocupa espaço e pode ficar anos guardado na memória. Às vezes, uma informação aprendida em poucos segundos pode ser lembrada exatamente no momento certo. Provavelmente essa será a última vez que irá nos ver. Então se isso fez sentido para você… Siga Shonen.cut #fyp #positividade #amor #frases #casal "], ["20260823231506", 4516, 120, 2, 3, "PHOTO", "Frases motivacionais", "Talvez você esteja precisando lembrar que nem tudo são notícias ruins. Coisas incríveis também estão acontecendo no Brasil, mesmo que nem sempre elas consigam espaço nas manchetes. Enquanto tantas notícias assustam, existem brasileiros enfrentando desafios enormes, recomeçando e provando que ainda existe muita coisa boa acontecendo por aqui. 19 anos tentando até conseguir aos 55 Um brasileiro finalmente realizou o sonho de entrar para a PRF e mostrou que persistência não tem idade. Ela venceu o vício e voltou a sonhar Em Manaus, uma história de recomeço ganhou um novo capítulo quando uma mulher conseguiu retomar os estudos e entrar para a faculdade. Ciência brasileira trazendo esperança Pesquisadores ajudaram um paciente a recuperar movimentos, abrindo novas possibilidades para avanços que podem beneficiar muitas outras pessoas. Quando as probabilidades diziam não Uma mãe enfrentou um diagnóstico extremamente difícil e conseguiu sair dessa batalha com o filho nos braços. Uma nova esperança contra o câncer Pesquisas com vacinas avançam e o Brasil pode participar de um momento importante nessa busca por novos tratamentos. Mais proteção para mulheres Uma proposta pretende usar a tecnologia como aliada na prevenção e no combate à violência. Um legado através da educação Alok decidiu investir na educação dos filhos de pessoas que trabalham com ele, apostando em oportunidades que podem transformar futuros. Em meio a tantas manchetes que assustam, histórias como essas também merecem espaço. Porque todos os dias existem brasileiros recomeçando, vencendo batalhas, realizando sonhos e fazendo algo capaz de transformar a vida de outras pessoas. O Brasil também é feito dessas histórias. 💬 Qual delas mais tocou você? #noticias #fyp #frases #amor❤️ #frasesmotivadoras "], ["20260824083202", 119, 14, 3, 0, "PHOTO", "Frases motivacionais", "Na Espanha 🇪🇸 existe um festival onde milhares de pessoas participam de uma enorme “guerra de tomates”. O evento acontece na cidade de Buñol e reúne visitantes de diversos países, que passam horas arremessando toneladas de tomates uns nos outros pelas ruas. Em pouco tempo, a cidade inteira fica completamente coberta pelo vermelho dos tomates espalhados. O mais impressionante é que essa tradição teve origem em uma briga entre jovens, ocorrida há várias décadas. #reflexao #frases #frasesmotivadoras #amor #fyp "], ["20260824130728", 2584, 41, 0, 7, "PHOTO", "Frases motivacionais", "Organizar a vida não significa deixar a casa impecável o tempo inteiro. Na verdade, organização tem muito mais a ver com leveza: diminuir o excesso, facilitar a rotina e criar um ambiente que não roube sua energia. Os japoneses entendem que grandes mudanças não precisam começar de forma grandiosa. Se algo leva menos de cinco minutos, resolva já. Se você deseja melhorar, avance apenas 1% por dia. Parece pouco, mas a constância constrói resultados que a pressa nunca consegue sustentar. Também existe força em escolher um único espaço para limpar em vez de tentar organizar a casa inteira e desistir no meio. Quando algo novo entra, alguma coisa que perdeu a utilidade pode sair. Menos objetos significam menos coisas para guardar, limpar e procurar. Cada item precisa ter o próprio lugar. Chaves, documentos, roupas e pequenos objetos deixam de causar estresse quando você sabe exatamente onde encontrá-los e para onde devem voltar. Caixas, divisórias e etiquetas não servem apenas para deixar tudo bonito: elas tornam a organização simples o bastante para continuar funcionando nos dias corridos. Praticar o desapego também é perguntar com sinceridade: “isso ainda serve à vida que eu quero viver?”. Nem tudo precisa permanecer apenas porque um dia foi importante. Doar, vender ou descartar com consciência abre espaço para o que realmente faz sentido agora. E não tenha medo do vazio. Uma prateleira livre, uma gaveta com espaço e um canto sem decoração também representam ordem. Antes de dormir, dedique alguns minutos para guardar o que ficou fora do lugar e preparar o dia seguinte. Pequenas microrrotinas evitam que o caos cresça. Você não precisa organizar tudo hoje. Comece com cinco minutos, uma gaveta ou uma pequena decisão. A paz de uma vida mais leve nasce daquilo que você escolhe repetir. #japao #kaisen #casa #organizacao #fyp "], ["20260824145711", 305, 16, 0, 1, "PHOTO", "Frases motivacionais", "#frases #frasesmotivadoras #fyp #choque #paravoce "], ["20260824160429", 2774, 38, 0, 1, "PHOTO", "Frases motivacionais", "Mudar de vida não acontece depois de assistir a um vídeo. Acontece quando alguma ideia finalmente faz você enxergar o que precisa mudar — e você decide agir. 🧠 Às vezes, o problema não é falta de capacidade. É excesso de distração, pensamentos desorganizados, decisões adiadas e horas entregues a coisas que não aproximam você de lugar nenhum. Aprender a pensar com clareza, recuperar o foco, tomar decisões melhores e parar de alimentar a procrastinação pode parecer simples, mas muda completamente a direção dos próximos meses. Você não precisa consumir centenas de conteúdos sobre evolução. Precisa encontrar aquilo que realmente faz sentido, aplicar na própria vida e repetir até virar comportamento. 🎯 Porque conhecimento acumulado não transforma ninguém. Conhecimento colocado em prática, sim. 🚀 Provavelmente essa será a última vez que irá nos ver. Então se isso fez sentido para você… Siga a Página #curiosidades #fyp #paravoce #frases #frasesdeamor "], ["20260824203112", 1184, 24, 0, 0, "PHOTO", "Frases motivacionais", "Brasil está mudando (e para melhor) Nem tudo que acontece vira manchete… mas muita coisa importante está acontecendo agora. 🧬 SUS passa a oferecer exame genético completo para doenças raras, reduzindo anos de espera para poucos meses 🐾 Belo Horizonte cria atendimento do SAMU para cães e gatos em situação de urgência, principalmente os de rua 🎖️ Exército promove a primeira mulher a general no Brasil: a médica Cláudia Lima Gusmão Cacho 🔬 Pesquisadora Tatiana Sampaio é reconhecida pelo avanço em estudos que podem impactar novos tratamentos 🎓 Aos 73 anos, Dona Maria Clair é aprovada no ENEM e transforma o crochê em projeto acadêmico 🍫 Cacau do Pará conquista medalha de ouro em concurso internacional de excelência em Amsterdã 🏠 Igreja no RJ usa dízimos para construir casas para pessoas sem moradia 🧪 Estudo brasileiro desenvolve exame de sangue para detecção de câncer de mama 🧩 Senado aprova laudo permanente para pessoas com autismo, garantindo mais estabilidade e menos burocracia 👩‍👦 Câmara avança em projeto de aposentadoria especial para mães atípicas O Brasil não está parado… você só não estava vendo isso Qual dessas notícias mais te chamou atenção? Provavelmente essa será a última vez que irá nos ver. Então se isso fez sentido para você… Siga o Shonen.cut @Shonen #frases #amor #brasil #fyp #noticias "], ["20260824235208", 2636, 14, 1, 1, "PHOTO", "Frases motivacionais", "🗞️ O que marcou as últimas 24 horas? Confira alguns dos principais acontecimentos em finanças, negócios, tecnologia e consumo. 🌍 A Petrobras encontrou, pela primeira vez, sinais de petróleo ou gás natural na Foz do Amazonas. As canetas emagrecedoras movimentaram R$ 2,3 bilhões em apenas seis meses no Brasil. E um grupo apoiado por Jeff Bezos e Eduardo Saverin fechou acordo para comprar uma participação no Liverpool. No mundo da tecnologia, o Instagram mudou sua identidade visual após 10 anos e o Claude está enfrentando uma onda de cancelamentos após adotar uma nova marca d’água. Já a Casas Bahia entrou com pedido de recuperação judicial para renegociar uma dívida bilionária. Enquanto isso, um terremoto de magnitude 7,7 deixou dezenas de mortos na Indonésia e a campanha eleitoral de 2026 começou oficialmente no Brasil. Quer ficar por dentro dos principais acontecimentos que movimentam mercados, empresas, tecnologia e o mundo? #noticias #fyp #paravoce #frases #politica "], ["20260825091859", 181, 15, 0, 0, "PHOTO", "Frases motivacionais", "Em Singapura, árvores gigantes são verdadeiras máquinas ecológicas 🌳✨ No Gardens by the Bay, as famosas “Supertrees” não são apenas estruturas decorativas impressionantes. Elas funcionam como sistemas sustentáveis completos, integrando natureza e tecnologia em um só projeto. Essas estruturas abrigam jardins verticais, ajudam a regular a temperatura do ambiente, captam água da chuva e, em alguns casos, utilizam painéis solares para gerar energia que é usada na iluminação noturna do parque. Além do impacto visual, elas representam uma nova forma de pensar o espaço urbano, onde estética, funcionalidade e sustentabilidade caminham juntas. @Shonen #frases #frasesmotivadoras #fyp #amor❤️ #deus "], ["20260825095703", 3572, 101, 4, 9, "PHOTO", "Frases motivacionais", "Antes de pedir que o dia seja fácil, peça para ter sabedoria para enfrentá-lo. Agradeça pelo que já chegou, peça proteção sobre quem você ama, orientação para as decisões que ainda precisa tomar e paz para aquilo que você não consegue controlar. Nem sempre Deus responde da maneira que esperamos. Às vezes, a resposta vem como força para continuar, clareza para escolher ou tranquilidade para esperar. Que hoje você carregue menos medo e mais fé. Faça a sua parte, entregue o que está além das suas mãos e siga em frente. Provavelmente essa será a última vez que irá nos ver. Então se isso fez sentido para você… Siga o perfil #fe #gratidao #amor #fyp #paravoce  @Shonen "], ["20260825155056", 93, 7, 0, 0, "PHOTO", "Educação financeira", "Um relacionamento forte não é aquele em que duas pessoas nunca discordam. É aquele em que, mesmo nos momentos difíceis, nenhuma delas esquece que estão do mesmo lado. Amar também é construir acordos: respeitar o tempo um do outro, conversar em particular sobre os problemas, proteger a relação de interferências externas e manter a lealdade mesmo quando seria mais fácil agir individualmente. Transparência também importa. Dinheiro, planos, medos, erros e decisões precisam poder entrar na conversa. Quando duas pessoas escondem partes importantes da vida uma da outra, a confiança começa a perder espaço. No fim, um casal não se fortalece apenas pelos momentos felizes. Ele se fortalece pelas pequenas escolhas repetidas todos os dias: respeito, parceria, verdade, diálogo e disposição para resolver os problemas juntos. Porque permanecer ao lado de alguém é mais do que dizer “eu te amo”. É continuar escolhendo construir um “nós”. Provavelmente essa será a última vez que irá nos ver. Então se isso fez sentido para você… Siga o perfil #casal #uniao #amor #fyp #paravoce  @Shonen "], ["20260825160414", 6261, 190, 0, 7, "PHOTO", "Outro", "🌎 Em meio a tantas notícias ruins, também existem avanços que merecem espaço. E algumas das melhores vêm da proteção aos animais ao redor do mundo: 🇫🇷 A França proibiu o uso de animais selvagens em circos itinerantes. Leões, tigres, elefantes e outras espécies não poderão mais ser utilizados nesse tipo de espetáculo. 🇧🇷 No Brasil, as penas para maus-tratos contra cães e gatos ficaram mais severas. Dependendo do caso, a punição pode chegar a cinco anos de prisão, além de multa e proibição da guarda de animais. 🇮🇩 A Indonésia proibiu passeios turísticos montados em elefantes, uma mudança importante na forma como esses animais são tratados pelo setor de turismo. 🦍 Os gorilas-das-montanhas vêm apresentando uma recuperação importante. Após décadas de esforços de conservação, a população da espécie voltou a crescer. 🇳🇱 Amsterdã está investindo na instalação de pequenas estruturas de saída em seus canais para ajudar gatos e outros animais que caem na água a conseguirem voltar para terra firme. 🐋 Algumas populações de baleias também estão se recuperando depois de séculos de caça comercial. Medidas internacionais de proteção e projetos de conservação ajudaram várias espécies a voltar a crescer. 🇬🇹 Na Guatemala, medidas para impedir a exploração de petróleo em áreas protegidas ajudam a preservar habitats de espécies como onças-pintadas e araras-vermelhas, além de proteger ecossistemas importantes da América Central. 🇭🇺 Na Hungria, abrigos térmicos ajudam cães abandonados a enfrentar as baixas temperaturas do inverno, oferecendo proteção contra o frio. Nem tudo está piorando. Enquanto muita coisa ainda precisa mudar, cada avanço mostra o que pode acontecer quando proteção, consciência e ação caminham juntas. ❤️ #amor #uniao #fyp #paravoce #brasil "], ["20260825160856", 126, 9, 0, 0, "PHOTO", "Notícias positivas", "Em um mundo onde as notícias ruins costumam ganhar destaque, também há inúmeros acontecimentos que revelam o lado positivo da humanidade. Todos os dias, cientistas, médicos, pesquisadores, voluntários e instituições trabalham para encontrar soluções capazes de preservar vidas, combater doenças, proteger animais e melhorar a sociedade. Novos tratamentos, descobertas científicas, tecnologias inovadoras, projetos de conservação e mudanças importantes nas leis mostram que o progresso continua avançando, muitas vezes de forma silenciosa. Ainda existem grandes desafios pela frente, mas cada descoberta, cada vida salva e cada iniciativa bem-sucedida representa uma pequena vitória na construção de um futuro melhor. #ciencia #fyp #noticias #paravoce #brasil "], ["20260825161928", 346, 7, 0, 1, "PHOTO", "Educação financeira", "💸 Quer fazer o dinheiro SOBRAR no fim do mês?   O segredo não é ganhar mais, e sim gastar melhor:   ✔️ Corte os vazamentos invisíveis   ✔️ Planeje antes de gastar   ✔️ Pague contas no dia certo   ✔️ Coma mais em casa   ✔️ Diferencie necessidade de vontade   ✔️ Defina limites pros gastos fixos   ✔️ Organize tudo num controle de gastos   👉 Qual dessas você precisa aplicar HOJE?  #dinheiro #mentemilionaria #liberdadefinanceira #finanças #investimentos "], ["20260825220309", 474, 5, 0, 3, "PHOTO", "Frases motivacionais", "Organizar a vida financeira não depende de ganhar muito, mas de saber exatamente para onde o dinheiro está indo. Controlar gastos, evitar dívidas desnecessárias, guardar uma parte da renda e investir com constância são hábitos simples que, repetidos por anos, fazem diferença. Dinheiro sem planejamento desaparece. Dinheiro com propósito constrói liberdade. Provavelmente essa será a última vez que irá nos ver. Então se isso fez sentido para você… Siga o Shonen.cut #financas #casal #frases #amor❤️ #fyp  @Shonen "], ["20260825221521", 1289, 7, 0, 1, "PHOTO", "Frases motivacionais", "É curioso como muitas pessoas gastam fortunas tentando recuperar aquilo que poderiam ter preservado. Investem para recuperar a saúde, aliviar a ansiedade, consertar relacionamentos e tentar comprar um pouco mais de tempo. Mas, quando tinham a oportunidade de prevenir tudo isso, diziam que era caro. O que protege quase sempre parece um gasto. O que remedia quase sempre é aceito como inevitável. Cuidar da saúde, investir em conhecimento, fazer atividade física, descansar, alimentar-se bem e cultivar a própria paz nunca deveria ser visto como luxo. Luxo é perceber tarde demais que o dinheiro consegue voltar. O tempo, a saúde e a tranquilidade, muitas vezes, não. No fim, o investimento mais inteligente não é aquele que aumenta apenas a sua conta bancária. É aquele que preserva a qualidade da vida que você terá para aproveitar tudo o que conquistar. Se esta reflexão fez sentido para você, junte-se a nós nessa jornada. #frases #dicas #fyp #casal #noticias  @Shonen "], ["20260825235734", 3296, 95, 2, 4, "PHOTO", "Notícias positivas", "A NASA já registrou a Terra de uma perspectiva que poucas pessoas terão a chance de ver pessoalmente. De cidades iluminadas durante a noite a enormes tempestades, desertos, cadeias de montanhas e oceanos que se estendem até o horizonte, essas imagens revelam o quão extraordinário é o nosso planeta. Vista do espaço, a Terra ganha uma aparência completamente diferente. Sistemas climáticos gigantes atravessam continentes, rios desenham padrões impressionantes na paisagem e as luzes das cidades formam redes brilhantes que destacam a presença humana após o anoitecer. Juntas, essas imagens mostram a beleza e a complexidade do mundo em que vivemos. Além do impacto visual, essas fotografias também têm grande valor científico. Elas ajudam pesquisadores a monitorar mudanças climáticas, acompanhar desastres naturais, observar transformações ambientais e compreender melhor os sistemas que sustentam a vida no planeta. Talvez o aspecto mais marcante dessas imagens seja a perspectiva que elas oferecem. Do espaço, fronteiras desaparecem, divisões políticas deixam de existir e a Terra surge como um único lar compartilhado por toda a humanidade. É uma visão que nos lembra o quanto estamos conectados e dependemos do mesmo planeta. Para a maioria das pessoas, viajar ao espaço continuará sendo apenas um sonho. Mas, através dessas imagens, temos a oportunidade de enxergar a Terra como os astronautas a veem: bela, frágil e única em todo o universo conhecido. 🌍✨ #terra #brasil #fyp #paravoce #noticias "], ["20260826093733", 1262, 10, 0, 1, "PHOTO", "Notícias positivas", "🇧🇷✨ BOAS NOTÍCIAS DO BRASIL QUE TALVEZ TENHAM PASSADO PELO SEU FEED... 1️⃣ Um menino emocionou milhares de pessoas depois de ser flagrado assistindo à televisão da vizinha pela janela, sentado em um banquinho improvisado. ❤️ A cena ganhou as redes sociais e despertou uma enorme corrente de solidariedade. Pouco depois, ele recebeu uma televisão de 50 polegadas e acesso gratuito à internet para poder assistir aos seus programas dentro de casa. 📺👏 2️⃣ Quem convive com enxaqueca ganhou uma nova alternativa de tratamento. 💊⚡ A Anvisa autorizou um medicamento de rápida dissolução na boca, desenvolvido para combater as crises de forma prática e proporcionar mais qualidade de vida aos pacientes. 3️⃣ Uma nova tecnologia contra o câncer poderá chegar ao SUS. 🧬❤️ Uma imunoterapia desenvolvida pelo Instituto Butantan apresenta potencial de aplicação contra dezenas de tipos de câncer e representa mais uma frente promissora no avanço dos tratamentos oncológicos. 4️⃣ O azeite brasileiro também ganhou destaque internacional. 🫒🏆 Produzido no Rio Grande do Sul, um azeite nacional superou mais de 200 concorrentes e conquistou nota máxima em uma competição realizada em Genebra, alcançando 100 pontos de 100 possíveis. 🇧🇷✨ 5️⃣ A Netflix criou um espaço de dublagem dentro do Retiro dos Artistas. 🎬🎙️ O projeto abre novas possibilidades profissionais para artistas veteranos, permitindo que continuem participando de filmes, séries e outras produções por meio de suas vozes. 6️⃣ A natureza brasileira também trouxe motivo para comemorar. 🦜🌳 Depois de quase 200 anos sem registros de reprodução na Mata Atlântica, a arara-vermelha-grande voltou a nascer no bioma, representando um marco importante para a conservação da espécie. 🌎 Enquanto as notícias ruins normalmente ocupam os maiores espaços, acontecimentos como esses lembram que coisas boas também estão acontecendo todos os dias. ❤️ Qual dessas histórias mais te deixou feliz ou orgulhoso do Brasil? #brasil #amor❤️ #fyp #paravoce #noticias  @Shonen "], ["20260826101206", 123, 4, 0, 1, "PHOTO", "Curiosidades/Ciência", "Você começou a existir dentro de alguém… e, de certa forma, nunca saiu completamente de lá. A ciência chama isso de microquimerismo materno: durante a gestação, células da sua mãe atravessam a placenta, se instalam no seu corpo e podem permanecer por décadas — até no coração e no cérebro. Ou seja, não é só lembrança. Não é só conexão emocional. É algo físico, real, vivo dentro de você. Enquanto você cresce, vive e muda, uma pequena parte de quem te gerou continua ali, silenciosa, fazendo parte da sua própria estrutura. No fim, a ideia de estar “sozinho” nunca foi totalmente verdadeira. Provavelmente essa será a última vez que irá nos ver. Então se isso fez sentido para você... Siga o Shonen.cut #ciencia #fyp #paravoce #vida #mae "], ["20260826123057", 574, 34, 1, 1, "PHOTO", "Frases motivacionais", "🔬 Enquanto muitas pessoas se deparam apenas com notícias preocupantes, a ciência segue avançando todos os dias. Pesquisadores criam tratamentos inovadores, identificam novas espécies, desenvolvem tecnologias sustentáveis e buscam soluções capazes de transformar a vida de milhões de pessoas. 🧬 Nos últimos anos, descobertas na medicina, avanços na inteligência artificial e conquistas na exploração espacial têm mostrado que o conhecimento humano continua ultrapassando barreiras que antes pareciam impossíveis. 🌍 A natureza também não para de surpreender. Novos ecossistemas são encontrados nas profundezas dos oceanos, espécies raras são registradas pela primeira vez e projetos de conservação contribuem para a recuperação de animais ameaçados. 🚀 O futuro já está sendo construído. Satélites investigam o universo, robôs tornam cirurgias cada vez mais precisas e cientistas trabalham diariamente para encontrar respostas para desafios como doenças, mudanças climáticas e escassez de recursos. ✨ Nem toda boa notícia ganha destaque. Mas, todos os dias, em algum laboratório, floresta ou observatório, alguém realiza uma descoberta que nos aproxima de um futuro melhor. #felicidade #amor #fyp #paravoce #frases  @Shonen "], ["20260826154750", 293, 3, 0, 1, "PHOTO", "Educação financeira", "Ficar rico não depende só de quanto você ganha, mas também do quanto consegue não gastar sem necessidade. Trocar de celular sem precisar, comprar para impressionar, trocar de carro por luxo, comer fora todos os dias, viver no cartão e gastar por impulso parecem decisões isoladas. Somadas durante meses e anos, podem consumir uma parte enorme da sua renda. Organizar o dinheiro começa quando você identifica esses vazamentos e passa a decidir para onde cada real deve ir. Quer começar? Comente PLANILHA e receba o link nas suas mensagens. Provavelmente essa será a última vez que irá nos ver. Então já segue a página  #financas #dividas #cartaodecredito #fyp #brasil "], ["20260826155253", 4742, 103, 1, 1, "PHOTO", "Notícias positivas", "Terra é muito mais estranha do que parece 🌍 O Everest ainda está crescendo. Existem rochas marinhas no ponto mais alto do planeta. Há uma enorme quantidade de água presa em minerais centenas de quilômetros abaixo dos nossos pés — e pinguins podem tirar milhares de microcochilos em um único dia. Qual deles pareceu mais impossível de acreditar? 👀 #curiosidades #noticias #casaltiktok #fyp #paravoce "], ["20260826155828", 499, 37, 1, 6, "PHOTO", "Frases motivacionais", "Antes de dormir, entregue a Deus aquilo que você não precisa carregar sozinho. Agradeça pelo dia que passou, peça proteção para o seu lar e para sua família, busque orientação para as decisões que precisa tomar e peça paz para descansar o coração. Nem todos os dias serão fáceis, mas terminar o dia em oração é reconhecer que existem preocupações que podemos colocar nas mãos de Deus. Que a gratidão substitua a reclamação, a fé diminua o medo e a paz de Deus acompanhe o seu descanso e o seu amanhã. Durma em paz. Amanhã será um novo dia. Provavelmente essa será a última vez que irá nos ver. Então se isso fez sentido para você… siga o Shonen.cut #fé #religiao #deus #brasil🇧🇷 #paravoce "], ["20260826163944", 1242, 7, 1, 0, "PHOTO", "Notícias positivas", "A maior mentira que você pode acreditar é que procrastinação acontece por falta de força de vontade. Na realidade, adiar tarefas costuma ter muito mais relação com a forma como o cérebro reage ao desconforto do que com preguiça. O medo de falhar, a pressão para fazer tudo perfeito, a ansiedade e o excesso de estímulos podem transformar até a tarefa mais simples em algo difícil de começar. Isso não significa que procrastinar seja inevitável ou que exista uma única explicação para esse comportamento. A ciência mostra que fatores emocionais, hábitos, ambiente e até a maneira como percebemos uma recompensa influenciam diretamente nossa tendência de adiar decisões e responsabilidades. Entender isso ajuda muito mais do que viver se culpando. No fim, superar a procrastinação não depende de esperar o momento ideal. Depende de reduzir a barreira para começar, mesmo que seja com um passo pequeno. A ação vem antes da motivação muito mais vezes do que imaginamos. Quase toda grande conquista começou com alguém que decidiu agir antes de se sentir totalmente pronto. O primeiro passo pode parecer pequeno, mas é ele que coloca todo o resto em movimento. Provavelmente essa será a última vez que irá nos ver. Então se isso fez sentido para você… #galentinesidea #fyp #paravoce #curiosidades #noticias "], ["20260830214136", 642, 30, 1, 0, "PHOTO", "Anime", "Quando somos crianças, enxergamos Toguro como um dos maiores vilões de Yu Yu Hakusho. Mas assistir à sua história depois de adulto provoca uma sensação diferente. Toguro não nasceu aquele monstro. Ele conheceu o amor, teve companheiros e dedicou sua vida às artes marciais. Até experimentar uma perda que mudou completamente a maneira como enxergava a força. Com medo de voltar a ser impotente, escolheu o poder. Conseguiu o que queria. Mas pagou por isso com a própria humanidade. Talvez seja justamente aí que esteja a tragédia de Toguro: ele passou tanto tempo tentando se tornar forte o suficiente para nunca mais sofrer que acabou destruindo tudo aquilo que ainda o tornava humano. E quando finalmente encontrou Yusuke, talvez já não estivesse procurando apenas alguém forte o bastante para enfrentá-lo. Talvez estivesse procurando alguém capaz de provar que a escolha que fez tantos anos atrás estava errada. Quando crianças, queríamos ver Yusuke derrotar Toguro. Depois de adultos, começamos a entender por que a despedida entre Toguro e Genkai dói tanto. Porque naquele momento não estamos mais olhando apenas para um vilão. Estamos olhando para um homem diante das consequências das próprias escolhas. E talvez essa seja uma das maiores genialidades de Yoshihiro Togashi. E agora me diz ai... Você também passou a enxergar o Toguro de outra maneira depois de adulto? #anime #animes #mangá #manga #yuyuhakusho"]];
+// record: [date(yyyymmddhhmmss), views, likes, comments, shares, type, cat, desc]
 
-  posts.forEach(p=>{
-    const bar = document.createElement('div');
-    const heightPct = Math.max((p.views/maxViews)*100, 1);
-    bar.className = 'bar' + (p.views>=hitThreshold ? ' hit' : (p.type==='VIDEO' ? ' video' : ''));
-    bar.style.height = heightPct + '%';
-    bar.addEventListener('mousemove', (e)=>{
-      tooltip.style.opacity = 1;
-      tooltip.style.left = (e.clientX+12)+'px';
-      tooltip.style.top = (e.clientY+12)+'px';
-      const d = p.date;
-      const dateFmt = d.slice(6,8)+'/'+d.slice(4,6);
-      tooltip.innerHTML = `<strong>${dateFmt}</strong> · ${p.type==='PHOTO'?'Carrossel':'Vídeo'}<br>${p.views.toLocaleString('pt-BR')} views · ${p.likes.toLocaleString('pt-BR')} curtidas · ${p.eng}% eng.`;
-    });
-    bar.addEventListener('mouseleave', ()=>{ tooltip.style.opacity = 0; });
-    container.appendChild(bar);
+const CAT_COLOR = {
+  "Anime": "var(--cat-anime)",
+  "Educação financeira": "var(--cat-fin)",
+  "Frases motivacionais": "var(--cat-frases)",
+  "Notícias positivas": "var(--cat-news)",
+  "Curiosidades/Ciência": "var(--cat-curio)",
+  "Sem legenda": "var(--cat-outros)",
+  "Outro": "var(--cat-outros)"
+};
+const CAT_ORDER = ["Anime","Educação financeira","Frases motivacionais","Notícias positivas","Curiosidades/Ciência","Sem legenda","Outro"];
+
+function fmtDate(d){
+  return d.slice(6,8)+"/"+d.slice(4,6)+"/"+d.slice(0,4);
+}
+function fmtNum(n){ return n.toLocaleString('pt-BR'); }
+function eng(p){ return ((p[2]+p[3]+p[4])/p[1]*100); }
+
+/* ---- monthly stacked chart ---- */
+const MONTHS = {};
+POSTS.forEach(p=>{
+  const m = p[0].slice(0,6);
+  if(!MONTHS[m]) MONTHS[m]={};
+  MONTHS[m][p[6]] = (MONTHS[m][p[6]]||0) + p[1];
+});
+const monthKeys = Object.keys(MONTHS).sort();
+const MLABEL = {"202602":"Fev","202603":"Mar","202604":"Abr","202605":"Mai","202606":"Jun","202607":"Jul","202608":"Ago"};
+const maxMonthTotal = Math.max(...monthKeys.map(m=>Object.values(MONTHS[m]).reduce((a,b)=>a+b,0)));
+
+const legendEl = document.getElementById('legend');
+CAT_ORDER.filter(c=>Object.values(MONTHS).some(m=>m[c])).forEach(c=>{
+  const d = document.createElement('div'); d.className='chip';
+  d.innerHTML = '<span class="sw" style="background:'+CAT_COLOR[c]+'"></span>'+c;
+  legendEl.appendChild(d);
+});
+
+const chartEl = document.getElementById('monthChart');
+monthKeys.forEach(m=>{
+  const col = document.createElement('div'); col.className='month-col';
+  const total = Object.values(MONTHS[m]).reduce((a,b)=>a+b,0);
+  const bar = document.createElement('div'); bar.className='month-bar';
+  bar.style.height = Math.max(6,(total/maxMonthTotal*160))+'px';
+  CAT_ORDER.forEach(c=>{
+    const v = MONTHS[m][c];
+    if(!v) return;
+    const seg = document.createElement('div'); seg.className='seg';
+    seg.style.height = (v/total*100)+'%';
+    seg.style.background = CAT_COLOR[c];
+    seg.title = c+': '+fmtNum(v)+' views';
+    bar.appendChild(seg);
   });
+  col.appendChild(bar);
+  const lbl = document.createElement('div'); lbl.className='mlbl'; lbl.textContent = MLABEL[m]||m;
+  const val = document.createElement('div'); val.className='mval'; val.textContent = (total/1000).toFixed(0)+'K';
+  col.appendChild(lbl); col.appendChild(val);
+  chartEl.appendChild(col);
+});
+
+/* ---- top 10 ---- */
+const topEl = document.getElementById('topList');
+const top10 = [...POSTS].sort((a,b)=>b[1]-a[1]).slice(0,10);
+top10.forEach((p,i)=>{
+  const row = document.createElement('div'); row.className='rank-item'+(i<3?' win':'');
+  row.innerHTML =
+    '<div class="rank-num">'+(i+1)+'</div>'+
+    '<div><div class="rank-cap"><span class="capt">'+(p[7]||'(sem legenda)')+'</span></div>'+
+    '<div class="rank-meta"><span class="chip"><span class="sw" style="background:'+CAT_COLOR[p[6]]+'"></span>'+p[6]+'</span><span class="date">'+fmtDate(p[0])+' &middot; '+p[5]+'</span></div></div>'+
+    '<div class="rank-stats"><div class="v">'+fmtNum(p[1])+'</div><div class="e">'+eng(p).toFixed(1)+'% eng.</div></div>';
+  topEl.appendChild(row);
+});
+
+/* ---- flop list: lowest-view posts from Aug pivot (excluding anime) ---- */
+const flopEl = document.getElementById('flopList');
+const augPivot = POSTS.filter(p=>p[0].slice(0,6)==='202608' && p[6]!=='Anime');
+const flops = [...augPivot].sort((a,b)=>a[1]-b[1]).slice(0,8);
+flops.forEach(p=>{
+  const row = document.createElement('div'); row.className='flop-item';
+  row.innerHTML = '<div class="capt">'+(p[7]||'(sem legenda)').slice(0,90)+'</div><div class="v">'+fmtNum(p[1])+'</div>';
+  flopEl.appendChild(row);
+});
+
+/* ---- best time heatmap (static data from Metricool) ---- */
+const HEAT = {
+  "Seg":[125,68,67,60,66,91,193,318,508,653,1089,741,1050,730,689,795,906,890,1096,804,702,503,346,255],
+  "Ter":[136,91,66,53,48,73,177,327,452,646,1136,736,1082,707,681,771,812,883,1119,859,767,588,379,290],
+  "Qua":[158,119,85,116,106,99,237,420,772,856,1432,985,1359,947,940,947,1122,1095,1386,1039,907,580,370,279],
+  "Qui":[188,126,88,85,78,118,239,425,630,803,1471,978,1299,941,887,947,1118,1097,1378,999,838,643,439,280],
+  "Sex":[175,113,101,85,79,81,226,444,684,890,1379,899,1251,876,854,978,1079,1044,1222,891,689,474,328,294],
+  "Sáb":[170,105,76,51,49,69,145,257,396,517,852,566,815,564,560,552,620,531,709,573,523,347,275,185],
+  "Dom":[130,87,69,61,35,53,129,228,337,506,816,493,720,487,493,492,595,524,677,632,579,402,283,161]
+};
+const heatMax = Math.max(...Object.values(HEAT).flat());
+function heatColor(v){
+  const t = v/heatMax;
+  const l = 92 - t*55;
+  return 'hsl(252,'+(30+t*35)+'%,'+l+'%)';
+}
+const heatEl = document.getElementById('heatmap');
+const hh = document.createElement('div'); hh.className='heat-hours';
+for(let h=0;h<24;h+=2){ const s=document.createElement('span'); s.style.gridColumn='span 2'; s.textContent=h; hh.appendChild(s);}
+heatEl.appendChild(hh);
+Object.entries(HEAT).forEach(([day,vals])=>{
+  const row = document.createElement('div'); row.className='heat-row';
+  const lbl = document.createElement('div'); lbl.className='heat-row-lbl'; lbl.textContent=day;
+  row.appendChild(lbl);
+  const grid = document.createElement('div'); grid.className='heat'; grid.style.flex='1';
+  vals.forEach((v,h)=>{
+    const c = document.createElement('div'); c.className='cell';
+    c.style.background = heatColor(v);
+    c.title = day+' '+h+'h — score '+v;
+    grid.appendChild(c);
+  });
+  row.appendChild(grid);
+  heatEl.appendChild(row);
+});
+
+/* ---- content examples ---- */
+const EXAMPLES = [
+  {
+    tag: "Anime + fórmula original",
+    title: "“5 frases de anime que doem mais que a real vida”",
+    hook: "ANIME NÃO É SÓ PORRADA.",
+    body: "5 personagens (Itachi, Luffy, Gojo/Geto, Levi, Tanjiro), 1 frase de vida cada, zoom-punch a cada revelação.",
+    cta: "Qual dessas doeu mais? E se acha que errei a ordem... prove que eu tô errado.",
+    why: "Já está roteirizado em content/shonen-cut-anime-nao-e-so-porrada.mp4 — só falta publicar."
+  },
+  {
+    tag: "Frases + gancho específico",
+    title: "“O erro de R$50 que todo mês te custa R$600”",
+    hook: "O problema não é o salário. É o piloto automático.",
+    body: "3 gastos invisíveis reais (assinatura esquecida, delivery por preguiça, parcelamento sem juros que vira hábito) com valor em R$ exato.",
+    cta: "Qual desses 3 é o seu? Comenta o valor que você descobriu que gasta sem perceber.",
+    why: "Réplica do formato que já rendeu 276K views (23/08) — número específico + confronto direto."
+  },
+  {
+    tag: "Curiosidade com número",
+    title: "“5 fatos sobre o corpo humano que parecem mentira”",
+    hook: "Seu corpo faz isso agora, enquanto você lê.",
+    body: "5 fatos com número exato (86 bilhões de neurônios, etc.), 1 por corte, texto grande na tela.",
+    cta: "Qual desses você não sabia? Comenta o número.",
+    why: "O post das corujas (18,9K views) e do cérebro provam que dado concreto > frase genérica."
+  },
+  {
+    tag: "Híbrido anime + reflexão",
+    title: "“Toguro não era vilão. Era um espelho.”",
+    hook: "Quando criança, você viu o vilão. Hoje, você vê você.",
+    body: "Reaproveita o post de 30/08 (Toguro) mas troca a legenda genérica por uma afirmação polêmica + nome do personagem, no estilo do post de 707K (Naruto/Pain/Gaara).",
+    cta: "Qual vilão de anime você só entendeu depois de crescer? Comenta o nome.",
+    why: "Mantém a base de 6.475 seguidores de anime enquanto testa o novo tom mais reflexivo."
+  }
+];
+const exEl = document.getElementById('examples');
+EXAMPLES.forEach(e=>{
+  const card = document.createElement('div'); card.className='ex-card';
+  card.innerHTML =
+    '<div class="ex-head"><h3>'+e.title+'</h3></div>'+
+    '<div class="ex-body">'+
+    '<span class="tag">'+e.tag+'</span>'+
+    '<div class="lbl">Gancho (0–2s)</div><div class="capt">'+e.hook+'</div>'+
+    '<div class="lbl">Conteúdo</div><div class="capt">'+e.body+'</div>'+
+    '<div class="lbl">CTA</div><div class="capt">'+e.cta+'</div>'+
+    '<div class="lbl">Por que deve funcionar</div><div class="capt">'+e.why+'</div>'+
+    '</div>';
+  exEl.appendChild(card);
+});
+
+/* ---- full table ---- */
+let currentFilter = 'Todos';
+let sortKey = 'date', sortDir = -1;
+
+const filtersEl = document.getElementById('filters');
+const cats = ['Todos', ...CAT_ORDER.filter(c=>POSTS.some(p=>p[6]===c))];
+cats.forEach(c=>{
+  const b = document.createElement('button'); b.className='fbtn'+(c===currentFilter?' active':'');
+  b.textContent = c + (c==='Todos' ? ' ('+POSTS.length+')' : ' ('+POSTS.filter(p=>p[6]===c).length+')');
+  b.onclick = ()=>{ currentFilter=c; render(); [...filtersEl.children].forEach(x=>x.classList.remove('active')); b.classList.add('active'); };
+  filtersEl.appendChild(b);
+});
+
+document.querySelectorAll('#postTable th[data-key]').forEach(th=>{
+  th.addEventListener('click', ()=>{
+    const k = th.dataset.key;
+    if(sortKey===k){ sortDir*=-1; } else { sortKey=k; sortDir=-1; }
+    render();
+  });
+});
+
+function getVal(p,key){
+  if(key==='date') return p[0];
+  if(key==='cat') return p[6];
+  if(key==='type') return p[5];
+  if(key==='views') return p[1];
+  if(key==='likes') return p[2];
+  if(key==='eng') return eng(p);
+}
+
+function render(){
+  let rows = currentFilter==='Todos' ? POSTS.slice() : POSTS.filter(p=>p[6]===currentFilter);
+  rows.sort((a,b)=>{
+    const va=getVal(a,sortKey), vb=getVal(b,sortKey);
+    if(va<vb) return -1*sortDir; if(va>vb) return 1*sortDir; return 0;
+  });
+  const tbody = document.getElementById('tbody');
+  tbody.innerHTML = '';
+  rows.forEach(p=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML =
+      '<td class="mono">'+fmtDate(p[0])+'</td>'+
+      '<td><span class="chip"><span class="sw" style="background:'+CAT_COLOR[p[6]]+'"></span>'+p[6]+'</span></td>'+
+      '<td>'+p[5]+'</td>'+
+      '<td class="num-cell">'+fmtNum(p[1])+'</td>'+
+      '<td class="num-cell">'+fmtNum(p[2])+'</td>'+
+      '<td class="num-cell">'+eng(p).toFixed(1)+'%</td>'+
+      '<td class="desc-cell">'+(p[7]||'—')+'</td>';
+    tbody.appendChild(tr);
+  });
+  document.getElementById('tblFoot').textContent = rows.length + ' de ' + POSTS.length + ' posts';
+}
+render();
 </script>
