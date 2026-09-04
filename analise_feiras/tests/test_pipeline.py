@@ -11,6 +11,7 @@ from pipeline import (  # noqa: E402
     CHECK_ERRO,
     CHECK_OK,
     _bate_mapa_bandeira,
+    _mask_tabela_bate,
     _rotulo_bate_na_tabela,
     carregar_base,
     perguntar_quais_matrizes,
@@ -448,6 +449,87 @@ def test_matriz_tipo_cnpj_canal_autorizador(tmp_path: Path):
     assert round(linha_erro["preco_liquido_desconto_correto"], 2) == round(preco_correto, 2)
 
     assert (tmp_path / "saida" / "CanalAutorizador_analise.xlsx").exists()
+
+
+def test_mask_tabela_bate_contem_vs_exata():
+    # "SELL OUT" é substring de "SELL OUT CA" -> "contem" confunde as duas
+    # condições; "exata" só bate quando o conjunto de palavras é o mesmo.
+    tabelas_norm = (
+        pd.Series(["Sell Out", "Sell Out CA", "Tabela Agregadora - Sell Out"])
+        .map(normalize_text)
+        .map(remover_prefixo_tabela_agregadora)
+    )
+
+    contem = _mask_tabela_bate(tabelas_norm, "SELL OUT", "contem")
+    assert list(contem) == [True, True, True]
+
+    exata = _mask_tabela_bate(tabelas_norm, "SELL OUT", "exata")
+    assert list(exata) == [True, False, True]
+
+
+def test_matriz_tipo_cnpj_correspondencia_exata_evita_colisao_sell_out(tmp_path: Path):
+    # pedido 8001: CNPJ cadastrado como SELL_OUT no rotulos_lojas, lançado na
+    #              Tabela "Sell Out" -> OK
+    # pedido 8002: mesmo CNPJ, lançado na Tabela "Sell Out CA" (canal
+    #              diferente) -> tem que dar Erro Operacional. Com
+    #              correspondencia_tabela "contem" (substring) essa linha
+    #              bateria por engano, já que "SELL OUT" é substring de
+    #              "SELL OUT CA".
+    base_df = pd.DataFrame(
+        {
+            "CNPJ": ["22.333.444/0001-11", "22.333.444/0001-11"],
+            "Id pedido": ["8001", "8002"],
+            "EAN": ["2222222222222", "2222222222222"],
+            "Tabela de negociação": ["Sell Out", "Sell Out CA"],
+            "Data do pedido (original)": ["10/05/2026 10:00", "11/05/2026 10:00"],
+            "Faturado líquido (R$)": ["100", "100"],
+            "Desconto comercial faturado (%)": ["10", "10"],
+        }
+    )
+
+    rotulos_df = pd.DataFrame(
+        {
+            "cnpj": ["22.333.444/0001-11"],
+            "rotulo": ["SELL_OUT"],
+        }
+    )
+
+    (tmp_path / "saida").mkdir()
+    base_df.to_excel(tmp_path / "base_pedidos.xlsx", index=False)
+    rotulos_df.to_csv(tmp_path / "rotulos_lojas_20260904_141843.csv", sep=";", index=False)
+    with pd.ExcelWriter(tmp_path / "condicao_comercial.xlsx") as w:
+        pd.DataFrame({"EAN FORMATADO": [], "Desconto Atual": []}).to_excel(w, sheet_name="Dados", index=False)
+
+    cfg = _montar_config(tmp_path)
+    matriz_cfg = {
+        "nome": "SellOut",
+        "tipo": "cnpj",
+        "ativo": True,
+        "palavra_chave": "SELL OUT",
+        "correspondencia_tabela": "exata",
+        "arquivo_controle": "rotulos_lojas_*.csv",
+        "aba_controle": None,
+        "chave_controle": "cnpj",
+        "coluna_rotulo_controle": "rotulo",
+        "rotulo_valido_controle": "SELL_OUT",
+        "colunas_trazidas": {},
+        "colunas_data": [],
+    }
+    cfg["matrizes"].append(matriz_cfg)
+
+    import pipeline
+
+    pipeline.BASE_DIR = tmp_path
+
+    df_base = carregar_base(cfg)
+    resultado = rodar_matriz("SellOut", matriz_cfg, df_base, cfg)
+
+    assert resultado is not None
+    checks = dict(zip(resultado["Id pedido"], resultado["Check"]))
+    assert checks["8001"] == CHECK_OK
+    assert checks["8002"] == CHECK_ERRO
+
+    assert (tmp_path / "saida" / "SellOut_analise.xlsx").exists()
 
 
 def test_matriz_tipo_consolidacao_bandeira(tmp_path: Path):

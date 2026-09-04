@@ -9,13 +9,20 @@ define como a base é filtrada e o que sai no resultado:
     3. Check = OK só quando o CNPJ existe no controle E a data do pedido está
        dentro do período Início Real / Término Real.
 
-  tipo: "cnpj" (ex.: Canal Autorizador) — parte da relação de CNPJs:
+  tipo: "cnpj" (ex.: Canal Autorizador, Sell Out, Atacarejo Conecta) — parte
+  da relação de CNPJs:
     1. Filtra a base pelos CNPJs presentes no arquivo de controle (ex.:
-       Painel_NV, uma lista de clientes que deveriam comprar por um canal
-       específico — não pela Tabela de negociação da base).
+       Painel_NV, rotulos_lojas — uma lista de clientes que deveriam comprar
+       por um canal específico — não pela Tabela de negociação da base).
     2. Check = OK só quando a "Tabela de negociação" do pedido bate com a
        palavra_chave configurada (ex.: pedido de um CNPJ do Canal Autorizador
        feito em qualquer tabela diferente de "Canal Autorizador" = erro).
+       Por padrão (correspondencia_tabela: "contem", ou omitido) a
+       palavra_chave só precisa aparecer como substring na Tabela. Quando a
+       palavra_chave é substring de outra Tabela válida (ex.: "Sell Out" é
+       substring de "Sell Out CA") use correspondencia_tabela: "exata" — aí
+       a comparação exige o mesmo conjunto de palavras (em qualquer ordem),
+       não só a substring, pra não confundir as duas condições.
 
   Nos tipos "tabela" e "cnpj", pedidos com Check = Erro Operacional são
   cruzados com Condicao_comercial (por EAN, e por Tabela se a planilha tiver
@@ -157,6 +164,25 @@ def filtrar_por_cnpj(df_base: pd.DataFrame, cnpjs_norm: set[str]) -> pd.DataFram
     return df_base.loc[mask].copy()
 
 
+def _mask_tabela_bate(tabela_norm: pd.Series, palavra_chave: str, correspondencia: str = "contem") -> pd.Series:
+    """Compara a coluna "_tabela_norm" (já normalizada, sem prefixo "Tabela
+    Agregadora -") com a palavra_chave configurada.
+
+    "contem" (padrão): a palavra_chave aparece como substring — ok quando ela
+    não é substring de nenhuma outra Tabela válida (ex.: "Canal Autorizador").
+
+    "exata": exige o mesmo conjunto de palavras (tokenizado, em qualquer
+    ordem) — necessário quando a palavra_chave É substring de outra Tabela
+    válida (ex.: "Sell Out" é substring de "Sell Out CA"; "contem" misturaria
+    as duas condições).
+    """
+    if correspondencia == "exata":
+        tokens_chave = frozenset(tokenizar(normalize_text(palavra_chave)))
+        return tabela_norm.map(lambda t: frozenset(tokenizar(t)) == tokens_chave)
+    palavra = normalize_text(palavra_chave)
+    return tabela_norm.str.contains(palavra, na=False)
+
+
 def carregar_controle(matriz_cfg: dict) -> pd.DataFrame:
     """Lê o arquivo de controle da matriz (ex.: Controle_Feiras, Painel_NV) e
     prepara a coluna-chave (CNPJ ajustado) mais as colunas extras a trazer
@@ -228,8 +254,8 @@ def calcular_check(df: pd.DataFrame, matriz_cfg: dict) -> pd.Series:
     tipo = matriz_cfg.get("tipo", "tabela")
 
     if tipo == "cnpj":
-        palavra = normalize_text(matriz_cfg["palavra_chave"])
-        tabela_correta = df["_tabela_norm"].str.contains(palavra, na=False)
+        correspondencia = matriz_cfg.get("correspondencia_tabela", "contem")
+        tabela_correta = _mask_tabela_bate(df["_tabela_norm"], matriz_cfg["palavra_chave"], correspondencia)
         ok = encontrado & tabela_correta
     else:
         colunas_trazidas = matriz_cfg["colunas_trazidas"]
@@ -296,8 +322,9 @@ def aplicar_condicao_correta(df: pd.DataFrame, df_condicao: pd.DataFrame, matriz
         # primeira condição cadastrada por EAN, em vez de quebrar.
         palavra = matriz_cfg.get("palavra_chave")
         if palavra:
-            palavra_norm = normalize_text(palavra)
-            df_condicao = df_condicao[df_condicao["_tabela_condicao_norm"].str.contains(palavra_norm, na=False)]
+            correspondencia = matriz_cfg.get("correspondencia_tabela", "contem")
+            mask = _mask_tabela_bate(df_condicao["_tabela_condicao_norm"], palavra, correspondencia)
+            df_condicao = df_condicao[mask]
         df_condicao = df_condicao[["_ean_norm", "_desconto_correto_pct"]].drop_duplicates(
             subset="_ean_norm", keep="first"
         )

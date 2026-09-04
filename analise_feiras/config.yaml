@@ -77,16 +77,21 @@ condicao_comercial:
 #        matriz não tiver essas duas chaves, só a condição 1 vale.
 #   Fora disso, Check = "Erro Operacional".
 #
-# tipo: "cnpj" (ex.: Canal Autorizador) — não filtra pela Tabela de
-#   negociação; filtra a base pelos CNPJs presentes no arquivo de controle
-#   (ex.: Painel_NV). Check = OK só quando a "Tabela de negociação" do
-#   pedido contém a palavra_chave configurada; qualquer pedido desses CNPJs
-#   feito em condição diferente (ex.: Feira, Associativismo, etc. em vez de
-#   Canal Autorizador) vira "Erro Operacional".
+# tipo: "cnpj" (ex.: Canal Autorizador, Sell Out, Atacarejo Conecta) — não
+#   filtra pela Tabela de negociação; filtra a base pelos CNPJs presentes no
+#   arquivo de controle (ex.: Painel_NV, rotulos_lojas). Check = OK só quando
+#   a "Tabela de negociação" do pedido bate com a palavra_chave configurada;
+#   qualquer pedido desses CNPJs feito em condição diferente (ex.: Feira,
+#   Associativismo, etc. em vez do canal esperado) vira "Erro Operacional".
 #   coluna_rotulo_controle/rotulo_valido_controle são opcionais: use quando
 #   o arquivo de controle traz vários rótulos/canais misturados no mesmo
-#   arquivo (caso do Painel_NV) e você precisa filtrar só as linhas do
-#   rótulo desta matriz antes de montar a lista de CNPJs.
+#   arquivo (caso do Painel_NV e do rotulos_lojas) e você precisa filtrar só
+#   as linhas do rótulo desta matriz antes de montar a lista de CNPJs.
+#   correspondencia_tabela é opcional (padrão "contem" = palavra_chave como
+#   substring da Tabela de negociação). Use "exata" quando a palavra_chave é
+#   substring de OUTRA Tabela também válida (ex.: "Sell Out" é substring de
+#   "Sell Out CA") — "exata" compara o conjunto de palavras da Tabela, não a
+#   substring, evitando que os dois canais se confundam.
 #
 # tipo: "consolidacao" (ex.: Bandeira) — sem Check e sem cruzamento com
 #   Condicao_comercial. Filtra a base pelos CNPJs do arquivo de controle
@@ -171,12 +176,58 @@ matrizes:
     chave_controle: "CNPJ ajustado"
     # o Painel_NV pode ter vários rótulos/canais no mesmo arquivo; filtra só
     # as linhas de Canal Autorizador antes de montar a lista de CNPJs.
-    # ATENÇÃO: o rótulo no Painel_NV vem como "Canal_Aut", só que a Tabela de
-    # negociação real na base é "Canal Autorizador" — por isso são dois
-    # campos separados (rotulo_valido_controle vs. palavra_chave acima) em
-    # vez de comparar o texto direto.
+    # ATENÇÃO: o rótulo no Painel_NV vem como "Nao_Visitado" (renomeado a
+    # partir de "Canal_Aut" na migração de política comercial), só que a
+    # Tabela de negociação real na base é "Canal Autorizador" — por isso são
+    # dois campos separados (rotulo_valido_controle vs. palavra_chave acima)
+    # em vez de comparar o texto direto.
     coluna_rotulo_controle: "Rotulo"
-    rotulo_valido_controle: "CANAL_AUT"
+    rotulo_valido_controle: "NAO_VISITADO"
+    colunas_trazidas: {}
+    colunas_data: []
+
+  - nome: "SellOut"
+    tipo: "cnpj"
+    ativo: true
+    # "Sell Out" é substring de "Sell Out CA" (outra condição válida) —
+    # correspondencia_tabela: "exata" evita que os dois canais se confundam.
+    palavra_chave: "SELL OUT"
+    correspondencia_tabela: "exata"
+    # nome do arquivo muda a cada exportação (rotulos_lojas_AAAAMMDD_HHMMSS)
+    # — usa * pra sempre pegar o mais recente.
+    arquivo_controle: "C:/Users/I0507867.FARMA/OneDrive - Sanofi/Desktop/Analise Painel/dados/rotulos_lojas_*.csv"
+    aba_controle: null
+    chave_controle: "cnpj"
+    coluna_rotulo_controle: "rotulo"
+    rotulo_valido_controle: "SELL_OUT"
+    colunas_trazidas: {}
+    colunas_data: []
+
+  - nome: "AtacarejoConecta"
+    tipo: "cnpj"
+    ativo: true
+    # "Atacarejo Conecta" é substring de "Atacarejo Conecta CA" (outra
+    # condição válida) — correspondencia_tabela: "exata" evita confusão.
+    palavra_chave: "ATACAREJO CONECTA"
+    correspondencia_tabela: "exata"
+    arquivo_controle: "C:/Users/I0507867.FARMA/OneDrive - Sanofi/Desktop/Analise Painel/dados/rotulos_lojas_*.csv"
+    aba_controle: null
+    chave_controle: "cnpj"
+    coluna_rotulo_controle: "rotulo"
+    rotulo_valido_controle: "ATACAREJO_CONECTA"
+    colunas_trazidas: {}
+    colunas_data: []
+
+  - nome: "AtacarejoConectaCA"
+    tipo: "cnpj"
+    ativo: true
+    palavra_chave: "ATACAREJO CONECTA CA"
+    correspondencia_tabela: "exata"
+    arquivo_controle: "C:/Users/I0507867.FARMA/OneDrive - Sanofi/Desktop/Analise Painel/dados/rotulos_lojas_*.csv"
+    aba_controle: null
+    chave_controle: "cnpj"
+    coluna_rotulo_controle: "rotulo"
+    rotulo_valido_controle: "ATACAREJO_CONECTA_CA"
     colunas_trazidas: {}
     colunas_data: []
 
@@ -255,6 +306,8 @@ matrizes:
       - "DPSP CA"
       - "PANVEL CA"
       - "RAIA CA"
+      - "SELL OUT CA"
+      - "ATACAREJO CONECTA CA"
     nome_categoria_a: "CA"
     nome_categoria_b: "WE"
     nome_arquivo_saida: "Resumo_CA_WE.xlsx"
