@@ -1,0 +1,641 @@
+<title>Painel Shonen Cut</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Anton&family=Manrope:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+
+  :root{
+    color-scheme: light;
+    --bg: #f2f1eb;
+    --surface: #fcfcfa;
+    --surface-2: #eeece2;
+    --border: #dfdccf;
+    --ink: #17150f;
+    --ink-2: #5b584c;
+    --ink-3: #8b8879;
+    --brand: #d63324;
+    --brand-ink: #ffffff;
+
+    --c-anime: #2a78d6;
+    --c-hibrido: #eb6834;
+    --c-motiv: #1baf7a;
+    --c-outros: #eda100;
+
+    --good: #0ca30c;
+    --warning: #c9860a;
+    --serious: #ec835a;
+    --critical: #d03b3b;
+
+    --shadow: 0 1px 2px rgba(23,21,15,.06), 0 8px 24px -12px rgba(23,21,15,.18);
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      color-scheme: dark;
+      --bg: #15140f;
+      --surface: #1d1c15;
+      --surface-2: #262419;
+      --border: #37341f;
+      --ink: #f5f3e9;
+      --ink-2: #c2beac;
+      --ink-3: #8b8879;
+      --brand: #ff6a52;
+      --brand-ink: #1a0a06;
+
+      --c-anime: #3987e5;
+      --c-hibrido: #d95926;
+      --c-motiv: #199e70;
+      --c-outros: #c98500;
+
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 12px 28px -14px rgba(0,0,0,.6);
+    }
+  }
+  :root[data-theme="dark"]{
+    color-scheme: dark;
+    --bg: #15140f;
+    --surface: #1d1c15;
+    --surface-2: #262419;
+    --border: #37341f;
+    --ink: #f5f3e9;
+    --ink-2: #c2beac;
+    --ink-3: #8b8879;
+    --brand: #ff6a52;
+    --brand-ink: #1a0a06;
+
+    --c-anime: #3987e5;
+    --c-hibrido: #d95926;
+    --c-motiv: #199e70;
+    --c-outros: #c98500;
+
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 12px 28px -14px rgba(0,0,0,.6);
+  }
+
+  *{box-sizing:border-box;}
+  body{
+    background:var(--bg);
+    color:var(--ink);
+    font-family:'Manrope',ui-sans-serif,system-ui,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{ max-width:1180px; margin:0 auto; padding:28px 20px 80px; }
+
+  .display{ font-family:'Anton',ui-sans-serif,sans-serif; letter-spacing:.01em; text-wrap:balance; }
+  .mono{ font-family:'IBM Plex Mono', ui-monospace, monospace; font-variant-numeric: tabular-nums; }
+
+  /* ---------- header ---------- */
+  header.top{
+    display:flex; flex-wrap:wrap; gap:20px 32px; align-items:flex-end; justify-content:space-between;
+    padding-bottom:22px; margin-bottom:26px; border-bottom:1px solid var(--border);
+  }
+  .brandmark{ display:flex; align-items:center; gap:14px; }
+  .brandmark .badge{
+    width:44px;height:44px;border-radius:10px;background:var(--brand);color:var(--brand-ink);
+    display:flex;align-items:center;justify-content:center; font-family:'Anton'; font-size:22px; flex:none;
+    box-shadow: var(--shadow);
+  }
+  h1.display{ font-size:clamp(28px,4vw,40px); line-height:1; margin:0; }
+  .handle{ color:var(--ink-3); font-size:14px; margin-top:4px; }
+  .handle a{ color:var(--ink-2); text-decoration:none; border-bottom:1px dotted var(--ink-3); }
+  .period{ text-align:right; font-size:13px; color:var(--ink-3); }
+  .period .n{ color:var(--ink); font-weight:700; }
+  .scan-pill{
+    display:inline-flex; align-items:center; gap:6px; margin-top:6px;
+    background:var(--surface-2); border:1px solid var(--border); border-radius:999px;
+    padding:4px 10px 4px 8px; font-size:12px; color:var(--ink-2);
+  }
+  .scan-pill .dot{ width:7px;height:7px;border-radius:50%; background:var(--good); }
+
+  /* ---------- kpi row ---------- */
+  .kpis{ display:grid; grid-template-columns:repeat(5,1fr); gap:12px; margin-bottom:30px; }
+  @media (max-width:920px){ .kpis{ grid-template-columns:repeat(2,1fr);} }
+  .kpi{
+    background:var(--surface); border:1px solid var(--border); border-radius:14px;
+    padding:16px 16px 14px; box-shadow:var(--shadow);
+  }
+  .kpi .label{ font-size:11.5px; text-transform:uppercase; letter-spacing:.06em; color:var(--ink-3); font-weight:600; }
+  .kpi .value{ font-family:'Anton'; font-size:26px; margin-top:6px; }
+  .kpi .sub{ font-size:12px; color:var(--ink-2); margin-top:4px; }
+  .kpi .sub.good{ color:var(--good); }
+
+  /* ---------- section shell ---------- */
+  section{ margin-bottom:44px; }
+  .sec-head{ display:flex; align-items:baseline; justify-content:space-between; gap:16px; margin-bottom:14px; flex-wrap:wrap; }
+  .eyebrow{ font-size:11.5px; text-transform:uppercase; letter-spacing:.08em; color:var(--brand); font-weight:700; }
+  h2.display{ font-size:22px; margin:2px 0 0; }
+  .sec-desc{ color:var(--ink-2); font-size:14px; max-width:640px; margin-top:4px; }
+  .card{ background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:20px 22px; box-shadow:var(--shadow); }
+
+  /* legend */
+  .legend{ display:flex; flex-wrap:wrap; gap:14px; font-size:12.5px; color:var(--ink-2); margin-top:10px; }
+  .legend .item{ display:flex; align-items:center; gap:6px; }
+  .legend .sw{ width:10px;height:10px;border-radius:3px; flex:none; }
+
+  /* tooltip */
+  .tt{
+    position:fixed; pointer-events:none; z-index:50; background:var(--ink); color:var(--bg);
+    font-size:12px; padding:7px 10px; border-radius:8px; line-height:1.45; max-width:260px;
+    box-shadow:0 8px 20px rgba(0,0,0,.25); opacity:0; transform:translateY(3px); transition:opacity .1s;
+  }
+  .tt.show{ opacity:1; }
+  .tt b{ font-family:'IBM Plex Mono'; }
+
+  svg text{ font-family:'Manrope',sans-serif; fill:var(--ink-2); }
+  svg .axis-line{ stroke:var(--border); }
+  .grid-row{ display:grid; gap:20px; }
+  .grid-2{ grid-template-columns:1.3fr 1fr; }
+  @media (max-width:860px){ .grid-2{ grid-template-columns:1fr; } }
+
+  /* category bars */
+  .cat-row{ display:flex; align-items:center; gap:14px; padding:10px 0; border-bottom:1px solid var(--border); }
+  .cat-row:last-child{ border-bottom:none; }
+  .cat-name{ width:190px; flex:none; font-weight:700; font-size:13.5px; }
+  .cat-track{ flex:1; height:22px; background:var(--surface-2); border-radius:6px; position:relative; overflow:hidden; }
+  .cat-fill{ position:absolute; inset:0 auto 0 0; border-radius:6px; }
+  .cat-stats{ width:230px; flex:none; text-align:right; font-size:12.5px; color:var(--ink-2); }
+  .cat-stats b{ color:var(--ink); font-family:'IBM Plex Mono'; font-weight:600; }
+
+  /* tables */
+  table{ width:100%; border-collapse:collapse; font-size:13px; }
+  th{ text-align:left; font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--ink-3); font-weight:700; padding:0 10px 8px; border-bottom:1px solid var(--border); }
+  td{ padding:10px; border-bottom:1px solid var(--border); vertical-align:top; }
+  tr:last-child td{ border-bottom:none; }
+  td.num, th.num{ text-align:right; font-family:'IBM Plex Mono'; font-variant-numeric:tabular-nums; }
+  .cap-cell{ max-width:360px; color:var(--ink-2); }
+  .cap-cell a{ color:var(--ink); text-decoration:none; }
+  .cap-cell a:hover{ text-decoration:underline; }
+  .chip{ display:inline-block; padding:2px 8px; border-radius:999px; font-size:10.5px; font-weight:700; color:#fff; white-space:nowrap; }
+  .table-wrap{ overflow-x:auto; }
+
+  /* callouts */
+  .callouts{ display:grid; grid-template-columns:repeat(2,1fr); gap:16px; }
+  @media (max-width:780px){ .callouts{ grid-template-columns:1fr; } }
+  .callout{ border-radius:14px; padding:16px 18px; border:1px solid var(--border); background:var(--surface); }
+  .callout .tag{ display:inline-flex; align-items:center; gap:6px; font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.05em; padding:3px 9px; border-radius:999px; margin-bottom:10px; }
+  .callout.bad .tag{ background:color-mix(in srgb, var(--critical) 16%, transparent); color:var(--critical); }
+  .callout.good .tag{ background:color-mix(in srgb, var(--good) 16%, transparent); color:var(--good); }
+  .callout p{ margin:0; font-size:13.5px; color:var(--ink-2); line-height:1.55; }
+  .callout .big{ font-family:'Anton'; font-size:30px; margin-bottom:2px; }
+
+  /* heatmap */
+  .heat-wrap{ overflow-x:auto; }
+
+  /* content ideas */
+  .ideas{ display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:16px; }
+  .idea{ border:1px solid var(--border); border-radius:14px; padding:16px 18px; background:var(--surface); display:flex; flex-direction:column; gap:8px; }
+  .idea .idx{ font-family:'Anton'; font-size:13px; color:var(--brand); }
+  .idea h3{ margin:0; font-size:16px; text-wrap:balance; }
+  .idea .fmla{ font-size:11.5px; color:var(--ink-3); text-transform:uppercase; letter-spacing:.04em; font-weight:700; }
+  .idea p{ margin:0; font-size:13px; color:var(--ink-2); line-height:1.5; }
+  .idea .hook{ font-size:13px; font-style:italic; color:var(--ink); border-left:3px solid var(--brand); padding-left:10px; }
+
+  /* action plan */
+  ol.plan{ margin:0; padding:0; list-style:none; counter-reset:step; display:flex; flex-direction:column; gap:0; }
+  ol.plan li{ counter-increment:step; display:flex; gap:14px; padding:14px 0; border-bottom:1px solid var(--border); }
+  ol.plan li:last-child{ border-bottom:none; }
+  ol.plan li::before{
+    content:counter(step); font-family:'Anton'; font-size:15px; color:var(--brand-ink); background:var(--brand);
+    width:28px;height:28px;border-radius:50%; display:flex; align-items:center; justify-content:center; flex:none;
+  }
+  ol.plan .t{ font-weight:700; font-size:14px; margin-bottom:2px; }
+  ol.plan .d{ font-size:13px; color:var(--ink-2); line-height:1.5; }
+
+  footer{ border-top:1px solid var(--border); padding-top:18px; font-size:12px; color:var(--ink-3); line-height:1.7; }
+  footer a{ color:var(--ink-2); }
+
+  .note-limit{ font-size:12.5px; color:var(--ink-3); background:var(--surface-2); border:1px solid var(--border); border-radius:10px; padding:10px 14px; margin-top:14px; }
+</style>
+
+<div class="wrap">
+
+  <header class="top">
+    <div>
+      <div class="brandmark">
+        <div class="badge">獣</div>
+        <div>
+          <h1 class="display">PAINEL SHONEN CUT</h1>
+          <div class="handle">Performance de <a href="https://www.tiktok.com/@shonen.cut" target="_blank">@shonen.cut</a> no TikTok</div>
+        </div>
+      </div>
+    </div>
+    <div class="period">
+      Período analisado<br>
+      <span class="n">13 fev – 30 ago 2026</span>
+      <div class="scan-pill"><span class="dot"></span> 172 / 172 posts escaneados · 100% do canal</div>
+    </div>
+  </header>
+
+  <div class="kpis" id="kpiRow"></div>
+
+  <!-- ================= SECTION 1: cadência x qualidade ================= -->
+  <section>
+    <div class="sec-head">
+      <div>
+        <div class="eyebrow">01 · O que mudou</div>
+        <h2 class="display">Mais posts, menos alcance por post</h2>
+        <div class="sec-desc">Volume semanal de posts (barras) contra a média de views por post na mesma semana (linha). A partir de meados de agosto o ritmo de publicação triplicou — e o retorno por vídeo despencou.</div>
+      </div>
+    </div>
+    <div class="card">
+      <div id="cadenceChart"></div>
+      <div class="legend">
+        <div class="item"><span class="sw" style="background:var(--c-anime);border-radius:2px;"></span>Posts na semana (barras)</div>
+        <div class="item"><span class="sw" style="background:var(--brand);border-radius:50%;width:8px;height:8px;"></span>Média de views/post na semana (linha)</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= SECTION 2: categorias ================= -->
+  <section>
+    <div class="sec-head">
+      <div>
+        <div class="eyebrow">02 · Anime vs. frase motivacional</div>
+        <h2 class="display">A fórmula que puxa a conta é o híbrido</h2>
+        <div class="sec-desc">Todos os 172 vídeos classificados por conteúdo. "Híbrido" = personagem/cena de anime + frase filosófica ou de vida sobre ele — não anime puro nem frase pura sozinhos.</div>
+      </div>
+    </div>
+    <div class="card">
+      <div id="catChart"></div>
+    </div>
+  </section>
+
+  <!-- ================= SECTION 3: top hits + o que parou de funcionar ================= -->
+  <section>
+    <div class="sec-head">
+      <div>
+        <div class="eyebrow">03 · Recordes e quedas</div>
+        <h2 class="display">Os 10 maiores vídeos da conta</h2>
+        <div class="sec-desc">9 dos 10 maiores vídeos de sempre são anime ou híbrido. Toque num link para abrir o vídeo original.</div>
+      </div>
+    </div>
+    <div class="card table-wrap">
+      <table id="topTable"></table>
+    </div>
+
+    <div class="callouts" style="margin-top:16px;">
+      <div class="callout bad">
+        <div class="tag">Formato que morreu</div>
+        <div class="big" id="duetoStat">—</div>
+        <p id="duetoText"></p>
+      </div>
+      <div class="callout bad">
+        <div class="tag">Frase sem anime</div>
+        <div class="big" id="motivStat">—</div>
+        <p id="motivText"></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= SECTION 4: seguidores ================= -->
+  <section>
+    <div class="sec-head">
+      <div>
+        <div class="eyebrow">04 · Crescimento</div>
+        <h2 class="display">Seguidores nos últimos 60 dias</h2>
+        <div class="sec-desc">O salto de 15–26 de agosto (+1.032 seguidores em 11 dias) veio de <b style="color:var(--ink)">um único vídeo</b> viral sobre mentalidade financeira (276,8 mil views) — não do volume de posts daquela semana.</div>
+      </div>
+    </div>
+    <div class="card">
+      <div id="followerChart"></div>
+    </div>
+  </section>
+
+  <!-- ================= SECTION 5: melhor horário ================= -->
+  <section>
+    <div class="sec-head">
+      <div>
+        <div class="eyebrow">05 · Melhor horário para postar</div>
+        <h2 class="display">Quinta, 10h da manhã (horário de Brasília)</h2>
+        <div class="sec-desc">Score de propensão a engajamento por dia/hora, calculado sobre o histórico da própria conta. Quanto mais escuro, melhor o horário.</div>
+      </div>
+    </div>
+    <div class="card heat-wrap">
+      <div id="heatmap"></div>
+    </div>
+  </section>
+
+  <!-- ================= SECTION 6: oportunidades ================= -->
+  <section>
+    <div class="sec-head">
+      <div>
+        <div class="eyebrow">06 · Oportunidades do nicho</div>
+        <h2 class="display">Onde ainda há espaço para crescer</h2>
+        <div class="sec-desc">Leitura baseada no comportamento real da própria conta — os padrões abaixo são o que separa um vídeo de 100 views de um de 700 mil dentro do seu próprio histórico.</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="ideas" id="oppList"></div>
+      <div class="note-limit" id="toolNote"></div>
+    </div>
+  </section>
+
+  <!-- ================= SECTION 7: exemplos de conteúdo ================= -->
+  <section>
+    <div class="sec-head">
+      <div>
+        <div class="eyebrow">07 · Prontos para gravar</div>
+        <h2 class="display">5 ideias no formato que já provou funcionar</h2>
+        <div class="sec-desc">Cada ideia reaplica os 3 ingredientes do vídeo de 707 mil views (personagem forte + frase que reenquadra algo da vida real + gancho de debate), em fandoms e temas ainda pouco explorados no canal.</div>
+      </div>
+    </div>
+    <div class="ideas" id="ideaList"></div>
+  </section>
+
+  <!-- ================= SECTION 8: plano de ação ================= -->
+  <section>
+    <div class="sec-head">
+      <div>
+        <div class="eyebrow">08 · Recomendação</div>
+        <h2 class="display">O ajuste: não abandonar anime — combinar</h2>
+        <div class="sec-desc">Os dados não sustentam a virada 100% para frases motivacionais. Sustentam voltar ao híbrido como eixo principal e manter só um teste disciplinado por semana fora dele.</div>
+      </div>
+    </div>
+    <div class="card">
+      <ol class="plan" id="planList"></ol>
+    </div>
+  </section>
+
+  <footer>
+    Fontes: métricas de vídeo e conta via Windsor.ai (conector <span class="mono">tiktok_organic</span>), 172 vídeos = 100% do histórico público de <span class="mono">@shonen.cut</span> desde a estreia da conta (13 fev 2026) até 30 ago 2026 · seguidores diários dos últimos 60 dias, mesmo conector · melhor horário via Metricool (<span class="mono">getBestTimeToPostByNetwork</span>), fuso America/Sao_Paulo · classificação de categoria (anime / híbrido / motivacional / outros) feita por palavras-chave na legenda de cada vídeo.<br>
+    Painel gerado automaticamente — dados reais da conta, sem estimativas de terceiros.
+  </footer>
+
+</div>
+
+<div class="tt" id="tooltip"></div>
+
+<script>
+const DATA = {"kpis": {"followers": 7618, "followers_start_60d": 6474, "videos_scanned": 172, "total_views": 2508248, "total_likes": 152103, "total_comments": 2202, "total_shares": 12348, "avg_er": 5.95, "date_start": "2026-02-13", "date_end": "2026-08-30"}, "categories": [{"key": "anime", "label": "Anime puro", "n": 104, "total": 940458, "avg": 9043, "median": 1145, "avg_er": 5.85}, {"key": "hibrido", "label": "Anime + Frase (híbrido)", "n": 42, "total": 1230206, "avg": 29291, "median": 1293, "avg_er": 6.86}, {"key": "motivacional", "label": "Frase motivacional (sem anime)", "n": 20, "total": 44015, "avg": 2201, "median": 1245, "avg_er": 5.51}, {"key": "outros", "label": "Notícias / curiosidades / diversos", "n": 6, "total": 293569, "avg": 48928, "median": 4756, "avg_er": 2.87}], "weekly": [{"week": "2026-02-09", "n": 6, "views": 4121, "avg": 687}, {"week": "2026-02-16", "n": 8, "views": 13176, "avg": 1647}, {"week": "2026-02-23", "n": 9, "views": 192741, "avg": 21416}, {"week": "2026-03-02", "n": 8, "views": 66043, "avg": 8255}, {"week": "2026-03-09", "n": 7, "views": 146091, "avg": 20870}, {"week": "2026-03-16", "n": 5, "views": 743770, "avg": 148754}, {"week": "2026-03-23", "n": 7, "views": 193374, "avg": 27625}, {"week": "2026-03-30", "n": 4, "views": 116457, "avg": 29114}, {"week": "2026-04-06", "n": 2, "views": 199181, "avg": 99590}, {"week": "2026-04-13", "n": 2, "views": 2498, "avg": 1249}, {"week": "2026-04-20", "n": 3, "views": 10504, "avg": 3501}, {"week": "2026-04-27", "n": 3, "views": 7424, "avg": 2475}, {"week": "2026-05-04", "n": 2, "views": 15115, "avg": 7558}, {"week": "2026-06-01", "n": 5, "views": 26326, "avg": 5265}, {"week": "2026-06-08", "n": 7, "views": 49863, "avg": 7123}, {"week": "2026-06-15", "n": 6, "views": 108822, "avg": 18137}, {"week": "2026-06-22", "n": 3, "views": 43528, "avg": 14509}, {"week": "2026-06-29", "n": 3, "views": 20445, "avg": 6815}, {"week": "2026-07-06", "n": 4, "views": 2793, "avg": 698}, {"week": "2026-07-13", "n": 7, "views": 13225, "avg": 1889}, {"week": "2026-07-27", "n": 21, "views": 127756, "avg": 6084}, {"week": "2026-08-03", "n": 6, "views": 17208, "avg": 2868}, {"week": "2026-08-10", "n": 1, "views": 3130, "avg": 3130}, {"week": "2026-08-17", "n": 20, "views": 349809, "avg": 17490}, {"week": "2026-08-24", "n": 23, "views": 34848, "avg": 1515}], "top10": [{"date": "2026-03-22", "views": 707943, "er": 11.98, "cat": "hibrido", "caption": "Concordo que algumas frases dos vilões de Naruto parecem simbolizar o amor. O Pain, por ex", "url": "https://www.tiktok.com/@shonen.cut/video/7620175698690428181?utm_campaign=tt4d_open_api&utm_source=7288613544411529218"}, {"date": "2026-08-23", "views": 276792, "er": 3.47, "cat": "outros", "caption": "Muitas vezes, o problema não é quanto dinheiro entra, mas o quanto sai sem perceber. Peq", "url": "https://www.tiktok.com/@shonen.cut/video/7677298596722625810?utm_campaign=tt4d_open_api&utm_source=7288613544411529218"}, {"date": "2026-04-06", "views": 194107, "er": 4.79, "cat": "anime", "caption": "Naruto trouxe muitos personagens impressionantes, lutas épicas mais uma delas foi muito fo", "url": "https://www.tiktok.com/@shonen.cut/video/7625599474273881351?utm_campaign=tt4d_open_api&utm_source=7288613544411529218"}, {"date": "2026-03-24", "views": 117402, "er": 10.24, "cat": "hibrido", "caption": "Naruto traz um tom leve, mas tem uma profundidade sensível que nos faz refletir. Ele nos a", "url": "https://www.tiktok.com/@shonen.cut/video/7620943503488519444?utm_campaign=tt4d_open_api&utm_source=7288613544411529218"}, {"date": "2026-07-28", "views": 117109, "er": 5.37, "cat": "hibrido", "caption": "#anime #frases #pensamentos #fyp #amor ", "url": "https://www.tiktok.com/@shonen.cut/video/7667373935377468690?utm_campaign=tt4d_open_api&utm_source=7288613544411529218"}, {"date": "2026-02-24", "views": 109011, "er": 5.3, "cat": "anime", "caption": "#animeedit #naruto #narutoshippuden #otaku #animetiktok  @Shonen Cut ", "url": "https://www.tiktok.com/@shonen.cut/video/7610495718876384519?utm_campaign=tt4d_open_api&utm_source=7288613544411529218"}, {"date": "2026-06-17", "views": 102888, "er": 10.24, "cat": "hibrido", "caption": "Quem disse que anime é só porrada? Acho que dá pra tirar muitos ensinamentos de todas as p", "url": "https://www.tiktok.com/@shonen.cut/video/7652442603467640072?utm_campaign=tt4d_open_api&utm_source=7288613544411529218"}, {"date": "2026-03-12", "views": 99430, "er": 5.03, "cat": "anime", "caption": "#otaku #naruto #narutoshippuden #anime #animeedit ", "url": "https://www.tiktok.com/@shonen.cut/video/7616402880349654293?utm_campaign=tt4d_open_api&utm_source=7288613544411529218"}, {"date": "2026-03-31", "views": 86449, "er": 10.74, "cat": "anime", "caption": "A perspectiva na visão do vilão acaba não sendo errada se você vive essa realidade. #narut", "url": "https://www.tiktok.com/@shonen.cut/video/7623337016129752338?utm_campaign=tt4d_open_api&utm_source=7288613544411529218"}, {"date": "2026-02-26", "views": 50609, "er": 11.07, "cat": "anime", "caption": "#animeedit #naruto #narutoshippuden #animetiktok #fyp  @Shonen Cut ", "url": "https://www.tiktok.com/@shonen.cut/video/7611186706498293000?utm_campaign=tt4d_open_api&utm_source=7288613544411529218"}], "recent15": [{"date": "2026-08-25", "views": 96, "er": 8.33, "cat": "hibrido", "caption": "Um relacionamento forte não é aquele em que duas pessoas nunca discordam. É aquele em q"}, {"date": "2026-08-25", "views": 6266, "er": 3.32, "cat": "outros", "caption": "🌎 Em meio a tantas notícias ruins, também existem avanços que merecem espaço. E alguma"}, {"date": "2026-08-25", "views": 126, "er": 8.73, "cat": "motivacional", "caption": "Em um mundo onde as notícias ruins costumam ganhar destaque, também há inúmeros aconte"}, {"date": "2026-08-25", "views": 346, "er": 2.6, "cat": "outros", "caption": "💸 Quer fazer o dinheiro SOBRAR no fim do mês?   O segredo não é ganhar mais, e sim gastar "}, {"date": "2026-08-25", "views": 474, "er": 1.69, "cat": "hibrido", "caption": "Organizar a vida financeira não depende de ganhar muito, mas de saber exatamente para ond"}, {"date": "2026-08-25", "views": 1293, "er": 0.85, "cat": "hibrido", "caption": "É curioso como muitas pessoas gastam fortunas tentando recuperar aquilo que poderiam ter "}, {"date": "2026-08-25", "views": 3309, "er": 3.57, "cat": "motivacional", "caption": "A NASA já registrou a Terra de uma perspectiva que poucas pessoas terão a chance de ver "}, {"date": "2026-08-26", "views": 1266, "er": 0.95, "cat": "hibrido", "caption": "🇧🇷✨ BOAS NOTÍCIAS DO BRASIL QUE TALVEZ TENHAM PASSADO PELO SEU FEED... 1️⃣ Um menino emoc"}, {"date": "2026-08-26", "views": 126, "er": 4.76, "cat": "hibrido", "caption": "Você começou a existir dentro de alguém… e, de certa forma, nunca saiu completamente de"}, {"date": "2026-08-26", "views": 576, "er": 6.6, "cat": "hibrido", "caption": "🔬 Enquanto muitas pessoas se deparam apenas com notícias preocupantes, a ciência segue a"}, {"date": "2026-08-26", "views": 294, "er": 2.04, "cat": "motivacional", "caption": "Ficar rico não depende só de quanto você ganha, mas também do quanto consegue não gas"}, {"date": "2026-08-26", "views": 4756, "er": 2.4, "cat": "outros", "caption": "Terra é muito mais estranha do que parece 🌍 O Everest ainda está crescendo. Existem roch"}, {"date": "2026-08-26", "views": 505, "er": 9.9, "cat": "anime", "caption": "Antes de dormir, entregue a Deus aquilo que você não precisa carregar sozinho. Agradeça"}, {"date": "2026-08-26", "views": 1245, "er": 0.64, "cat": "motivacional", "caption": "A maior mentira que você pode acreditar é que procrastinação acontece por falta de for"}, {"date": "2026-08-30", "views": 736, "er": 6.11, "cat": "hibrido", "caption": "Quando somos crianças, enxergamos Toguro como um dos maiores vilões de Yu Yu Hakusho. Ma"}], "dueto": {"n": 9, "avg": 208, "total": 1869, "start": "2026-03-29", "end": "2026-07-28"}, "followers_daily": [{"date": "2026-07-06", "total": 6474}, {"date": "2026-07-07", "total": 6471}, {"date": "2026-07-08", "total": 6475}, {"date": "2026-07-09", "total": 6474}, {"date": "2026-07-10", "total": 6476}, {"date": "2026-07-11", "total": 6477}, {"date": "2026-07-12", "total": 6478}, {"date": "2026-07-13", "total": 6479}, {"date": "2026-07-14", "total": 6481}, {"date": "2026-07-15", "total": 6482}, {"date": "2026-07-16", "total": 6486}, {"date": "2026-07-17", "total": 6492}, {"date": "2026-07-18", "total": 6502}, {"date": "2026-07-19", "total": 6502}, {"date": "2026-07-20", "total": 6505}, {"date": "2026-07-21", "total": 6507}, {"date": "2026-07-22", "total": 6508}, {"date": "2026-07-23", "total": 6508}, {"date": "2026-07-24", "total": 6507}, {"date": "2026-07-25", "total": 6506}, {"date": "2026-07-26", "total": 6514}, {"date": "2026-07-27", "total": 6518}, {"date": "2026-07-28", "total": 6537}, {"date": "2026-07-29", "total": 6540}, {"date": "2026-07-30", "total": 6545}, {"date": "2026-07-31", "total": 6540}, {"date": "2026-08-01", "total": 6543}, {"date": "2026-08-02", "total": 6543}, {"date": "2026-08-03", "total": 6545}, {"date": "2026-08-04", "total": 6549}, {"date": "2026-08-05", "total": 6549}, {"date": "2026-08-06", "total": 6556}, {"date": "2026-08-07", "total": 6560}, {"date": "2026-08-08", "total": 6561}, {"date": "2026-08-09", "total": 6565}, {"date": "2026-08-10", "total": 6567}, {"date": "2026-08-11", "total": 6566}, {"date": "2026-08-12", "total": 6565}, {"date": "2026-08-13", "total": 6563}, {"date": "2026-08-14", "total": 6574}, {"date": "2026-08-15", "total": 6615}, {"date": "2026-08-16", "total": 6785}, {"date": "2026-08-17", "total": 6990}, {"date": "2026-08-18", "total": 7006}, {"date": "2026-08-19", "total": 7036}, {"date": "2026-08-20", "total": 7054}, {"date": "2026-08-21", "total": 7057}, {"date": "2026-08-22", "total": 7086}, {"date": "2026-08-23", "total": 7204}, {"date": "2026-08-24", "total": 7465}, {"date": "2026-08-25", "total": 7570}, {"date": "2026-08-26", "total": 7606}, {"date": "2026-08-27", "total": 7622}, {"date": "2026-08-28", "total": 7623}, {"date": "2026-08-29", "total": 7623}, {"date": "2026-08-30", "total": 7626}, {"date": "2026-08-31", "total": 7629}, {"date": "2026-09-01", "total": 7623}, {"date": "2026-09-02", "total": 7620}, {"date": "2026-09-04", "total": 7618}], "best_time": {"days": ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"], "hours": [6, 8, 10, 12, 14, 16, 18, 20, 22], "grid": [[193, 508, 1089, 1050, 689, 906, 1096, 702, 346], [177, 452, 1136, 1082, 681, 812, 1119, 767, 379], [237, 772, 1432, 1359, 940, 1122, 1386, 907, 370], [239, 630, 1471, 1299, 887, 1118, 1378, 838, 439], [226, 684, 1379, 1251, 854, 1079, 1222, 689, 328], [145, 396, 852, 815, 560, 620, 709, 523, 275], [129, 337, 816, 720, 493, 595, 677, 579, 283]], "best": {"day": "Qui", "hour": 10, "value": 1471}}};
+
+const CAT_COLOR = {anime:'var(--c-anime)', hibrido:'var(--c-hibrido)', motivacional:'var(--c-motiv)', outros:'var(--c-outros)'};
+const CAT_LABEL = {anime:'Anime', hibrido:'Híbrido', motivacional:'Motivacional', outros:'Outros'};
+const cssVar = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+const fmt = (n) => n.toLocaleString('pt-BR');
+const svgns = 'http://www.w3.org/2000/svg';
+function el(tag, attrs={}, parent=null){
+  const e = document.createElementNS(svgns, tag);
+  for(const k in attrs) e.setAttribute(k, attrs[k]);
+  if(parent) parent.appendChild(e);
+  return e;
+}
+
+const tt = document.getElementById('tooltip');
+function showTT(html, x, y){ tt.innerHTML = html; tt.style.left = (x+14)+'px'; tt.style.top=(y+14)+'px'; tt.classList.add('show'); }
+function hideTT(){ tt.classList.remove('show'); }
+
+/* ---------------- KPIs ---------------- */
+(function kpis(){
+  const k = DATA.kpis;
+  const items = [
+    {label:'Seguidores hoje', value: fmt(k.followers), sub:`+${fmt(k.followers - k.followers_start_60d)} em 60 dias`, good:true},
+    {label:'Vídeos escaneados', value: fmt(k.videos_scanned), sub:'100% do canal'},
+    {label:'Views totais (soma)', value: fmt(k.total_views), sub:`${k.date_start} → ${k.date_end}`},
+    {label:'Curtidas totais', value: fmt(k.total_likes), sub:`${fmt(k.total_shares)} compart. · ${fmt(k.total_comments)} coment.`},
+    {label:'Engajamento médio', value: k.avg_er+'%', sub:'curtida+coment.+compart. ÷ views'},
+  ];
+  const row = document.getElementById('kpiRow');
+  row.innerHTML = items.map(i => `
+    <div class="kpi">
+      <div class="label">${i.label}</div>
+      <div class="value mono">${i.value}</div>
+      <div class="sub ${i.good?'good':''}">${i.sub}</div>
+    </div>`).join('');
+})();
+
+/* ---------------- Cadence chart (bars + line, shared x, NOT dual axis: line indexed to its own mini scale drawn on same band) ---------------- */
+(function cadence(){
+  const data = DATA.weekly;
+  const W = 1080, H = 260, padL = 40, padR = 16, padT = 16, padB = 34;
+  const innerW = W - padL - padR, innerH = H - padT - padB;
+  const svg = el('svg', {viewBox:`0 0 ${W} ${H}`, width:'100%', height:'auto', style:'display:block;overflow:visible'});
+  const n = data.length;
+  const bw = innerW/n;
+  const maxN = Math.max(...data.map(d=>d.n));
+  const maxAvg = Math.max(...data.map(d=>d.avg));
+
+  // gridlines (posts axis, left)
+  const gridSteps = 4;
+  for(let i=0;i<=gridSteps;i++){
+    const val = Math.round(maxN * i/gridSteps);
+    const y = padT + innerH - (val/maxN)*innerH;
+    el('line',{x1:padL,x2:padL+innerW,y1:y,y2:y,class:'axis-line','stroke-width':1},svg);
+    el('text',{x:padL-8,y:y+3,'text-anchor':'end','font-size':10},svg).textContent = val;
+  }
+
+  const barColor = CAT_COLOR.anime;
+  const lineColor = 'var(--brand)';
+  const pivotIdx = data.findIndex(d=>d.week==='2026-08-17');
+
+  // pivot annotation band
+  if(pivotIdx>=0){
+    const x0 = padL + pivotIdx*bw;
+    el('rect',{x:x0, y:padT, width:innerW-(x0-padL), height:innerH, fill:'var(--critical)', opacity:0.06},svg);
+    el('text',{x:x0+6,y:padT+12,'font-size':10,fill:'var(--critical)','font-weight':700}, svg).textContent='↓ virada de conteúdo';
+  }
+
+  const barsG = el('g',{},svg);
+  const pts = [];
+  data.forEach((d,i)=>{
+    const x = padL + i*bw;
+    const h = (d.n/maxN)*innerH;
+    const y = padT+innerH-h;
+    const r = el('rect',{x:x+bw*0.16, y, width:bw*0.68, height:Math.max(h,1.5), fill:barColor, rx:3, opacity:.85},barsG);
+    r.addEventListener('mousemove', ev=>{
+      showTT(`<b>${d.week}</b><br>${d.n} posts · média <b>${fmt(d.avg)}</b> views/post`, ev.clientX, ev.clientY);
+    });
+    r.addEventListener('mouseleave', hideTT);
+    const yLine = padT+innerH-(d.avg/maxAvg)*innerH*0.92;
+    pts.push([x+bw/2, yLine]);
+  });
+
+  const path = pts.map((p,i)=> (i===0?'M':'L')+p[0].toFixed(1)+' '+p[1].toFixed(1)).join(' ');
+  el('path',{d:path, fill:'none', stroke:lineColor, 'stroke-width':2, 'stroke-linecap':'round','stroke-linejoin':'round'},svg);
+  pts.forEach((p,i)=>{
+    const d = data[i];
+    const c = el('circle',{cx:p[0],cy:p[1],r:3.2,fill:lineColor,stroke:'var(--surface)','stroke-width':1.4},svg);
+    c.addEventListener('mousemove', ev=> showTT(`<b>${d.week}</b><br>média ${fmt(d.avg)} views/post`, ev.clientX, ev.clientY));
+    c.addEventListener('mouseleave', hideTT);
+  });
+
+  // x labels: every 3rd week
+  data.forEach((d,i)=>{
+    if(i%3!==0 && i!==n-1) return;
+    const x = padL+i*bw+bw/2;
+    const label = d.week.slice(5).replace('-','/');
+    el('text',{x, y:H-10, 'text-anchor':'middle','font-size':10}, svg).textContent = label;
+  });
+
+  document.getElementById('cadenceChart').appendChild(svg);
+})();
+
+/* ---------------- Category bars ---------------- */
+(function catChart(){
+  const cats = DATA.categories;
+  const maxAvg = Math.max(...cats.map(c=>c.avg));
+  const box = document.getElementById('catChart');
+  cats.forEach(c=>{
+    const row = document.createElement('div'); row.className='cat-row';
+    const pct = Math.max((c.avg/maxAvg)*100, 3);
+    row.innerHTML = `
+      <div class="cat-name" style="color:${CAT_COLOR[c.key]}">${c.label}</div>
+      <div class="cat-track"><div class="cat-fill" style="width:${pct}%;background:${CAT_COLOR[c.key]}"></div></div>
+      <div class="cat-stats"><b>${fmt(c.avg)}</b> views médias · ${c.n} posts · ${c.avg_er}% ER</div>
+    `;
+    box.appendChild(row);
+  });
+})();
+
+/* ---------------- Top table ---------------- */
+(function topTable(){
+  const t = document.getElementById('topTable');
+  const rows = DATA.top10.map((r,i)=>`
+    <tr>
+      <td class="num">${i+1}</td>
+      <td class="num">${fmt(r.views)}</td>
+      <td class="num">${r.er}%</td>
+      <td><span class="chip" style="background:${CAT_COLOR[r.cat]}">${CAT_LABEL[r.cat]}</span></td>
+      <td class="cap-cell">${r.url?`<a href="${r.url}" target="_blank">${r.caption}…</a>`:r.caption+'…'}</td>
+      <td>${r.date}</td>
+    </tr>`).join('');
+  t.innerHTML = `<thead><tr>
+    <th class="num">#</th><th class="num">Views</th><th class="num">ER</th><th>Categoria</th><th>Legenda</th><th>Data</th>
+  </tr></thead><tbody>${rows}</tbody>`;
+})();
+
+/* ---------------- Callouts ---------------- */
+(function callouts(){
+  const dueto = DATA.dueto;
+  document.getElementById('duetoStat').textContent = fmt(dueto.avg)+' views/post';
+  document.getElementById('duetoText').innerHTML = `9 "duetos/costuras" com outros criadores (${dueto.start} – ${dueto.end}) somaram <b>${fmt(dueto.total)}</b> views no total. Menos que um único post normal do canal. Formato descontinuado — não repetir.`;
+
+  const motiv = DATA.categories.find(c=>c.key==='motivacional');
+  document.getElementById('motivStat').textContent = fmt(motiv.avg)+' views/post';
+  document.getElementById('motivText').innerHTML = `${motiv.n} posts de frase motivacional <b>sem</b> personagem de anime, todos entre 19–26 ago. Média 4,1× menor que a do formato híbrido (anime + frase). Como conteúdo isolado, ainda não decolou.`;
+})();
+
+/* ---------------- Follower chart ---------------- */
+(function followerChart(){
+  const data = DATA.followers_daily.filter(d=>d.total>0);
+  const W=1080,H=220,padL=44,padR=16,padT=16,padB=28;
+  const innerW=W-padL-padR, innerH=H-padT-padB;
+  const min = Math.min(...data.map(d=>d.total)), max=Math.max(...data.map(d=>d.total));
+  const svg = el('svg',{viewBox:`0 0 ${W} ${H}`, width:'100%', height:'auto', style:'display:block;overflow:visible'});
+  const x = i => padL + (i/(data.length-1))*innerW;
+  const y = v => padT + innerH - ((v-min)/(max-min))*innerH;
+
+  for(let i=0;i<=3;i++){
+    const val = Math.round(min + (max-min)*i/3);
+    const yy = y(val);
+    el('line',{x1:padL,x2:padL+innerW,y1:yy,y2:yy,class:'axis-line'},svg);
+    el('text',{x:padL-8,y:yy+3,'text-anchor':'end','font-size':10},svg).textContent = fmt(val);
+  }
+
+  const linePath = 'M'+data.map((d,i)=>`${x(i).toFixed(1)} ${y(d.total).toFixed(1)}`).join(' L');
+  const areaPath = linePath + ` L${x(data.length-1).toFixed(1)} ${padT+innerH} L${x(0).toFixed(1)} ${padT+innerH} Z`;
+  el('path',{d:areaPath, fill:'var(--c-anime)', opacity:.12},svg);
+  el('path',{d:linePath, fill:'none', stroke:'var(--c-anime)', 'stroke-width':2},svg);
+
+  // annotate viral spike (2026-08-23)
+  const spikeIdx = data.findIndex(d=>d.date==='2026-08-23');
+  if(spikeIdx>=0){
+    const sx = x(spikeIdx), sy = y(data[spikeIdx].total);
+    el('line',{x1:sx,x2:sx,y1:padT,y2:padT+innerH,stroke:'var(--critical)','stroke-dasharray':'3 3','stroke-width':1},svg);
+    el('text',{x:sx+6,y:padT+12,'font-size':10,fill:'var(--critical)','font-weight':700},svg).textContent='vídeo viral (276,8k views)';
+  }
+
+  data.forEach((d,i)=>{
+    if(i%7!==0 && i!==data.length-1) return;
+    el('text',{x:x(i),y:H-8,'text-anchor':'middle','font-size':10},svg).textContent = d.date.slice(5).replace('-','/');
+  });
+
+  const hit = el('rect',{x:padL,y:padT,width:innerW,height:innerH,fill:'transparent'},svg);
+  hit.addEventListener('mousemove', ev=>{
+    const rect = svg.getBoundingClientRect();
+    const relX = (ev.clientX-rect.left)/rect.width*W;
+    let idx = Math.round(((relX-padL)/innerW)*(data.length-1));
+    idx = Math.max(0,Math.min(data.length-1,idx));
+    showTT(`<b>${data[idx].date}</b><br>${fmt(data[idx].total)} seguidores`, ev.clientX, ev.clientY);
+  });
+  hit.addEventListener('mouseleave', hideTT);
+
+  document.getElementById('followerChart').appendChild(svg);
+})();
+
+/* ---------------- Heatmap ---------------- */
+(function heatmap(){
+  const bt = DATA.best_time;
+  const W = 760, cellW = 62, cellH = 30, padL = 46, padT = 20;
+  const H = padT + bt.days.length*cellH + 10;
+  const svg = el('svg',{viewBox:`0 0 ${W} ${H}`, width:'100%', height:'auto', style:'display:block;max-width:640px'});
+  const flat = bt.grid.flat();
+  const max = Math.max(...flat), min = Math.min(...flat);
+
+  bt.hours.forEach((h,ci)=>{
+    el('text',{x:padL+ci*cellW+cellW/2, y:14, 'text-anchor':'middle','font-size':10},svg).textContent = h+'h';
+  });
+  bt.days.forEach((d,ri)=>{
+    el('text',{x:padL-8, y:padT+ri*cellH+cellH/2+4, 'text-anchor':'end','font-size':11,'font-weight':700},svg).textContent = d;
+    bt.grid[ri].forEach((v,ci)=>{
+      const t = (v-min)/(max-min);
+      const isBest = (d===bt.best.day && bt.hours[ci]===bt.best.hour);
+      const rect = el('rect',{
+        x:padL+ci*cellW+1, y:padT+ri*cellH+1, width:cellW-2, height:cellH-2, rx:5,
+        fill:'var(--c-hibrido)', opacity:(0.08+t*0.85).toFixed(2),
+      },svg);
+      if(isBest) rect.setAttribute('stroke','var(--brand)'), rect.setAttribute('stroke-width','2');
+      rect.addEventListener('mousemove', ev=> showTT(`<b>${d}, ${bt.hours[ci]}h</b><br>score ${v}`, ev.clientX, ev.clientY));
+      rect.addEventListener('mouseleave', hideTT);
+    });
+  });
+  document.getElementById('heatmap').appendChild(svg);
+})();
+
+/* ---------------- Opportunities ---------------- */
+(function opportunities(){
+  const items = [
+    {t:'Gancho contrarian / debate', f:'Padrão nos 4 maiores vídeos', d:'"Quem disse que X é só Y?" ou uma opinião que contraria o consenso do fandom, seguida de "prova que eu tô errado". Os 4 maiores vídeos da conta usam essa estrutura — é o gatilho de comentário mais forte já testado no canal.'},
+    {t:'Cross-fandom em um só vídeo', f:'707k e 194k views', d:'Misturar Naruto + One Piece + JJK + AOT no mesmo vídeo cobre várias bolhas de hashtag/FYP ao mesmo tempo. Vídeos de um personagem só (fandom isolado) raramente passam de 3 mil views.'},
+    {t:'Psicologia do vilão', f:'86k views, 10,7% ER', d:'Reenquadrar o vilão como vítima de circunstância ("a perspectiva dele não é errada se você vive a realidade dele") gera o maior engajamento proporcional da conta — mais alto que qualquer vídeo de herói.'},
+    {t:'Mentalidade financeira + gancho', f:'276k views, único fora do anime', d:'O único vídeo fora do universo anime que viralizou usa o mesmo padrão de gancho ("o problema não é quanto entra, é quanto sai"). Sinaliza espaço para 1 formato secundário — não para substituir o anime.'},
+  ];
+  const box = document.getElementById('oppList');
+  box.innerHTML = items.map(i=>`
+    <div class="idea">
+      <div class="fmla">${i.f}</div>
+      <h3>${i.t}</h3>
+      <p>${i.d}</p>
+    </div>`).join('');
+
+  document.getElementById('toolNote').innerHTML =
+    'Nesta rodada não foi possível puxar concorrentes diretos do TikTok por nome (a ferramenta de inteligência de canais está com assinatura pausada, e o TikTok não expõe API pública de concorrentes como YouTube/Instagram). O que está acima vem 100% do próprio histórico de <b>@shonen.cut</b> — é dado real, não estimativa de terceiros. Assim que o acesso a concorrentes for reativado, o próximo painel pode incluir contas comparáveis do nicho de anime-edit BR.';
+})();
+
+/* ---------------- Content ideas ---------------- */
+(function ideas(){
+  const items = [
+    {n:'01', fmla:'Cross-fandom · vilão', title:'"5 vilões que só queriam ser entendidos"', hook:'Ninguém nasce vilão. Cada um desses só teve a pergunta errada na hora errada.', body:'Pain, Madara, Aizen (Bleach), Muzan (Demon Slayer) e Geto — cada um com a frase que revela a lógica por trás do ato, não a maldade. Fecha com "qual desses te fez pensar diferente? Comenta 👇".'},
+    {n:'02', fmla:'Contrarian + debate', title:'"One Piece não é sobre poder. É sobre isso aqui."', hook:'Todo mundo acha que é sobre virar o mais forte. Não é.', body:'Luffy, Zoro, Nami, Sanji, Robin — cada um com a frase que mostra que a jornada deles nunca foi sobre força, foi sobre liberdade/pertencimento. Fandom pouco usado no canal desde fev — espaço aberto.'},
+    {n:'03', fmla:'Híbrido + finanças', title:'"O que a Akatsuki ensinaria sobre dinheiro"', hook:'Eles não erraram no plano. Erraram em confiar na pessoa errada com ele.', body:'Testa o cruzamento dos dois formatos que já provaram tração isoladamente: personagens de anime + gancho de mentalidade financeira. Ninguém no nicho de anime-edit BR está fazendo esse cruzamento ainda.'},
+    {n:'04', fmla:'Psicologia do personagem', title:'"Por que o Itachi nunca se defendeu"', hook:'Ele podia ter contado a verdade em 2 segundos. Escolheu não contar por 15 anos.', body:'Aprofunda o padrão do vídeo de 117k views (abril). Foco total em UM personagem, mas com a lente de "decisão + consequência emocional", não resumo de enredo.'},
+    {n:'05', fmla:'Cross-fandom · Yu Yu Hakusho', title:'"Yu Yu Hakusho previu isso antes de todo mundo"', hook:'Toguro não era o vilão. Era o espelho do que o Yusuke podia virar.', body:'O post mais recente do canal (Toguro, 30/ago) foi o primeiro em YYH e teve engajamento acima da média (6,1% ER) mesmo com pouco alcance — fandom nostálgico, pouco saturado no TikTok BR. Vale uma sequência de 3 vídeos.'},
+  ];
+  const box = document.getElementById('ideaList');
+  box.innerHTML = items.map(i=>`
+    <div class="idea">
+      <div class="idx">${i.n}</div>
+      <div class="fmla">${i.fmla}</div>
+      <h3>${i.title}</h3>
+      <div class="hook">"${i.hook}"</div>
+      <p>${i.body}</p>
+    </div>`).join('');
+})();
+
+/* ---------------- Action plan ---------------- */
+(function plan(){
+  const items = [
+    {t:'Volte o híbrido (anime + frase) para o eixo principal', d:'É a única categoria com ao mesmo tempo o maior alcance médio (29,3 mil views) E o maior engajamento (6,86% ER). Anime puro e frase pura sozinhos ficam atrás nos dois indicadores.'},
+    {t:'Corte o volume disperso de "outros" temas', d:'23 posts na última semana escaneada renderam média de 1.515 views — pior semana do período analisado apesar de ser a de maior volume. Postar mais sobre temas sem padrão testado piora a média, não melhora.'},
+    {t:'Mantenha 1 teste por semana fora do anime — não mais que isso', d:'O único vídeo fora do universo anime que viralizou (276 mil views) usou o mesmo gancho contrarian que já funciona no canal. Vale continuar testando esse ângulo, mas como exceção controlada, não como substituição.'},
+    {t:'Elimine o formato duo/costura', d:'9 vídeos, média de 208 views — o pior formato já testado no canal, abaixo até do pior vídeo de anime solo.'},
+    {t:'Poste quarta ou quinta, 10h ou 18h (horário de Brasília)', d:'Os dois melhores horários da semana segundo o histórico da própria conta via Metricool — quinta 10h é o pico absoluto.'},
+  ];
+  document.getElementById('planList').innerHTML = items.map(i=>`
+    <li><div><div class="t">${i.t}</div><div class="d">${i.d}</div></div></li>`).join('');
+})();
+</script>
