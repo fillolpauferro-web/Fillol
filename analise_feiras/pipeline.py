@@ -549,7 +549,15 @@ def carregar_cnpjs_ca(cnpjs_ca_cfg: list[dict]) -> set[str]:
     """
     cnpjs: set[str] = set()
     for fonte_cfg in cnpjs_ca_cfg:
-        df_controle = carregar_controle(fonte_cfg)
+        try:
+            df_controle = carregar_controle(fonte_cfg)
+        except FileNotFoundError as erro:
+            # uma fonte de cnpjs_ca faltando (ex.: rotulos_lojas.csv ainda
+            # não copiado pra pasta de dados) não pode travar o desconto
+            # correto de bandeiras que nem dependem dela (ex.: Carrefour,
+            # Coop) — avisa e segue só com as fontes que existem.
+            print(f"!!! Aviso: fonte de cnpjs_ca ignorada ({erro})")
+            continue
         cnpjs |= set(df_controle["_chave_controle_norm"])
     return cnpjs
 

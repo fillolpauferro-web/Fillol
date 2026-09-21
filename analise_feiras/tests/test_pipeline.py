@@ -873,6 +873,42 @@ def test_matriz_bandeira_desconto_correto_via_painel_tabela(tmp_path: Path):
     assert round(descontos["9202"], 2) == 40.00  # CNPJ não-CA -> RAIA_GENERICO
 
 
+def test_carregar_cnpjs_ca_ignora_fonte_com_arquivo_ausente(tmp_path: Path, capsys):
+    # Bug real: rotulos_lojas.csv ainda não tinha sido copiado pra pasta de
+    # dados do usuário, e isso quebrava a matriz Bandeira INTEIRA (nem
+    # bandeiras sem nenhuma relação com CA, tipo Carrefour, saíam). Uma
+    # fonte de cnpjs_ca com arquivo ausente tem que ser ignorada (com aviso
+    # no console), não travar as outras fontes nem o resto da análise.
+    rotulos_df = pd.DataFrame({"cnpj": ["11.111.111/0001-11"], "rotulo": ["NAO_VISITADO"]})
+    with pd.ExcelWriter(tmp_path / "Painel_NV_2026_08.xlsx") as w:
+        rotulos_df.to_excel(w, sheet_name="Dados", index=False)
+
+    import pipeline
+
+    pipeline.BASE_DIR = tmp_path
+
+    cnpjs_ca_cfg = [
+        {
+            "arquivo_controle": "Painel_NV_*.xlsx",
+            "aba_controle": "Dados",
+            "chave_controle": "cnpj",
+            "coluna_rotulo_controle": "rotulo",
+            "rotulo_valido_controle": "NAO_VISITADO",
+        },
+        {
+            "arquivo_controle": "rotulos_lojas_*.csv",  # não existe em tmp_path
+            "chave_controle": "cnpj",
+            "coluna_rotulo_controle": "rotulo",
+            "rotulo_valido_controle": "SELL_OUT_CA",
+        },
+    ]
+
+    cnpjs = pipeline.carregar_cnpjs_ca(cnpjs_ca_cfg)
+
+    assert cnpjs == {normalize_cnpj("11.111.111/0001-11")}
+    assert "Aviso" in capsys.readouterr().out
+
+
 def test_matriz_tipo_resumo_volume(tmp_path: Path):
     # maio/2026: pedido 1 (Carrefour CA, 100), pedido 2 (Raia CA, 200) em CA;
     #            pedido 3 (Default Generico CA, 50) em WE.
