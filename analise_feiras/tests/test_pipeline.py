@@ -745,6 +745,134 @@ def test_matriz_bandeira_com_regra(tmp_path: Path):
     assert pd.isna(linha_ok["diferenca_faturamento"])
 
 
+def test_matriz_bandeira_desconto_correto_via_painel_tabela(tmp_path: Path):
+    # Bug real relatado pelo usuário: mesmo EAN tem desconto diferente em
+    # "RAIA CA" (60,90%) e "RAIA_GENERICO" (40%) na Condicao_comercial. Sem
+    # o Painel x Tabela, o código antigo pegava "a primeira condição
+    # cadastrada pro EAN" (errado). Com o Painel x Tabela (Grupo de
+    # clientes "RAIA DROGASIL" -> Tabela 1 RAIA_GENERICO / Tabela 2 RAIA
+    # CA) + cnpjs_ca, o desconto correto tem que respeitar se o CNPJ é CA:
+    # pedido 9201: CNPJ cadastrado como SELL_OUT_CA (conta como CA) ->
+    #              desconto correto tem que vir de "RAIA CA" (60,90%)
+    # pedido 9202: CNPJ sem nenhum cadastro CA -> desconto correto tem que
+    #              vir de "RAIA_GENERICO" (40%)
+    # Nenhum dos dois está no regra.xlsx nem no mapa_bandeira_tabela (vazio
+    # nesse teste), então os dois são Erro Operacional de qualquer forma —
+    # o que muda é só qual condição comercial é usada pro cálculo.
+    base_df = pd.DataFrame(
+        {
+            "CNPJ": ["77.888.999/0001-11", "88.999.000/0001-22"],
+            "Id pedido": ["9201", "9202"],
+            "EAN": ["5555555555555", "5555555555555"],
+            "Tabela de negociação": ["QUALQUER OUTRA TABELA", "QUALQUER OUTRA TABELA"],
+            "Data do pedido (original)": ["10/05/2026 10:00", "11/05/2026 10:00"],
+            "Faturado líquido (R$)": ["50,0", "50,0"],
+            "Desconto comercial faturado (%)": ["20", "20"],
+            "Grupo de clientes": ["RAIA DROGASIL", "RAIA DROGASIL"],
+        }
+    )
+
+    painel_bandeira_df = pd.DataFrame(
+        {
+            "CNPJ Ajustado": ["77.888.999/0001-11", "88.999.000/0001-22"],
+            "desc_bandeira": ["RAIA DROGASIL", "RAIA DROGASIL"],
+        }
+    )
+
+    regra_df = pd.DataFrame({"Raiz CNPJ": ["00000000"], "Rotulo": ["NADA_A_VER"]})
+
+    condicao_df = pd.DataFrame(
+        {
+            "EAN FORMATADO": ["5555555555555", "5555555555555"],
+            "Tabela": ["RAIA_GENERICO", "RAIA CA"],
+            "Desconto Atual": [0.40, 0.6090],
+        }
+    )
+
+    painel_tabela_df = pd.DataFrame(
+        {
+            "Grupo de clientes": ["RAIA DROGASIL"],
+            "Tabela 1": ["RAIA_GENERICO"],
+            "Tabela 2": ["RAIA CA"],
+        }
+    )
+
+    rotulos_lojas_df = pd.DataFrame(
+        {
+            "cnpj": ["77.888.999/0001-11"],
+            "rotulo": ["SELL_OUT_CA"],
+        }
+    )
+
+    (tmp_path / "saida").mkdir()
+    base_df.to_excel(tmp_path / "base_pedidos.xlsx", index=False)
+    with pd.ExcelWriter(tmp_path / "Painel_Bandeira_2026_08.xlsx") as w:
+        painel_bandeira_df.to_excel(w, sheet_name="Dados", index=False)
+    with pd.ExcelWriter(tmp_path / "regra.xlsx") as w:
+        regra_df.to_excel(w, sheet_name="Dados", index=False)
+    with pd.ExcelWriter(tmp_path / "condicao_comercial.xlsx") as w:
+        condicao_df.to_excel(w, sheet_name="Dados", index=False)
+    with pd.ExcelWriter(tmp_path / "Panel_x_Tabela.xlsx") as w:
+        painel_tabela_df.to_excel(w, sheet_name="Planilha1", index=False)
+    rotulos_lojas_df.to_csv(tmp_path / "rotulos_lojas_20260904_141843.csv", sep=";", index=False)
+
+    cfg = _montar_config(tmp_path)
+    cfg["base"]["colunas"]["grupo_clientes"] = "Grupo de clientes"
+    cfg["condicao_comercial"]["colunas"]["chave_tabela"] = "Tabela"
+    matriz_cfg = {
+        "nome": "Bandeira",
+        "tipo": "consolidacao",
+        "ativo": True,
+        "arquivo_controle": "Painel_Bandeira_*.xlsx",
+        "aba_controle": "Dados",
+        "chave_controle": "CNPJ Ajustado",
+        "colunas_trazidas": {"bandeira": "desc_bandeira"},
+        "colunas_data": [],
+        "nome_arquivo_saida": "historico_bandeiras.xlsx",
+        "regra": {
+            "arquivo": "regra.xlsx",
+            "aba": "Dados",
+            "colunas": {"chave_raiz_cnpj": "Raiz CNPJ", "rotulo": "Rotulo"},
+            "nome_arquivo_saida": "Bandeiras_Analise.xlsx",
+            "mapa_bandeira_tabela": [],
+            "painel_tabela": {
+                "arquivo": "Panel_x_Tabela.xlsx",
+                "aba": "Planilha1",
+                "colunas": {
+                    "grupo_clientes": "Grupo de clientes",
+                    "tabela_1": "Tabela 1",
+                    "tabela_2": "Tabela 2",
+                },
+            },
+            "cnpjs_ca": [
+                {
+                    "arquivo_controle": "rotulos_lojas_*.csv",
+                    "chave_controle": "cnpj",
+                    "coluna_rotulo_controle": "rotulo",
+                    "rotulo_valido_controle": "SELL_OUT_CA",
+                }
+            ],
+        },
+    }
+    cfg["matrizes"].append(matriz_cfg)
+
+    import pipeline
+
+    pipeline.BASE_DIR = tmp_path
+
+    df_base = carregar_base(cfg)
+    resultado = rodar_matriz("Bandeira", matriz_cfg, df_base, cfg)
+
+    assert resultado is not None
+    checks = dict(zip(resultado["Id pedido"], resultado["Check"]))
+    assert checks["9201"] == CHECK_ERRO
+    assert checks["9202"] == CHECK_ERRO
+
+    descontos = dict(zip(resultado["Id pedido"], resultado["desconto_correto_pct"]))
+    assert round(descontos["9201"], 2) == 60.90  # CNPJ CA -> RAIA CA
+    assert round(descontos["9202"], 2) == 40.00  # CNPJ não-CA -> RAIA_GENERICO
+
+
 def test_matriz_tipo_resumo_volume(tmp_path: Path):
     # maio/2026: pedido 1 (Carrefour CA, 100), pedido 2 (Raia CA, 200) em CA;
     #            pedido 3 (Default Generico CA, 50) em WE.

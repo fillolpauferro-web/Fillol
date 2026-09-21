@@ -45,6 +45,17 @@ define como a base é filtrada e o que sai no resultado:
   "Pacheco" vs "DPSP_CA") — e faz o mesmo cálculo de desconto/preço dos
   tipos "tabela"/"cnpj" pros erros — o resultado sai num
   segundo arquivo (regra.nome_arquivo_saida).
+  Como a Tabela "correta" varia linha a linha (não tem uma única
+  palavra_chave pra matriz toda), o desconto correto de cada Erro
+  Operacional é buscado via regra.painel_tabela — o guia "Painel x Tabela"
+  (Grupo de clientes -> Tabela 1 Genérico / Tabela 2 CA, essa última só
+  quando o CNPJ está cadastrado como CA em regra.cnpjs_ca) — em vez de
+  simplesmente pegar a primeira condição comercial cadastrada pro EAN, que
+  não sabia diferenciar duas Tabelas do mesmo grupo (ex.: RAIA CA vs
+  RAIA_GENERICO, descontos diferentes pro mesmo EAN). Sem
+  regra.painel_tabela configurado (ou sem base.colunas.grupo_clientes), o
+  desconto correto fica em branco nessa segunda camada — nunca mais usa
+  "primeira condição cadastrada" como chute.
 
   tipo: "resumo_volume" (ex.: composição CA x WE) — sem Check, sem filtro
   por CNPJ, roda em cima da base inteira: classifica cada pedido em duas
@@ -305,7 +316,11 @@ def carregar_condicao_comercial(cfg: dict) -> pd.DataFrame:
 
     if col_tabela:
         df["_tabela_condicao_norm"] = df[col_tabela].map(normalize_text)
-        colunas_saida = ["_ean_norm", "_tabela_condicao_norm", "_desconto_correto_pct"]
+        # tokens, não só o texto — permite achar a Tabela certa por
+        # correspondência de palavras (igual Rotulo x Tabela de negociação),
+        # necessário quando a Tabela "correta" varia linha a linha (Bandeira)
+        df["_tabela_condicao_tokens"] = df["_tabela_condicao_norm"].map(tokenizar)
+        colunas_saida = ["_ean_norm", "_tabela_condicao_norm", "_tabela_condicao_tokens", "_desconto_correto_pct"]
         subset_dedup = ["_ean_norm", "_tabela_condicao_norm"]
     else:
         colunas_saida = ["_ean_norm", "_desconto_correto_pct"]
@@ -314,22 +329,62 @@ def carregar_condicao_comercial(cfg: dict) -> pd.DataFrame:
     return df[colunas_saida].drop_duplicates(subset=subset_dedup, keep="first")
 
 
-def aplicar_condicao_correta(df: pd.DataFrame, df_condicao: pd.DataFrame, matriz_cfg: dict) -> pd.DataFrame:
-    if "_tabela_condicao_norm" in df_condicao.columns:
-        # matrizes sem uma única palavra_chave fixa (ex.: Bandeira, onde a
-        # tabela "correta" varia por linha via regra) não conseguem filtrar
-        # a condição comercial por Tabela aqui — cai pra manter só a
-        # primeira condição cadastrada por EAN, em vez de quebrar.
-        palavra = matriz_cfg.get("palavra_chave")
-        if palavra:
-            correspondencia = matriz_cfg.get("correspondencia_tabela", "contem")
-            mask = _mask_tabela_bate(df_condicao["_tabela_condicao_norm"], palavra, correspondencia)
-            df_condicao = df_condicao[mask]
-        df_condicao = df_condicao[["_ean_norm", "_desconto_correto_pct"]].drop_duplicates(
-            subset="_ean_norm", keep="first"
-        )
+def _selecionar_desconto_por_tokens(
+    ean_norm: pd.Series, tokens_esperados: pd.Series, df_condicao: pd.DataFrame
+) -> pd.Series:
+    """Escolhe o desconto correto linha a linha, comparando os tokens da
+    Tabela esperada daquela linha (tokens_esperados) com os tokens de cada
+    Tabela cadastrada em Condicao_comercial pro mesmo EAN — necessário
+    quando a Tabela "correta" varia linha a linha (ex.: Bandeira, onde cada
+    Grupo de clientes tem sua própria Tabela esperada, ao contrário de
+    Feira/Canal Autorizador, que têm uma única palavra_chave fixa pra toda
+    a matriz). Usa a mesma lógica de _rotulo_bate_na_tabela (cada palavra
+    esperada como prefixo de alguma palavra da Tabela, em qualquer ordem).
+    """
+    base = pd.DataFrame({"_ean_norm": ean_norm.values, "_tokens_esperados": tokens_esperados.values})
+    base["_idx_original"] = ean_norm.index
+    candidatos = base.merge(df_condicao, how="left", on="_ean_norm")
 
-    df = df.merge(df_condicao, how="left", on="_ean_norm")
+    bate = [
+        _rotulo_bate_na_tabela(esperado, tab) if isinstance(esperado, tuple) and isinstance(tab, tuple) else False
+        for esperado, tab in zip(candidatos["_tokens_esperados"], candidatos["_tabela_condicao_tokens"])
+    ]
+    candidatos = candidatos[pd.Series(bate, index=candidatos.index)]
+    candidatos = candidatos.drop_duplicates(subset="_idx_original", keep="first")
+
+    resultado = pd.Series(float("nan"), index=ean_norm.index)
+    resultado.loc[candidatos["_idx_original"]] = candidatos["_desconto_correto_pct"].to_numpy()
+    return resultado
+
+
+def aplicar_condicao_correta(
+    df: pd.DataFrame,
+    df_condicao: pd.DataFrame,
+    matriz_cfg: dict,
+    tokens_esperados: pd.Series | None = None,
+) -> pd.DataFrame:
+    if tokens_esperados is not None and "_tabela_condicao_tokens" in df_condicao.columns:
+        # Tabela "correta" varia linha a linha (ex.: Bandeira, via Painel x
+        # Tabela) — escolhe o desconto comparando os tokens esperados de
+        # cada linha, em vez de uma única palavra_chave fixa pra matriz toda.
+        df = df.copy()
+        df["_desconto_correto_pct"] = _selecionar_desconto_por_tokens(df["_ean_norm"], tokens_esperados, df_condicao)
+    else:
+        if "_tabela_condicao_norm" in df_condicao.columns:
+            # matrizes sem uma única palavra_chave fixa nem tokens_esperados
+            # não conseguem filtrar a condição comercial por Tabela aqui —
+            # cai pra manter só a primeira condição cadastrada por EAN, em
+            # vez de quebrar.
+            palavra = matriz_cfg.get("palavra_chave")
+            if palavra:
+                correspondencia = matriz_cfg.get("correspondencia_tabela", "contem")
+                mask = _mask_tabela_bate(df_condicao["_tabela_condicao_norm"], palavra, correspondencia)
+                df_condicao = df_condicao[mask]
+            df_condicao = df_condicao[["_ean_norm", "_desconto_correto_pct"]].drop_duplicates(
+                subset="_ean_norm", keep="first"
+            )
+
+        df = df.merge(df_condicao, how="left", on="_ean_norm")
 
     # preço sem desconto = líquido faturado / (1 - desconto aplicado)
     fator_aplicado = 1 - (df["_desconto_aplicado_pct"] / 100)
@@ -444,6 +499,97 @@ def _bate_mapa_bandeira(bandeira_norm: str, tabela_tokens: tuple[str, ...], mapa
     return False
 
 
+def _tokens_ou_none(valor) -> tuple[str, ...] | None:
+    if valor is None or (isinstance(valor, float) and pd.isna(valor)):
+        return None
+    tokens = tokenizar(normalize_text(valor))
+    return tokens or None
+
+
+def carregar_painel_tabela(painel_cfg: dict) -> pd.DataFrame:
+    """Lê o "Painel x Tabela" (regra.painel_tabela no config.yaml) — guia
+    oficial de qual Tabela de negociação deveria estar alocada pra cada
+    Grupo de clientes: Tabela 1 (Genérico, sempre preenchida) e Tabela 2
+    (CA, só quando esse grupo também tem canal CA). É consultado quando um
+    pedido da Bandeira dá Erro Operacional, pra achar o desconto correto em
+    Condicao_comercial pela Tabela que DEVERIA estar sendo usada — em vez
+    de "pegar a primeira condição cadastrada pro EAN", que não sabia
+    diferenciar duas Tabelas do mesmo Grupo (ex.: RAIA CA vs RAIA_GENERICO,
+    descontos diferentes pro mesmo EAN).
+    """
+    caminho = BASE_DIR / painel_cfg["arquivo"]
+    df = read_table_mais_recente(caminho, painel_cfg.get("aba"))
+
+    colunas = painel_cfg["colunas"]
+    col_grupo = colunas["grupo_clientes"]
+    col_tabela1 = colunas["tabela_1"]
+    col_tabela2 = colunas["tabela_2"]
+    faltando = [c for c in (col_grupo, col_tabela1, col_tabela2) if c not in df.columns]
+    if faltando:
+        raise KeyError(
+            f"Colunas ausentes no Painel x Tabela ({caminho.name}): {faltando}. "
+            "Ajuste regra.painel_tabela.colunas no config.yaml."
+        )
+
+    df["_grupo_norm"] = df[col_grupo].map(normalize_text)
+    df["_tabela1_tokens"] = df[col_tabela1].map(_tokens_ou_none)
+    df["_tabela2_tokens"] = df[col_tabela2].map(_tokens_ou_none)
+    return df[["_grupo_norm", "_tabela1_tokens", "_tabela2_tokens"]].drop_duplicates(
+        subset="_grupo_norm", keep="first"
+    )
+
+
+def carregar_cnpjs_ca(cnpjs_ca_cfg: list[dict]) -> set[str]:
+    """União dos CNPJs cadastrados como "CA" em qualquer uma das fontes
+    configuradas em regra.cnpjs_ca (ex.: Painel_NV com rótulo NAO_VISITADO,
+    rotulos_lojas.csv com SELL_OUT_CA/ATACAREJO_CONECTA_CA — os mesmos
+    arquivos/rótulos das matrizes CanalAutorizador/SellOut CA/Atacarejo
+    Conecta CA). Usado só pra decidir, no Painel x Tabela, se um pedido
+    deve olhar a Tabela 1 (Genérico) ou a Tabela 2 (CA).
+    """
+    cnpjs: set[str] = set()
+    for fonte_cfg in cnpjs_ca_cfg:
+        df_controle = carregar_controle(fonte_cfg)
+        cnpjs |= set(df_controle["_chave_controle_norm"])
+    return cnpjs
+
+
+def calcular_tabela_esperada_bandeira(df: pd.DataFrame, regra_cfg: dict, cfg: dict) -> pd.Series:
+    """Pra cada pedido, escolhe os tokens da Tabela que DEVERIA estar
+    alocada, segundo o Painel x Tabela: Tabela 2 (CA) se o CNPJ do pedido
+    estiver cadastrado como CA (regra.cnpjs_ca), senão Tabela 1 (Genérico).
+    Retorna None quando o Grupo de clientes do pedido não está no Painel x
+    Tabela, ou quando regra.painel_tabela não está configurado.
+    """
+    painel_cfg = regra_cfg.get("painel_tabela")
+    col_grupo = cfg["base"]["colunas"].get("grupo_clientes")
+    if not painel_cfg or not col_grupo:
+        return pd.Series(None, index=df.index, dtype=object)
+
+    df_painel = carregar_painel_tabela(painel_cfg)
+    cnpjs_ca = carregar_cnpjs_ca(regra_cfg.get("cnpjs_ca") or [])
+
+    grupo_norm = df[col_grupo].map(normalize_text)
+    tabelas = pd.DataFrame({"_grupo_norm": grupo_norm}, index=df.index).merge(
+        df_painel, how="left", on="_grupo_norm"
+    )
+    tabelas.index = df.index
+    is_ca = df["_cnpj_norm"].isin(cnpjs_ca)
+
+    def _escolher(tabela1, tabela2, ca: bool):
+        if ca and isinstance(tabela2, tuple):
+            return tabela2
+        return tabela1 if isinstance(tabela1, tuple) else None
+
+    return pd.Series(
+        [
+            _escolher(t1, t2, ca)
+            for t1, t2, ca in zip(tabelas["_tabela1_tokens"], tabelas["_tabela2_tokens"], is_ca)
+        ],
+        index=df.index,
+    )
+
+
 def aplicar_regra_bandeira(df_historico: pd.DataFrame, matriz_cfg: dict, cfg: dict) -> pd.DataFrame:
     """A partir do histórico já consolidado (ainda em memória, sem re-ler
     nada), cruza cada venda com o Rotulo esperado no arquivo de regra
@@ -451,7 +597,9 @@ def aplicar_regra_bandeira(df_historico: pd.DataFrame, matriz_cfg: dict, cfg: di
     contém todas as palavras desse Rotulo, OU quando bate com algum item de
     regra.mapa_bandeira_tabela (de-para manual bandeira -> tabela esperada).
     Erro Operacional é cruzado com Condicao_comercial pro cálculo de
-    desconto/preço, igual às outras matrizes (Feira, Canal Autorizador).
+    desconto/preço, igual às outras matrizes (Feira, Canal Autorizador) —
+    usando a Tabela esperada de regra.painel_tabela (Grupo de clientes ->
+    Tabela 1/Tabela 2), quando configurado, pra achar a condição certa.
     """
     df = df_historico.copy()
     df["_raiz_cnpj_norm"] = df["_cnpj_norm"].str[:8]
@@ -489,8 +637,10 @@ def aplicar_regra_bandeira(df_historico: pd.DataFrame, matriz_cfg: dict, cfg: di
     ok = (encontrado & bate_regra) | bate_mapa
     df["Check"] = pd.Series(CHECK_OK, index=df.index).mask(~ok, CHECK_ERRO)
 
+    tabela_esperada_tokens = calcular_tabela_esperada_bandeira(df, regra_cfg, cfg)
+
     df_condicao = carregar_condicao_comercial(cfg)
-    return aplicar_condicao_correta(df, df_condicao, matriz_cfg)
+    return aplicar_condicao_correta(df, df_condicao, matriz_cfg, tokens_esperados=tabela_esperada_tokens)
 
 
 def _agregar_volume(df: pd.DataFrame, by) -> pd.DataFrame:

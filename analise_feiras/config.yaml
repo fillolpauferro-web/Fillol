@@ -102,6 +102,9 @@ condicao_comercial:
 #   Check = OK/Erro Operacional comparando a Tabela de negociação com o
 #   Rotulo esperado por Raiz CNPJ, com o mesmo cálculo de desconto/preço
 #   dos outros tipos — sai num segundo arquivo (regra.nome_arquivo_saida).
+#   O desconto correto dos erros usa regra.painel_tabela (Grupo de clientes
+#   -> Tabela 1 Genérico / Tabela 2 CA) pra achar a Tabela que deveria ter
+#   sido usada — nunca "a primeira condição comercial cadastrada pro EAN".
 #
 # tipo: "resumo_volume" (ex.: composição CA x WE) — sem Check, sem filtro
 #   por CNPJ, roda na base inteira. Classifica cada pedido em duas
@@ -294,6 +297,38 @@ matrizes:
           tabela_contem: "RAIA"
         - bandeira_contem: "ULTRAFARMA"
           tabela_contem: "ULTRAFARMA"
+      # Guia oficial: Grupo de clientes -> Tabela 1 (Genérico, sempre
+      # preenchida) / Tabela 2 (CA, só quando o grupo também tem canal CA).
+      # Quando um pedido dá Erro Operacional (acima), é AQUI que a gente
+      # confirma qual Tabela deveria ter sido usada pra buscar o desconto
+      # correto em Condicao_comercial — substitui a lógica antiga de "pega
+      # a primeira condição cadastrada pro EAN", que não sabia diferenciar
+      # duas Tabelas do mesmo grupo com descontos diferentes (ex.: RAIA CA
+      # vs RAIA_GENERICO, mesmo EAN). Exige base.colunas.grupo_clientes.
+      painel_tabela:
+        arquivo: "C:/Users/I0507867.FARMA/OneDrive - Sanofi/Desktop/Analise Painel/dados/Panel_x_Tabela.xlsx"
+        aba: null
+        colunas:
+          grupo_clientes: "Grupo de clientes"
+          tabela_1: "Tabela 1"
+          tabela_2: "Tabela 2"
+      # CNPJ conta como "CA" (usa a Tabela 2 do Painel x Tabela) se estiver
+      # cadastrado com qualquer um destes rótulos, em qualquer um destes
+      # arquivos — os mesmos arquivos/rótulos das matrizes CanalAutorizador,
+      # SellOut e AtacarejoConecta (variantes "*_CA").
+      cnpjs_ca:
+        - arquivo_controle: "C:/Users/I0507867.FARMA/OneDrive - Sanofi/Desktop/Analise Painel/dados/Painel_NV_*.xlsx"
+          chave_controle: "CNPJ ajustado"
+          coluna_rotulo_controle: "Rotulo"
+          rotulo_valido_controle: "NAO_VISITADO"
+        - arquivo_controle: "C:/Users/I0507867.FARMA/OneDrive - Sanofi/Desktop/Analise Painel/dados/rotulos_lojas_*.csv"
+          chave_controle: "cnpj"
+          coluna_rotulo_controle: "rotulo"
+          rotulo_valido_controle: "SELL_OUT_CA"
+        - arquivo_controle: "C:/Users/I0507867.FARMA/OneDrive - Sanofi/Desktop/Analise Painel/dados/rotulos_lojas_*.csv"
+          chave_controle: "cnpj"
+          coluna_rotulo_controle: "rotulo"
+          rotulo_valido_controle: "ATACAREJO_CONECTA_CA"
 
   - nome: "ResumoCAxWE"
     tipo: "resumo_volume"
