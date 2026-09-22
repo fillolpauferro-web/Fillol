@@ -96,15 +96,21 @@ condicao_comercial:
 # tipo: "consolidacao" (ex.: Bandeira) — sem Check e sem cruzamento com
 #   Condicao_comercial. Filtra a base pelos CNPJs do arquivo de controle
 #   (ex.: Painel_Bandeira) e só consolida essas vendas num arquivo único,
-#   trazendo as colunas de colunas_trazidas (ex.: Bandeira) pra dar pra
-#   agrupar/analisar depois. Se tiver "regra" configurado (ver exemplo da
-#   Bandeira abaixo), roda uma segunda camada em cima desse mesmo histórico:
-#   Check = OK/Erro Operacional comparando a Tabela de negociação com o
-#   Rotulo esperado por Raiz CNPJ, com o mesmo cálculo de desconto/preço
-#   dos outros tipos — sai num segundo arquivo (regra.nome_arquivo_saida).
-#   O desconto correto dos erros usa regra.painel_tabela (Grupo de clientes
-#   -> Tabela 1 Genérico / Tabela 2 CA) pra achar a Tabela que deveria ter
-#   sido usada — nunca "a primeira condição comercial cadastrada pro EAN".
+#   trazendo as colunas de colunas_trazidas (ex.: id_bandeira, bandeira,
+#   perfil_bandeira, razao_social, cidade, estado) pra dar pra
+#   agrupar/analisar depois.
+#
+# tipo: "erro_bandeira" (ex.: Análise Erro Bandeira) — mesmo filtro por
+#   CNPJ de "consolidacao" (arquivo_controle/chave_controle/
+#   colunas_trazidas), mas compara a Tabela de negociação de cada pedido
+#   com painel_tabela (guia "Painel x Tabela": Grupo de clientes -> Tabela
+#   1 Genérico / Tabela 2 CA). Bate com a Tabela 1 OU a Tabela 2 do Grupo
+#   de clientes daquele pedido -> está correto, não entra no relatório. Não
+#   bate com nenhuma das duas -> erro, entra no relatório com a Tabela que
+#   deveria ter sido usada (Tabela 2/CA se o CNPJ estiver cadastrado como
+#   CA em cnpjs_ca, senão Tabela 1/Genérico — nunca "a primeira condição
+#   comercial cadastrada pro EAN") e o desconto correspondente em
+#   Condicao_comercial. Exige base.colunas.grupo_clientes.
 #
 # tipo: "resumo_volume" (ex.: composição CA x WE) — sem Check, sem filtro
 #   por CNPJ, roda na base inteira. Classifica cada pedido em duas
@@ -254,81 +260,56 @@ matrizes:
     colunas_data: []
     # nome do arquivo de resultado consolidado (em vez de "Bandeira_analise.xlsx")
     nome_arquivo_saida: "historico_bandeiras.xlsx"
-    # Segunda camada: reaproveita o histórico consolidado acima (em memória,
-    # sem reler nada) e cruza com o arquivo de regra pra gerar Check +
-    # cálculo de desconto/preço, igual Feira/CanalAutorizador.
-    # O cruzamento é por Raiz CNPJ (8 primeiros dígitos do CNPJ) — mais
-    # confiável que casar pelo nome da bandeira, que pode ter grafias
-    # diferentes pro mesmo grupo (ex.: "DROGARIA TAMOIO" vs "DROGARIATAMOIO").
-    # O Rotulo do arquivo de regra (ex.: "GENERICO_D1000") é comparado com a
-    # Tabela de negociação por palavra, não por texto exato: cada palavra do
-    # Rotulo precisa aparecer (como prefixo) em alguma palavra da Tabela,
-    # em qualquer ordem — cobre tanto abreviação ("CANAL_AUT" -> "Canal
-    # Autorizador") quanto reordenação ("GENERICO_D1000" -> "Tabela
-    # Agregadora - D1000_GENERICO", caso real confirmado na base do usuário).
-    regra:
-      arquivo: "C:/Users/I0507867.FARMA/OneDrive - Sanofi/Desktop/Analise Painel/dados/regra.xlsx"
+
+  - nome: "AnaliseErroBandeira"
+    tipo: "erro_bandeira"
+    ativo: true
+    # mesmo arquivo/CNPJs da matriz Bandeira acima
+    arquivo_controle: "C:/Users/I0507867.FARMA/OneDrive - Sanofi/Desktop/Analise Painel/dados/Painel_Bandeira*.xlsx"
+    aba_controle: null
+    chave_controle: "CNPJ Ajustado"
+    colunas_trazidas:
+      id_bandeira: "id_bandeira"
+      bandeira: "desc_bandeira"
+      perfil_bandeira: "perfil_bandeira"
+      razao_social: "razao_social"
+      cidade: "cidade"
+      estado: "estado"
+    colunas_data: []
+    nome_arquivo_saida: "Análise Erro Bandeira.xlsx"
+    # Guia oficial: Grupo de clientes -> Tabela 1 (Genérico, sempre
+    # preenchida) / Tabela 2 (CA, só quando o grupo também tem canal CA).
+    # É o único critério pra saber se o pedido está na Tabela certa: bate
+    # com a Tabela 1 OU a Tabela 2 do Grupo de clientes daquele pedido
+    # (cada palavra da Tabela esperada como prefixo de alguma palavra da
+    # Tabela real, em qualquer ordem) -> correto, fora do relatório. Não
+    # bate com nenhuma das duas -> erro, entra no relatório com a Tabela
+    # que deveria ter sido usada e o desconto correspondente em
+    # Condicao_comercial. Exige base.colunas.grupo_clientes.
+    painel_tabela:
+      arquivo: "C:/Users/I0507867.FARMA/OneDrive - Sanofi/Desktop/Analise Painel/dados/Panel_x_Tabela.xlsx"
       aba: null
       colunas:
-        chave_raiz_cnpj: "Raiz CNPJ"
-        rotulo: "Rotulo"
-      nome_arquivo_saida: "Bandeiras_Analise.xlsx"
-      # De-para manual: cobre bandeiras cujo nome não tem nenhuma relação de
-      # palavra com o código da Tabela de negociação, então não dá pra
-      # derivar pelo Rotulo do arquivo de regra (ex.: bandeira "Pacheco" vs
-      # Tabela "DPSP_CA" — nomes sem nenhuma palavra em comum). Funciona
-      # como reforço: Check = OK se bater com o Rotulo do regra.xlsx OU com
-      # algum item daqui (confirmado pelo usuário com casos reais).
-      # bandeira_contem: procurado (contém) na coluna "bandeira" da venda.
-      # tabela_contem: procurado por palavra na Tabela de negociação, igual
-      # ao Rotulo do regra.xlsx (ordem das palavras não importa).
-      mapa_bandeira_tabela:
-        - bandeira_contem: "DROGAO SUPER"
-          tabela_contem: "DROGAO SUPER"
-        - bandeira_contem: "PACHECO"
-          tabela_contem: "DPSP"
-        - bandeira_contem: "DSP" # nome real na coluna "bandeira" (confirmado pelo usuário) — "Pacheco" é só o nome comercial
-          tabela_contem: "DPSP"
-        - bandeira_contem: "COOP"
-          tabela_contem: "COOP"
-        - bandeira_contem: "CARREFOUR"
-          tabela_contem: "CARREFOUR"
-        - bandeira_contem: "RAIA"
-          tabela_contem: "RAIA"
-        - bandeira_contem: "ULTRAFARMA"
-          tabela_contem: "ULTRAFARMA"
-      # Guia oficial: Grupo de clientes -> Tabela 1 (Genérico, sempre
-      # preenchida) / Tabela 2 (CA, só quando o grupo também tem canal CA).
-      # Quando um pedido dá Erro Operacional (acima), é AQUI que a gente
-      # confirma qual Tabela deveria ter sido usada pra buscar o desconto
-      # correto em Condicao_comercial — substitui a lógica antiga de "pega
-      # a primeira condição cadastrada pro EAN", que não sabia diferenciar
-      # duas Tabelas do mesmo grupo com descontos diferentes (ex.: RAIA CA
-      # vs RAIA_GENERICO, mesmo EAN). Exige base.colunas.grupo_clientes.
-      painel_tabela:
-        arquivo: "C:/Users/I0507867.FARMA/OneDrive - Sanofi/Desktop/Analise Painel/dados/Panel_x_Tabela.xlsx"
-        aba: null
-        colunas:
-          grupo_clientes: "Grupo de clientes"
-          tabela_1: "Tabela 1"
-          tabela_2: "Tabela 2"
-      # CNPJ conta como "CA" (usa a Tabela 2 do Painel x Tabela) se estiver
-      # cadastrado com qualquer um destes rótulos, em qualquer um destes
-      # arquivos — os mesmos arquivos/rótulos das matrizes CanalAutorizador,
-      # SellOut e AtacarejoConecta (variantes "*_CA").
-      cnpjs_ca:
-        - arquivo_controle: "C:/Users/I0507867.FARMA/OneDrive - Sanofi/Desktop/Analise Painel/dados/Painel_NV_*.xlsx"
-          chave_controle: "CNPJ ajustado"
-          coluna_rotulo_controle: "Rotulo"
-          rotulo_valido_controle: "NAO_VISITADO"
-        - arquivo_controle: "C:/Users/I0507867.FARMA/OneDrive - Sanofi/Desktop/Analise Painel/dados/rotulos_lojas_*.csv"
-          chave_controle: "cnpj"
-          coluna_rotulo_controle: "rotulo"
-          rotulo_valido_controle: "SELL_OUT_CA"
-        - arquivo_controle: "C:/Users/I0507867.FARMA/OneDrive - Sanofi/Desktop/Analise Painel/dados/rotulos_lojas_*.csv"
-          chave_controle: "cnpj"
-          coluna_rotulo_controle: "rotulo"
-          rotulo_valido_controle: "ATACAREJO_CONECTA_CA"
+        grupo_clientes: "Grupo de clientes"
+        tabela_1: "Tabela 1"
+        tabela_2: "Tabela 2"
+    # CNPJ conta como "CA" (usa a Tabela 2 do Painel x Tabela) se estiver
+    # cadastrado com qualquer um destes rótulos, em qualquer um destes
+    # arquivos — os mesmos arquivos/rótulos das matrizes CanalAutorizador,
+    # SellOut e AtacarejoConecta (variantes "*_CA").
+    cnpjs_ca:
+      - arquivo_controle: "C:/Users/I0507867.FARMA/OneDrive - Sanofi/Desktop/Analise Painel/dados/Painel_NV_*.xlsx"
+        chave_controle: "CNPJ ajustado"
+        coluna_rotulo_controle: "Rotulo"
+        rotulo_valido_controle: "NAO_VISITADO"
+      - arquivo_controle: "C:/Users/I0507867.FARMA/OneDrive - Sanofi/Desktop/Analise Painel/dados/rotulos_lojas_*.csv"
+        chave_controle: "cnpj"
+        coluna_rotulo_controle: "rotulo"
+        rotulo_valido_controle: "SELL_OUT_CA"
+      - arquivo_controle: "C:/Users/I0507867.FARMA/OneDrive - Sanofi/Desktop/Analise Painel/dados/rotulos_lojas_*.csv"
+        chave_controle: "cnpj"
+        coluna_rotulo_controle: "rotulo"
+        rotulo_valido_controle: "ATACAREJO_CONECTA_CA"
 
   - nome: "ResumoCAxWE"
     tipo: "resumo_volume"

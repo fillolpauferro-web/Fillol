@@ -10,7 +10,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from pipeline import (  # noqa: E402
     CHECK_ERRO,
     CHECK_OK,
-    _bate_mapa_bandeira,
     _mask_tabela_bate,
     _rotulo_bate_na_tabela,
     carregar_base,
@@ -57,28 +56,6 @@ def test_rotulo_bate_na_tabela_ignora_ordem_e_aceita_abreviacao():
 
     # rótulo vazio nunca bate
     assert not _rotulo_bate_na_tabela((), tab)
-
-
-def test_bate_mapa_bandeira_cobre_nomes_sem_relacao_textual():
-    mapa = [
-        {"bandeira_contem": "DROGAO SUPER", "tabela_contem": "DROGAO SUPER"},
-        {"bandeira_contem": "PACHECO", "tabela_contem": "DPSP"},
-    ]
-
-    # casos reais confirmados pelo usuário
-    tab = tokenizar(normalize_text("Tabela Agregadora - DROGAO SUPER_GENERICO"))
-    assert _bate_mapa_bandeira(normalize_text("DROGAO SUPER SP"), tab, mapa)
-
-    # "Pacheco" e "DPSP_CA" não têm nenhuma palavra em comum — só o mapa
-    # manual resolve, o match por Rotulo/token não teria como
-    tab = tokenizar(normalize_text("DPSP_CA"))
-    assert _bate_mapa_bandeira(normalize_text("PACHECO"), tab, mapa)
-
-    # bandeira sem item no mapa não bate
-    assert not _bate_mapa_bandeira(normalize_text("OUTRA REDE"), tab, mapa)
-
-    # mapa vazio nunca bate
-    assert not _bate_mapa_bandeira(normalize_text("PACHECO"), tab, [])
 
 
 def test_carregar_base_ignora_prefixo_tabela_agregadora(tmp_path: Path):
@@ -614,178 +591,73 @@ def test_matriz_tipo_consolidacao_bandeira(tmp_path: Path):
     assert not (tmp_path / "saida" / "Bandeira_analise.xlsx").exists()
 
 
-def test_matriz_bandeira_com_regra(tmp_path: Path):
-    # pedido 9101: CNPJ 11.111.111/0001-11 (raiz 11111111), Tabela de
-    #              negociação real "Tabela Agregadora - D1000_GENERICO"
-    #              (mesmas palavras do Rotulo GENERICO_D1000, ordem trocada
-    #              e com prefixo extra — caso real observado na base) -> OK
-    # pedido 9102: CNPJ 22.222.222/0001-22 (raiz 22222222), Tabela NÃO bate
-    #              com o Rotulo esperado (GENERICO_D500) -> Erro Operacional,
-    #              com desconto correto calculado via EAN
-    # pedido 9103: CNPJ 33.333.333/0001-33 (raiz 33333333) está no
-    #              Painel_Bandeira mas NÃO tem linha no regra.xlsx -> tem
-    #              que virar Erro Operacional sem quebrar (bug real: a
-    #              coluna de tokens do Rotulo vira NaN pra CNPJ sem
-    #              correspondência, e iterar sobre NaN estourava TypeError)
-    # pedido 9104: CNPJ 44.444.444/0001-44 também SEM linha no regra.xlsx,
-    #              mas a bandeira é "PACHECO" e a Tabela é "DPSP_CA" — sem
-    #              nenhuma palavra em comum, só o mapa_bandeira_tabela
-    #              (de-para manual) resgata pra OK
+def test_matriz_tipo_erro_bandeira(tmp_path: Path):
+    # Grupo "RAIA DROGASIL" no Painel x Tabela: Tabela 1 RAIA_GENERICO,
+    # Tabela 2 RAIA CA (mesmo EAN, descontos diferentes: 40% e 60,90%).
+    # pedido 7001: Tabela "QUALQUER OUTRA TABELA" (errada), CNPJ cadastrado
+    #              como SELL_OUT_CA (conta como CA) -> entra no relatório
+    #              com tabela_correta="RAIA CA", desconto 60,90%
+    # pedido 7002: Tabela errada também, CNPJ sem cadastro CA -> entra com
+    #              tabela_correta="RAIA_GENERICO", desconto 40%
+    # pedido 7003: Tabela "RAIA CA" (bate com a Tabela 2) -> correto, FORA
+    # pedido 7004: Tabela "RAIA_GENERICO" (bate com a Tabela 1) -> correto, FORA
+    # pedido 7005: Grupo "GRUPO DESCONHECIDO" (não cadastrado no Painel x
+    #              Tabela) -> entra no relatório com tabela_correta
+    #              avisando que o grupo não está cadastrado
+    # pedido 7006: CNPJ fora do Painel_Bandeira -> nem entra na análise
     base_df = pd.DataFrame(
         {
-            "Tipo de cliente": ["ASSOCIATIVISMO", "ASSOCIATIVISMO", "ASSOCIATIVISMO", "ASSOCIATIVISMO"],
-            "CNPJ": [
-                "11.111.111/0001-11",
-                "22.222.222/0001-22",
-                "33.333.333/0001-33",
-                "44.444.444/0001-44",
-            ],
-            "Id pedido": ["9101", "9102", "9103", "9104"],
-            "EAN": ["1111111111111", "2222222222222", "3333333333333", "4444444444444"],
             "Tabela de negociação": [
-                "Tabela Agregadora - D1000_GENERICO",
-                "FEIRA NEGOCIOS CA",
                 "QUALQUER OUTRA TABELA",
-                "DPSP_CA",
+                "QUALQUER OUTRA TABELA",
+                "RAIA CA",
+                "RAIA_GENERICO",
+                "QUALQUER TABELA",
+                "RAIA CA",
             ],
-            "Data do pedido (original)": [
-                "10/05/2026 10:00",
-                "11/05/2026 10:00",
-                "12/05/2026 10:00",
-                "13/05/2026 10:00",
+            "CNPJ": [
+                "10.000.000/0001-00",
+                "20.000.000/0001-00",
+                "30.000.000/0001-00",
+                "40.000.000/0001-00",
+                "50.000.000/0001-00",
+                "99.999.999/0001-99",
             ],
-            "Faturado líquido (R$)": ["27,3", "40,0", "15,0", "18,0"],
-            "Desconto comercial faturado (%)": ["56,87", "20", "10", "30"],
+            "EAN": ["5555555555555", "5555555555555", "5555555555555", "5555555555555", "6666666666666", "5555555555555"],
+            "Id pedido": ["7001", "7002", "7003", "7004", "7005", "7006"],
+            "Tipo de cliente": ["REDES CORPORATIVAS"] * 6,
+            "Data do pedido (original)": ["10/05/2026 10:00"] * 6,
+            "Faturado líquido (R$)": ["55,0"] * 6,
+            "Desconto comercial faturado (%)": ["20"] * 6,
+            "Numero da Nota": ["1001", "1002", "1003", "1004", "1005", "1006"],
+            "Quantidade faturada": ["7", "7", "7", "7", "7", "7"],
+            "Nome do distribuidor": ["PANPHARMA"] * 6,
+            "Grupo de clientes": [
+                "RAIA DROGASIL",
+                "RAIA DROGASIL",
+                "RAIA DROGASIL",
+                "RAIA DROGASIL",
+                "GRUPO DESCONHECIDO",
+                "RAIA DROGASIL",
+            ],
         }
     )
 
     painel_bandeira_df = pd.DataFrame(
         {
             "CNPJ Ajustado": [
-                "11.111.111/0001-11",
-                "22.222.222/0001-22",
-                "33.333.333/0001-33",
-                "44.444.444/0001-44",
+                "10.000.000/0001-00",
+                "20.000.000/0001-00",
+                "30.000.000/0001-00",
+                "40.000.000/0001-00",
+                "50.000.000/0001-00",
             ],
-            "desc_bandeira": ["REDE A", "REDE B", "REDE C", "PACHECO"],
-        }
-    )
-
-    regra_df = pd.DataFrame(
-        {
-            "Raiz CNPJ": ["11111111", "22222222"],
-            "Rotulo": ["GENERICO_D1000", "GENERICO_D500"],
-        }
-    )
-
-    condicao_df = pd.DataFrame(
-        {
-            "EAN FORMATADO": ["2222222222222"],
-            "Desconto Atual": [0.25],
-        }
-    )
-
-    (tmp_path / "saida").mkdir()
-    base_df.to_excel(tmp_path / "base_pedidos.xlsx", index=False)
-    with pd.ExcelWriter(tmp_path / "Painel_Bandeira_2026_08.xlsx") as w:
-        painel_bandeira_df.to_excel(w, sheet_name="Dados", index=False)
-    with pd.ExcelWriter(tmp_path / "regra.xlsx") as w:
-        regra_df.to_excel(w, sheet_name="Dados", index=False)
-    with pd.ExcelWriter(tmp_path / "condicao_comercial.xlsx") as w:
-        condicao_df.to_excel(w, sheet_name="Dados", index=False)
-
-    cfg = _montar_config(tmp_path)
-    matriz_cfg = {
-        "nome": "Bandeira",
-        "tipo": "consolidacao",
-        "ativo": True,
-        "arquivo_controle": "Painel_Bandeira_*.xlsx",
-        "aba_controle": "Dados",
-        "chave_controle": "CNPJ Ajustado",
-        "colunas_trazidas": {"bandeira": "desc_bandeira"},
-        "colunas_data": [],
-        "nome_arquivo_saida": "historico_bandeiras.xlsx",
-        "regra": {
-            "arquivo": "regra.xlsx",
-            "aba": "Dados",
-            "colunas": {"chave_raiz_cnpj": "Raiz CNPJ", "rotulo": "Rotulo"},
-            "nome_arquivo_saida": "Bandeiras_Analise.xlsx",
-            "mapa_bandeira_tabela": [
-                {"bandeira_contem": "PACHECO", "tabela_contem": "DPSP"},
-            ],
-        },
-    }
-    cfg["matrizes"].append(matriz_cfg)
-
-    import pipeline
-
-    pipeline.BASE_DIR = tmp_path
-
-    df_base = carregar_base(cfg)
-    resultado = rodar_matriz("Bandeira", matriz_cfg, df_base, cfg)
-
-    assert resultado is not None
-    assert (tmp_path / "saida" / "historico_bandeiras.xlsx").exists()
-    assert (tmp_path / "saida" / "Bandeiras_Analise.xlsx").exists()
-
-    # o resultado retornado é o da segunda camada (com Check)
-    assert "Check" in resultado.columns
-    checks = dict(zip(resultado["Id pedido"], resultado["Check"]))
-    assert checks["9101"] == CHECK_OK
-    assert checks["9102"] == CHECK_ERRO
-    assert checks["9103"] == CHECK_ERRO  # CNPJ sem linha no regra.xlsx
-    assert checks["9104"] == CHECK_OK  # sem linha no regra.xlsx, mas resgatado pelo mapa_bandeira_tabela
-
-    linha_erro = resultado.loc[resultado["Id pedido"] == "9102"].iloc[0]
-    preco_sem_desconto = 40.0 / (1 - 0.20)
-    preco_correto = preco_sem_desconto * (1 - 0.25)
-    assert round(linha_erro["preco_liquido_desconto_correto"], 2) == round(preco_correto, 2)
-
-    linha_ok = resultado.loc[resultado["Id pedido"] == "9101"].iloc[0]
-    assert pd.isna(linha_ok["diferenca_faturamento"])
-
-
-def test_matriz_bandeira_desconto_correto_via_painel_tabela(tmp_path: Path):
-    # Bug real relatado pelo usuário: mesmo EAN tem desconto diferente em
-    # "RAIA CA" (60,90%) e "RAIA_GENERICO" (40%) na Condicao_comercial. Sem
-    # o Painel x Tabela, o código antigo pegava "a primeira condição
-    # cadastrada pro EAN" (errado). Com o Painel x Tabela (Grupo de
-    # clientes "RAIA DROGASIL" -> Tabela 1 RAIA_GENERICO / Tabela 2 RAIA
-    # CA) + cnpjs_ca, o desconto correto tem que respeitar se o CNPJ é CA:
-    # pedido 9201: CNPJ cadastrado como SELL_OUT_CA (conta como CA) ->
-    #              desconto correto tem que vir de "RAIA CA" (60,90%)
-    # pedido 9202: CNPJ sem nenhum cadastro CA -> desconto correto tem que
-    #              vir de "RAIA_GENERICO" (40%)
-    # Nenhum dos dois está no regra.xlsx nem no mapa_bandeira_tabela (vazio
-    # nesse teste), então os dois são Erro Operacional de qualquer forma —
-    # o que muda é só qual condição comercial é usada pro cálculo.
-    base_df = pd.DataFrame(
-        {
-            "CNPJ": ["77.888.999/0001-11", "88.999.000/0001-22"],
-            "Id pedido": ["9201", "9202"],
-            "EAN": ["5555555555555", "5555555555555"],
-            "Tabela de negociação": ["QUALQUER OUTRA TABELA", "QUALQUER OUTRA TABELA"],
-            "Data do pedido (original)": ["10/05/2026 10:00", "11/05/2026 10:00"],
-            "Faturado líquido (R$)": ["50,0", "50,0"],
-            "Desconto comercial faturado (%)": ["20", "20"],
-            "Grupo de clientes": ["RAIA DROGASIL", "RAIA DROGASIL"],
-        }
-    )
-
-    painel_bandeira_df = pd.DataFrame(
-        {
-            "CNPJ Ajustado": ["77.888.999/0001-11", "88.999.000/0001-22"],
-            "desc_bandeira": ["RAIA DROGASIL", "RAIA DROGASIL"],
-        }
-    )
-
-    regra_df = pd.DataFrame({"Raiz CNPJ": ["00000000"], "Rotulo": ["NADA_A_VER"]})
-
-    condicao_df = pd.DataFrame(
-        {
-            "EAN FORMATADO": ["5555555555555", "5555555555555"],
-            "Tabela": ["RAIA_GENERICO", "RAIA CA"],
-            "Desconto Atual": [0.40, 0.6090],
+            "id_bandeira": ["10366"] * 5,
+            "desc_bandeira": ["RAIA DROGASIL", "RAIA DROGASIL", "RAIA DROGASIL", "RAIA DROGASIL", "OUTRA REDE"],
+            "perfil_bandeira": ["CALENDARIO"] * 5,
+            "razao_social": ["RAIA DROGASIL SA"] * 5,
+            "cidade": ["TRES LAGOAS"] * 5,
+            "estado": ["MS"] * 5,
         }
     )
 
@@ -797,19 +669,20 @@ def test_matriz_bandeira_desconto_correto_via_painel_tabela(tmp_path: Path):
         }
     )
 
-    rotulos_lojas_df = pd.DataFrame(
+    condicao_df = pd.DataFrame(
         {
-            "cnpj": ["77.888.999/0001-11"],
-            "rotulo": ["SELL_OUT_CA"],
+            "EAN FORMATADO": ["5555555555555", "5555555555555"],
+            "Tabela": ["RAIA_GENERICO", "RAIA CA"],
+            "Desconto Atual": [0.40, 0.6090],
         }
     )
+
+    rotulos_lojas_df = pd.DataFrame({"cnpj": ["10.000.000/0001-00"], "rotulo": ["SELL_OUT_CA"]})
 
     (tmp_path / "saida").mkdir()
     base_df.to_excel(tmp_path / "base_pedidos.xlsx", index=False)
     with pd.ExcelWriter(tmp_path / "Painel_Bandeira_2026_08.xlsx") as w:
         painel_bandeira_df.to_excel(w, sheet_name="Dados", index=False)
-    with pd.ExcelWriter(tmp_path / "regra.xlsx") as w:
-        regra_df.to_excel(w, sheet_name="Dados", index=False)
     with pd.ExcelWriter(tmp_path / "condicao_comercial.xlsx") as w:
         condicao_df.to_excel(w, sheet_name="Dados", index=False)
     with pd.ExcelWriter(tmp_path / "Panel_x_Tabela.xlsx") as w:
@@ -817,42 +690,50 @@ def test_matriz_bandeira_desconto_correto_via_painel_tabela(tmp_path: Path):
     rotulos_lojas_df.to_csv(tmp_path / "rotulos_lojas_20260904_141843.csv", sep=";", index=False)
 
     cfg = _montar_config(tmp_path)
-    cfg["base"]["colunas"]["grupo_clientes"] = "Grupo de clientes"
+    cfg["base"]["colunas"].update(
+        {
+            "tipo_cliente": "Tipo de cliente",
+            "numero_nota": "Numero da Nota",
+            "quantidade_faturada": "Quantidade faturada",
+            "distribuidor": "Nome do distribuidor",
+            "grupo_clientes": "Grupo de clientes",
+        }
+    )
     cfg["condicao_comercial"]["colunas"]["chave_tabela"] = "Tabela"
     matriz_cfg = {
-        "nome": "Bandeira",
-        "tipo": "consolidacao",
+        "nome": "AnaliseErroBandeira",
+        "tipo": "erro_bandeira",
         "ativo": True,
         "arquivo_controle": "Painel_Bandeira_*.xlsx",
         "aba_controle": "Dados",
         "chave_controle": "CNPJ Ajustado",
-        "colunas_trazidas": {"bandeira": "desc_bandeira"},
-        "colunas_data": [],
-        "nome_arquivo_saida": "historico_bandeiras.xlsx",
-        "regra": {
-            "arquivo": "regra.xlsx",
-            "aba": "Dados",
-            "colunas": {"chave_raiz_cnpj": "Raiz CNPJ", "rotulo": "Rotulo"},
-            "nome_arquivo_saida": "Bandeiras_Analise.xlsx",
-            "mapa_bandeira_tabela": [],
-            "painel_tabela": {
-                "arquivo": "Panel_x_Tabela.xlsx",
-                "aba": "Planilha1",
-                "colunas": {
-                    "grupo_clientes": "Grupo de clientes",
-                    "tabela_1": "Tabela 1",
-                    "tabela_2": "Tabela 2",
-                },
-            },
-            "cnpjs_ca": [
-                {
-                    "arquivo_controle": "rotulos_lojas_*.csv",
-                    "chave_controle": "cnpj",
-                    "coluna_rotulo_controle": "rotulo",
-                    "rotulo_valido_controle": "SELL_OUT_CA",
-                }
-            ],
+        "colunas_trazidas": {
+            "id_bandeira": "id_bandeira",
+            "bandeira": "desc_bandeira",
+            "perfil_bandeira": "perfil_bandeira",
+            "razao_social": "razao_social",
+            "cidade": "cidade",
+            "estado": "estado",
         },
+        "colunas_data": [],
+        "nome_arquivo_saida": "Análise Erro Bandeira.xlsx",
+        "painel_tabela": {
+            "arquivo": "Panel_x_Tabela.xlsx",
+            "aba": "Planilha1",
+            "colunas": {
+                "grupo_clientes": "Grupo de clientes",
+                "tabela_1": "Tabela 1",
+                "tabela_2": "Tabela 2",
+            },
+        },
+        "cnpjs_ca": [
+            {
+                "arquivo_controle": "rotulos_lojas_*.csv",
+                "chave_controle": "cnpj",
+                "coluna_rotulo_controle": "rotulo",
+                "rotulo_valido_controle": "SELL_OUT_CA",
+            }
+        ],
     }
     cfg["matrizes"].append(matriz_cfg)
 
@@ -861,16 +742,48 @@ def test_matriz_bandeira_desconto_correto_via_painel_tabela(tmp_path: Path):
     pipeline.BASE_DIR = tmp_path
 
     df_base = carregar_base(cfg)
-    resultado = rodar_matriz("Bandeira", matriz_cfg, df_base, cfg)
+    resultado = rodar_matriz("AnaliseErroBandeira", matriz_cfg, df_base, cfg)
 
     assert resultado is not None
-    checks = dict(zip(resultado["Id pedido"], resultado["Check"]))
-    assert checks["9201"] == CHECK_ERRO
-    assert checks["9202"] == CHECK_ERRO
+    # 7003/7004 (Tabela correta) e 7006 (fora do Painel_Bandeira) não entram
+    assert set(resultado["Id pedido"]) == {"7001", "7002", "7005"}
+
+    # Desconto comercial faturado (%) não faz parte da saída pedida
+    assert "Desconto comercial faturado (%)" not in resultado.columns
+    for coluna in (
+        "Tabela de negociação",
+        "CNPJ",
+        "EAN",
+        "Id pedido",
+        "Tipo de cliente",
+        "Data do pedido (original)",
+        "Faturado líquido (R$)",
+        "Numero da Nota",
+        "Quantidade faturada",
+        "Nome do distribuidor",
+        "Grupo de clientes",
+        "id_bandeira",
+        "bandeira",
+        "perfil_bandeira",
+        "razao_social",
+        "cidade",
+        "estado",
+        "tabela_correta",
+        "desconto_correto_pct",
+    ):
+        assert coluna in resultado.columns
+
+    tabelas_corretas = dict(zip(resultado["Id pedido"], resultado["tabela_correta"]))
+    assert tabelas_corretas["7001"] == "RAIA CA"  # CNPJ CA
+    assert tabelas_corretas["7002"] == "RAIA_GENERICO"  # CNPJ não-CA
+    assert tabelas_corretas["7005"] == "Grupo de clientes não cadastrado no Painel x Tabela"
 
     descontos = dict(zip(resultado["Id pedido"], resultado["desconto_correto_pct"]))
-    assert round(descontos["9201"], 2) == 60.90  # CNPJ CA -> RAIA CA
-    assert round(descontos["9202"], 2) == 40.00  # CNPJ não-CA -> RAIA_GENERICO
+    assert round(descontos["7001"], 2) == 60.90
+    assert round(descontos["7002"], 2) == 40.00
+    assert pd.isna(descontos["7005"])
+
+    assert (tmp_path / "saida" / "Análise Erro Bandeira.xlsx").exists()
 
 
 def test_carregar_cnpjs_ca_ignora_fonte_com_arquivo_ausente(tmp_path: Path, capsys):
