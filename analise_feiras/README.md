@@ -134,3 +134,23 @@ validando o filtro, o PROCX por CNPJ, o `Check` e o cálculo de desconto.
   base como `.csv` (o script lê `.csv`/`.tsv` automaticamente pela extensão)
   ou considere trocar `pandas` por `polars` — a estrutura do pipeline
   (filtrar → merge → calcular) é a mesma, só a biblioteca muda.
+
+## Análise Erro Bandeira (script separado)
+
+A checagem de Tabela errada por bandeira física (Raia, Carrefour, DPSP,
+Panvel, ...) **não faz parte do menu de matrizes acima** — é um script
+próprio e independente, sem seleção de análises:
+
+```bash
+python analise_erro_bandeira.py
+```
+
+Usa seu próprio arquivo de configuração, `config_erro_bandeira.yaml` (nada
+a ver com `config.yaml`/`pipeline.py`). Compila a base de vendas, compara a
+Tabela de negociação de cada pedido dos CNPJs de `controle_bandeira` (ex.:
+Painel_Bandeira) com o guia "Painel x Tabela" (Grupo de clientes -> Tabela
+1 Genérico / Tabela 2 CA) e gera **só os pedidos errados** em
+`Análise Erro Bandeira.xlsx`, com a condição correta (Tabela + desconto de
+`Condicao_comercial`). Detalhes de cada passo estão no docstring do
+próprio `analise_erro_bandeira.py`. Testes em
+`tests/test_erro_bandeira.py`.

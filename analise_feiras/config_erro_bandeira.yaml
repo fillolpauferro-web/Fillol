@@ -1,0 +1,102 @@
+# =============================================================================
+# Configuração da Análise Erro Bandeira — script independente e dedicado
+# (analise_erro_bandeira.py). Não tem relação com o config.yaml/pipeline.py
+# (que roda as outras análises: Feira, Canal Autorizador, Sell Out, ...) —
+# aqui é só essa única análise, sem menu de seleção.
+# =============================================================================
+
+# Todos os caminhos abaixo apontam para a pasta:
+#   C:\Users\I0507867.FARMA\OneDrive - Sanofi\Desktop\Analise Painel
+# Use barra normal "/" mesmo no Windows. Se a pasta mudar de lugar, substitua
+# o trecho "C:/Users/I0507867.FARMA/OneDrive - Sanofi/Desktop/Analise Painel"
+# em todos os caminhos deste arquivo (find & replace no editor).
+
+base:
+  # Arquivo(s) com a base grande de pedidos (exportação do ERP). Use * pra
+  # juntar automaticamente vários arquivos que começam com o mesmo prefixo
+  # — é a forma mais rápida de compilar: lê e empilha tudo de uma vez, sem
+  # inferência de tipo do pandas (lê como texto, convertendo só o que
+  # precisa depois).
+  arquivo: "C:/Users/I0507867.FARMA/OneDrive - Sanofi/Desktop/Analise Painel/dados/planilha_base_vendas_*.csv"
+  aba: null # null = primeira aba da planilha; ou informe o nome exato da aba
+  colunas:
+    tabela_negociacao: "Tabela de negociação"
+    cnpj: "CNPJ"
+    ean: "EAN"
+    id_pedido: "Id pedido"
+    tipo_cliente: "Tipo de cliente"
+    data_pedido: "Data do pedido (original)"
+    faturado_liquido: "Faturado líquido (R$)"
+    numero_nota: "Numero da Nota"
+    quantidade_faturada: "Quantidade faturada"
+    distribuidor: "Nome do distribuidor"
+    grupo_clientes: "Grupo de clientes"
+
+# Arquivo usado pra achar o desconto que deveria ter sido aplicado quando um
+# pedido está na Tabela errada. O desconto correto varia por EAN e por
+# Tabela de negociação (chave_tabela) — o mesmo EAN pode ter descontos
+# diferentes conforme a Tabela (ex.: RAIA CA vs RAIA_GENERICO).
+condicao_comercial:
+  arquivo: "C:/Users/I0507867.FARMA/OneDrive - Sanofi/Desktop/Analise Painel/dados/condicao_comercial.xlsx"
+  aba: "Dados"
+  colunas:
+    chave_ean: "EAN FORMATADO"
+    desconto_correto_pct: "Desconto Atual"
+    chave_tabela: "Tabela"
+  # true porque a célula guarda 0.2398 (fração) e o Excel só EXIBE como "23,98%"
+  desconto_em_fracao: true
+
+# Lista de CNPJs de clientes físicos (bandeiras: Raia, Carrefour, DPSP,
+# Panvel, ...), com as colunas extras trazidas pra saída. Nome do arquivo
+# muda a cada exportação — usa * pra sempre pegar o mais recente.
+controle_bandeira:
+  arquivo: "C:/Users/I0507867.FARMA/OneDrive - Sanofi/Desktop/Analise Painel/dados/Painel_Bandeira*.xlsx"
+  aba: null
+  chave: "CNPJ Ajustado"
+  colunas_trazidas:
+    id_bandeira: "id_bandeira"
+    bandeira: "desc_bandeira"
+    perfil_bandeira: "perfil_bandeira"
+    razao_social: "razao_social"
+    cidade: "cidade"
+    estado: "estado"
+
+# Guia oficial: Grupo de clientes -> Tabela 1 (Genérico, sempre preenchida)
+# / Tabela 2 (CA, só quando esse grupo também tem canal CA). É o único
+# critério pra saber se um pedido está na Tabela certa: bate com a Tabela 1
+# OU a Tabela 2 do Grupo de clientes daquele pedido (cada palavra da Tabela
+# esperada como prefixo de alguma palavra da Tabela real, em qualquer
+# ordem) -> correto, fora do relatório. Não bate com nenhuma das duas ->
+# erro, entra no relatório com a Tabela que deveria ter sido usada e o
+# desconto correspondente em Condicao_comercial.
+painel_tabela:
+  arquivo: "C:/Users/I0507867.FARMA/OneDrive - Sanofi/Desktop/Analise Painel/dados/Panel_x_Tabela.xlsx"
+  aba: null
+  colunas:
+    grupo_clientes: "Grupo de clientes"
+    tabela_1: "Tabela 1"
+    tabela_2: "Tabela 2"
+
+# CNPJ conta como "CA" (usa a Tabela 2 do Painel x Tabela) se estiver
+# cadastrado com qualquer um destes rótulos, em qualquer um destes
+# arquivos — os mesmos arquivos/rótulos das matrizes CanalAutorizador,
+# SellOut e AtacarejoConecta (variantes "*_CA") do pipeline.py. Uma fonte
+# com arquivo ausente é só ignorada (com aviso no console), não trava a
+# análise inteira.
+cnpjs_ca:
+  - arquivo: "C:/Users/I0507867.FARMA/OneDrive - Sanofi/Desktop/Analise Painel/dados/Painel_NV_*.xlsx"
+    chave: "CNPJ ajustado"
+    coluna_rotulo: "Rotulo"
+    rotulo_valido: "NAO_VISITADO"
+  - arquivo: "C:/Users/I0507867.FARMA/OneDrive - Sanofi/Desktop/Analise Painel/dados/rotulos_lojas_*.csv"
+    chave: "cnpj"
+    coluna_rotulo: "rotulo"
+    rotulo_valido: "SELL_OUT_CA"
+  - arquivo: "C:/Users/I0507867.FARMA/OneDrive - Sanofi/Desktop/Analise Painel/dados/rotulos_lojas_*.csv"
+    chave: "cnpj"
+    coluna_rotulo: "rotulo"
+    rotulo_valido: "ATACAREJO_CONECTA_CA"
+
+saida:
+  pasta: "C:/Users/I0507867.FARMA/OneDrive - Sanofi/Desktop/Analise Painel/saida"
+  nome_arquivo: "Análise Erro Bandeira.xlsx"

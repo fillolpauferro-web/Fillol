@@ -99,18 +99,9 @@ condicao_comercial:
 #   trazendo as colunas de colunas_trazidas (ex.: id_bandeira, bandeira,
 #   perfil_bandeira, razao_social, cidade, estado) pra dar pra
 #   agrupar/analisar depois.
-#
-# tipo: "erro_bandeira" (ex.: Análise Erro Bandeira) — mesmo filtro por
-#   CNPJ de "consolidacao" (arquivo_controle/chave_controle/
-#   colunas_trazidas), mas compara a Tabela de negociação de cada pedido
-#   com painel_tabela (guia "Painel x Tabela": Grupo de clientes -> Tabela
-#   1 Genérico / Tabela 2 CA). Bate com a Tabela 1 OU a Tabela 2 do Grupo
-#   de clientes daquele pedido -> está correto, não entra no relatório. Não
-#   bate com nenhuma das duas -> erro, entra no relatório com a Tabela que
-#   deveria ter sido usada (Tabela 2/CA se o CNPJ estiver cadastrado como
-#   CA em cnpjs_ca, senão Tabela 1/Genérico — nunca "a primeira condição
-#   comercial cadastrada pro EAN") e o desconto correspondente em
-#   Condicao_comercial. Exige base.colunas.grupo_clientes.
+#   (A checagem de Tabela errada por bandeira — "Análise Erro Bandeira" — é
+#   um script separado e independente: veja analise_erro_bandeira.py e
+#   config_erro_bandeira.yaml, fora desse menu de matrizes.)
 #
 # tipo: "resumo_volume" (ex.: composição CA x WE) — sem Check, sem filtro
 #   por CNPJ, roda na base inteira. Classifica cada pedido em duas
@@ -260,56 +251,6 @@ matrizes:
     colunas_data: []
     # nome do arquivo de resultado consolidado (em vez de "Bandeira_analise.xlsx")
     nome_arquivo_saida: "historico_bandeiras.xlsx"
-
-  - nome: "AnaliseErroBandeira"
-    tipo: "erro_bandeira"
-    ativo: true
-    # mesmo arquivo/CNPJs da matriz Bandeira acima
-    arquivo_controle: "C:/Users/I0507867.FARMA/OneDrive - Sanofi/Desktop/Analise Painel/dados/Painel_Bandeira*.xlsx"
-    aba_controle: null
-    chave_controle: "CNPJ Ajustado"
-    colunas_trazidas:
-      id_bandeira: "id_bandeira"
-      bandeira: "desc_bandeira"
-      perfil_bandeira: "perfil_bandeira"
-      razao_social: "razao_social"
-      cidade: "cidade"
-      estado: "estado"
-    colunas_data: []
-    nome_arquivo_saida: "Análise Erro Bandeira.xlsx"
-    # Guia oficial: Grupo de clientes -> Tabela 1 (Genérico, sempre
-    # preenchida) / Tabela 2 (CA, só quando o grupo também tem canal CA).
-    # É o único critério pra saber se o pedido está na Tabela certa: bate
-    # com a Tabela 1 OU a Tabela 2 do Grupo de clientes daquele pedido
-    # (cada palavra da Tabela esperada como prefixo de alguma palavra da
-    # Tabela real, em qualquer ordem) -> correto, fora do relatório. Não
-    # bate com nenhuma das duas -> erro, entra no relatório com a Tabela
-    # que deveria ter sido usada e o desconto correspondente em
-    # Condicao_comercial. Exige base.colunas.grupo_clientes.
-    painel_tabela:
-      arquivo: "C:/Users/I0507867.FARMA/OneDrive - Sanofi/Desktop/Analise Painel/dados/Panel_x_Tabela.xlsx"
-      aba: null
-      colunas:
-        grupo_clientes: "Grupo de clientes"
-        tabela_1: "Tabela 1"
-        tabela_2: "Tabela 2"
-    # CNPJ conta como "CA" (usa a Tabela 2 do Painel x Tabela) se estiver
-    # cadastrado com qualquer um destes rótulos, em qualquer um destes
-    # arquivos — os mesmos arquivos/rótulos das matrizes CanalAutorizador,
-    # SellOut e AtacarejoConecta (variantes "*_CA").
-    cnpjs_ca:
-      - arquivo_controle: "C:/Users/I0507867.FARMA/OneDrive - Sanofi/Desktop/Analise Painel/dados/Painel_NV_*.xlsx"
-        chave_controle: "CNPJ ajustado"
-        coluna_rotulo_controle: "Rotulo"
-        rotulo_valido_controle: "NAO_VISITADO"
-      - arquivo_controle: "C:/Users/I0507867.FARMA/OneDrive - Sanofi/Desktop/Analise Painel/dados/rotulos_lojas_*.csv"
-        chave_controle: "cnpj"
-        coluna_rotulo_controle: "rotulo"
-        rotulo_valido_controle: "SELL_OUT_CA"
-      - arquivo_controle: "C:/Users/I0507867.FARMA/OneDrive - Sanofi/Desktop/Analise Painel/dados/rotulos_lojas_*.csv"
-        chave_controle: "cnpj"
-        coluna_rotulo_controle: "rotulo"
-        rotulo_valido_controle: "ATACAREJO_CONECTA_CA"
 
   - nome: "ResumoCAxWE"
     tipo: "resumo_volume"
