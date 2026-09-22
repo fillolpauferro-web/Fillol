@@ -16,11 +16,17 @@ _ENCODINGS_CANDIDATAS = ("utf-8-sig", "utf-8", "cp1252", "latin1")
 def _detectar_encoding(caminho: Path) -> str:
     """Tenta abrir o arquivo com cada encoding até uma que não quebre.
     latin1 nunca falha, então sempre sobra alguma opção no fim da lista.
+
+    Testa o arquivo inteiro, não só a primeira linha: um cabeçalho sem
+    acento passa em "utf-8-sig"/"utf-8" mesmo quando alguma linha mais pra
+    frente tem acento salvo em cp1252 (comum em CSV exportado do Excel) —
+    aí o pd.read_csv quebraria lá na frente com UnicodeDecodeError.
     """
     for encoding in _ENCODINGS_CANDIDATAS:
         try:
             with open(caminho, "r", encoding=encoding) as f:
-                f.readline()
+                for _ in f:
+                    pass
             return encoding
         except UnicodeDecodeError:
             continue

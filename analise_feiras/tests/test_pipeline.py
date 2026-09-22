@@ -20,6 +20,7 @@ from utils import (  # noqa: E402
     normalize_cnpj_raiz,
     normalize_ean,
     normalize_text,
+    read_table,
     read_table_mais_recente,
     remover_prefixo_tabela_agregadora,
     to_datetime,
@@ -146,6 +147,21 @@ def test_read_table_mais_recente_pega_o_arquivo_mais_novo(tmp_path: Path):
 
     resultado = read_table_mais_recente(str(tmp_path / "Painel_NV_*.xlsx"))
     assert resultado["x"].iloc[0] == "2"
+
+
+def test_read_table_detecta_encoding_mesmo_com_acento_so_depois_da_primeira_linha(tmp_path: Path):
+    # bug real: a detecção de encoding só testava a PRIMEIRA linha do CSV.
+    # Cabeçalho sem acento passa em "utf-8-sig" mesmo quando uma linha bem
+    # mais pra frente do arquivo tem acento salvo em cp1252 (comum em CSV
+    # exportado do Excel) — o pd.read_csv quebrava lá na frente com
+    # UnicodeDecodeError, mesmo o arquivo sendo perfeitamente legível.
+    linhas = ["id;nome"] + [f"{i};SEM ACENTO" for i in range(2000)] + ["9999;São João"]
+    caminho = tmp_path / "arquivo_cp1252.csv"
+    caminho.write_bytes("\n".join(linhas).encode("cp1252"))
+
+    df = read_table(caminho)
+
+    assert df.iloc[-1]["nome"] == "São João"
 
 
 def test_perguntar_quais_matrizes(monkeypatch):
