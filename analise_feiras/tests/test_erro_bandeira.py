@@ -23,6 +23,7 @@ def _montar_config(tmp_path: Path) -> dict:
                 "tipo_cliente": "Tipo de cliente",
                 "data_pedido": "Data do pedido (original)",
                 "faturado_liquido": "Faturado líquido (R$)",
+                "desconto_aplicado_pct": "Desconto comercial faturado (%)",
                 "numero_nota": "Numero da Nota",
                 "quantidade_faturada": "Quantidade faturada",
                 "distribuidor": "Nome do distribuidor",
@@ -168,6 +169,7 @@ def test_calcular_erro_bandeira_e_main(tmp_path: Path, capsys):
             "Tipo de cliente": ["REDES CORPORATIVAS"] * 6,
             "Data do pedido (original)": ["10/05/2026 10:00"] * 6,
             "Faturado líquido (R$)": ["55,0"] * 6,
+            "Desconto comercial faturado (%)": ["20"] * 6,
             "Numero da Nota": ["1001", "1002", "1003", "1004", "1005", "1006"],
             "Quantidade faturada": ["7"] * 6,
             "Nome do distribuidor": ["PANPHARMA"] * 6,
@@ -241,8 +243,9 @@ def test_calcular_erro_bandeira_e_main(tmp_path: Path, capsys):
 
     resultado = erro_bandeira.montar_saida(df_erros, cfg)
 
-    # Desconto comercial faturado (%) nem existe nessa base — não faz parte
-    # da saída pedida de qualquer forma
+    # Desconto comercial faturado (%) só é usado internamente pro cálculo
+    # reverso — não faz parte da saída pedida
+    assert "Desconto comercial faturado (%)" not in resultado.columns
     for coluna in (
         "Tabela de negociação",
         "CNPJ",
@@ -263,6 +266,9 @@ def test_calcular_erro_bandeira_e_main(tmp_path: Path, capsys):
         "estado",
         "tabela_correta",
         "desconto_correto_pct",
+        "preco_sem_desconto",
+        "faturamento_correto",
+        "impacto_financeiro",
     ):
         assert coluna in resultado.columns
 
@@ -275,6 +281,22 @@ def test_calcular_erro_bandeira_e_main(tmp_path: Path, capsys):
     assert round(descontos["7001"], 2) == 60.90
     assert round(descontos["7002"], 2) == 40.00
     assert pd.isna(descontos["7005"])
+
+    # faturado líquido 55,0, desconto aplicado 20% -> preço sem desconto
+    # 55,0 / 0,80 = 68,75
+    precos = dict(zip(resultado["Id pedido"], resultado["preco_sem_desconto"]))
+    assert round(precos["7001"], 2) == 68.75
+    assert round(precos["7002"], 2) == 68.75
+
+    faturamentos_corretos = dict(zip(resultado["Id pedido"], resultado["faturamento_correto"]))
+    assert round(faturamentos_corretos["7001"], 2) == round(68.75 * (1 - 0.6090), 2)
+    assert round(faturamentos_corretos["7002"], 2) == round(68.75 * (1 - 0.40), 2)
+    assert pd.isna(faturamentos_corretos["7005"])  # Tabela correta desconhecida
+
+    impactos = dict(zip(resultado["Id pedido"], resultado["impacto_financeiro"]))
+    assert round(impactos["7001"], 2) == round(55.0 - 68.75 * (1 - 0.6090), 2)
+    assert round(impactos["7002"], 2) == round(55.0 - 68.75 * (1 - 0.40), 2)
+    assert pd.isna(impactos["7005"])
 
     # roda o script inteiro (main) também, ponta a ponta
     import sys as _sys
@@ -309,6 +331,7 @@ def test_calcular_erro_bandeira_sem_erro_nenhum(tmp_path: Path):
             "Tipo de cliente": ["REDES CORPORATIVAS"] * 2,
             "Data do pedido (original)": ["10/05/2026 10:00"] * 2,
             "Faturado líquido (R$)": ["55,0"] * 2,
+            "Desconto comercial faturado (%)": ["20"] * 2,
             "Numero da Nota": ["1001", "1002"],
             "Quantidade faturada": ["7"] * 2,
             "Nome do distribuidor": ["PANPHARMA"] * 2,

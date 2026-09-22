@@ -26,6 +26,14 @@ Passo a passo:
      consta no Painel x Tabela, a linha também entra, com a condição
      correta marcada como desconhecida — pra não esconder um caso não
      mapeado.
+  5. Cálculo reverso do impacto financeiro, pra cada pedido errado:
+     reconstrói o preço sem desconto a partir do que foi realmente
+     faturado (faturado líquido / (1 - desconto aplicado)), simula o
+     faturamento que deveria ter trafegado (preço sem desconto × (1 -
+     desconto correto)) e compara com o que foi faturado de verdade
+     (impacto_financeiro = faturado líquido - faturamento correto). Fica
+     em branco quando o desconto aplicado no pedido é 0 (indício de dado
+     ausente/errado) ou quando não dá pra saber a Tabela correta.
 
 Uso:
     python analise_erro_bandeira.py
@@ -85,6 +93,8 @@ def carregar_base(cfg: dict) -> pd.DataFrame:
     df["_tabela_tokens"] = df["_tabela_norm"].map(tokenizar)
     df["_grupo_norm"] = df[colunas["grupo_clientes"]].map(normalize_text)
     df["_data_pedido"] = to_datetime(df[colunas["data_pedido"]])
+    df["_faturado_liquido"] = to_numeric(df[colunas["faturado_liquido"]])
+    df["_desconto_aplicado_pct"] = to_numeric(df[colunas["desconto_aplicado_pct"]])
     return df
 
 
@@ -259,7 +269,15 @@ def calcular_erro_bandeira(df_base: pd.DataFrame, cfg: dict) -> pd.DataFrame:
     """Filtra a base pelos CNPJs do controle da Bandeira e devolve só os
     pedidos cuja Tabela de negociação NÃO bate com a Tabela 1 nem com a
     Tabela 2 do Grupo de clientes (Painel x Tabela) — já com
-    "tabela_correta" e "desconto_correto_pct" preenchidos.
+    "tabela_correta" e "desconto_correto_pct" preenchidos, e o cálculo
+    reverso do impacto financeiro: "preco_sem_desconto" (faturado líquido
+    reconstruído sem o desconto realmente aplicado), "faturamento_correto"
+    (o que deveria ter trafegado na plataforma, aplicando o desconto
+    correto sobre esse preço sem desconto) e "impacto_financeiro"
+    (faturado líquido real − faturamento correto). Fica em branco quando o
+    desconto aplicado no pedido é 0 (indício de dado ausente/errado, não
+    "sem desconto de fato") ou quando não dá pra saber a Tabela correta
+    (Grupo de clientes fora do Painel x Tabela).
     """
     df_controle = carregar_controle_bandeira(cfg)
     cnpjs_validos = set(df_controle["_chave_controle_norm"])
@@ -306,6 +324,19 @@ def calcular_erro_bandeira(df_base: pd.DataFrame, cfg: dict) -> pd.DataFrame:
     df_condicao = carregar_condicao_comercial(cfg)
     df["desconto_correto_pct"] = _selecionar_desconto_por_tokens(df["_ean_norm"], tokens_esperados, df_condicao)
 
+    # preço sem desconto = faturado líquido / (1 - desconto aplicado) —
+    # reconstrói o preço "cheio" a partir do que foi realmente faturado
+    fator_aplicado = 1 - (df["_desconto_aplicado_pct"] / 100)
+    df["preco_sem_desconto"] = (df["_faturado_liquido"] / fator_aplicado).where(
+        (fator_aplicado != 0) & (df["_desconto_aplicado_pct"] != 0)
+    )
+
+    # faturamento que deveria ter trafegado = preço sem desconto com o
+    # desconto correto (em vez do aplicado); impacto = real - correto
+    fator_correto = 1 - (df["desconto_correto_pct"] / 100)
+    df["faturamento_correto"] = df["preco_sem_desconto"] * fator_correto
+    df["impacto_financeiro"] = df["_faturado_liquido"] - df["faturamento_correto"]
+
     return df
 
 
@@ -313,7 +344,9 @@ def montar_saida(df: pd.DataFrame, cfg: dict) -> pd.DataFrame:
     """Monta a saída com os campos pedidos, nessa ordem exata: campos da
     base (sem o desconto aplicado), colunas do controle da Bandeira
     (id_bandeira, bandeira, perfil_bandeira, razao_social, cidade, estado)
-    e a condição correta (tabela_correta, desconto_correto_pct).
+    e a condição correta + o impacto financeiro (tabela_correta,
+    desconto_correto_pct, preco_sem_desconto, faturamento_correto,
+    impacto_financeiro).
     """
     colunas = cfg["base"]["colunas"]
     colunas_base = [
@@ -330,7 +363,13 @@ def montar_saida(df: pd.DataFrame, cfg: dict) -> pd.DataFrame:
         colunas["grupo_clientes"],
     ]
     colunas_trazidas = list((cfg["controle_bandeira"].get("colunas_trazidas") or {}).keys())
-    colunas_condicao = ["tabela_correta", "desconto_correto_pct"]
+    colunas_condicao = [
+        "tabela_correta",
+        "desconto_correto_pct",
+        "preco_sem_desconto",
+        "faturamento_correto",
+        "impacto_financeiro",
+    ]
     return df[colunas_base + colunas_trazidas + colunas_condicao].copy()
 
 
@@ -362,6 +401,9 @@ def main() -> None:
     caminho_final = pasta_saida / nome_arquivo
     df_saida.to_excel(caminho_final, index=False)
     print(f"Resultado salvo em {caminho_final}")
+
+    impacto = df_saida["impacto_financeiro"].sum(skipna=True)
+    print(f"Impacto financeiro total (faturado - correto): R$ {impacto:,.2f}")
 
 
 if __name__ == "__main__":

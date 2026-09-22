@@ -27,6 +27,9 @@ base:
     tipo_cliente: "Tipo de cliente"
     data_pedido: "Data do pedido (original)"
     faturado_liquido: "Faturado líquido (R$)"
+    # usado só pra reconstruir o preço sem desconto (cálculo reverso do
+    # impacto financeiro) — não aparece como coluna no relatório
+    desconto_aplicado_pct: "Desconto comercial faturado (%)"
     numero_nota: "Numero da Nota"
     quantidade_faturada: "Quantidade faturada"
     distribuidor: "Nome do distribuidor"
