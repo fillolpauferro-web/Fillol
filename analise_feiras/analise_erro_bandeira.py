@@ -342,11 +342,11 @@ def calcular_erro_bandeira(df_base: pd.DataFrame, cfg: dict) -> pd.DataFrame:
 
 def montar_saida(df: pd.DataFrame, cfg: dict) -> pd.DataFrame:
     """Monta a saída com os campos pedidos, nessa ordem exata: campos da
-    base (sem o desconto aplicado), colunas do controle da Bandeira
-    (id_bandeira, bandeira, perfil_bandeira, razao_social, cidade, estado)
-    e a condição correta + o impacto financeiro (tabela_correta,
-    desconto_correto_pct, preco_sem_desconto, faturamento_correto,
-    impacto_financeiro).
+    base — incluindo o desconto aplicado na condição atual, logo antes do
+    Faturado líquido — colunas do controle da Bandeira (id_bandeira,
+    bandeira, perfil_bandeira, razao_social, cidade, estado) e a condição
+    correta + o impacto financeiro (tabela_correta, desconto_correto_pct,
+    preco_sem_desconto, faturamento_correto, impacto_financeiro).
     """
     colunas = cfg["base"]["colunas"]
     colunas_base = [
@@ -356,6 +356,7 @@ def montar_saida(df: pd.DataFrame, cfg: dict) -> pd.DataFrame:
         colunas["id_pedido"],
         colunas["tipo_cliente"],
         colunas["data_pedido"],
+        colunas["desconto_aplicado_pct"],
         colunas["faturado_liquido"],
         colunas["numero_nota"],
         colunas["quantidade_faturada"],

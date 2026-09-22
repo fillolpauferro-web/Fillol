@@ -243,9 +243,6 @@ def test_calcular_erro_bandeira_e_main(tmp_path: Path, capsys):
 
     resultado = erro_bandeira.montar_saida(df_erros, cfg)
 
-    # Desconto comercial faturado (%) só é usado internamente pro cálculo
-    # reverso — não faz parte da saída pedida
-    assert "Desconto comercial faturado (%)" not in resultado.columns
     for coluna in (
         "Tabela de negociação",
         "CNPJ",
@@ -253,6 +250,7 @@ def test_calcular_erro_bandeira_e_main(tmp_path: Path, capsys):
         "Id pedido",
         "Tipo de cliente",
         "Data do pedido (original)",
+        "Desconto comercial faturado (%)",
         "Faturado líquido (R$)",
         "Numero da Nota",
         "Quantidade faturada",
@@ -271,6 +269,13 @@ def test_calcular_erro_bandeira_e_main(tmp_path: Path, capsys):
         "impacto_financeiro",
     ):
         assert coluna in resultado.columns
+
+    # o desconto aplicado vem logo antes do Faturado líquido, com o valor
+    # real da condição atual (não o correto)
+    colunas_saida = list(resultado.columns)
+    assert colunas_saida.index("Desconto comercial faturado (%)") == colunas_saida.index("Faturado líquido (R$)") - 1
+    descontos_aplicados = dict(zip(resultado["Id pedido"], resultado["Desconto comercial faturado (%)"]))
+    assert descontos_aplicados["7001"] == "20"
 
     tabelas_corretas = dict(zip(resultado["Id pedido"], resultado["tabela_correta"]))
     assert tabelas_corretas["7001"] == "RAIA CA"  # CNPJ CA
