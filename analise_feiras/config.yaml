@@ -252,6 +252,18 @@ matrizes:
     # nome do arquivo de resultado consolidado (em vez de "Bandeira_analise.xlsx")
     nome_arquivo_saida: "historico_bandeiras.xlsx"
 
+  - nome: "Atacarejo"
+    tipo: "consolidacao"
+    ativo: true
+    # lista de CNPJs de atacarejo — todas as vendas desses CNPJs são
+    # trazidas pro arquivo de saída, sem Check nem cálculo de desconto.
+    arquivo_controle: "C:/Users/I0507867.FARMA/OneDrive - Sanofi/Desktop/Analise Painel/dados/Atacarejo.xlsx"
+    aba_controle: null
+    chave_controle: "CNPJs"
+    colunas_trazidas: {} # só as vendas, sem colunas extras do Atacarejo.xlsx
+    colunas_data: []
+    nome_arquivo_saida: "Atacarejo_analise.xlsx"
+
   - nome: "ResumoCAxWE"
     tipo: "resumo_volume"
     ativo: true

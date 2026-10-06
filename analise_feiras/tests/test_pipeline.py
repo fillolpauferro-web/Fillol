@@ -586,6 +586,62 @@ def test_matriz_tipo_consolidacao_bandeira(tmp_path: Path):
     assert not (tmp_path / "saida" / "Bandeira_analise.xlsx").exists()
 
 
+def test_matriz_tipo_consolidacao_atacarejo_sem_colunas_extras(tmp_path: Path):
+    # pedido 9001 e 9002: CNPJs que estão no Atacarejo.xlsx -> entram na
+    #                     consolidação, sem nenhuma coluna extra
+    # pedido 9003: CNPJ fora do Atacarejo.xlsx -> não entra
+    base_df = pd.DataFrame(
+        {
+            "Tipo de cliente": ["ATACAREJO", "ATACAREJO", "ATACAREJO"],
+            "CNPJ": ["11.111.111/0001-11", "22.222.222/0001-22", "33.333.333/0001-33"],
+            "Id pedido": ["9001", "9002", "9003"],
+            "EAN": ["1111111111111", "2222222222222", "3333333333333"],
+            "Tabela de negociação": ["QUALQUER TABELA", "QUALQUER TABELA", "QUALQUER TABELA"],
+            "Data do pedido (original)": ["10/05/2026 10:00", "11/05/2026 10:00", "12/05/2026 10:00"],
+            "Faturado líquido (R$)": ["27,3", "40,0", "15,0"],
+            "Desconto comercial faturado (%)": ["56,87", "20", "10"],
+        }
+    )
+
+    atacarejo_df = pd.DataFrame({"CNPJs": ["11.111.111/0001-11", "22.222.222/0001-22"]})
+
+    (tmp_path / "saida").mkdir()
+    base_df.to_excel(tmp_path / "base_pedidos.xlsx", index=False)
+    atacarejo_df.to_excel(tmp_path / "Atacarejo.xlsx", index=False)
+
+    cfg = _montar_config(tmp_path)
+    matriz_cfg = {
+        "nome": "Atacarejo",
+        "tipo": "consolidacao",
+        "ativo": True,
+        "arquivo_controle": "Atacarejo.xlsx",
+        "aba_controle": None,
+        "chave_controle": "CNPJs",
+        "colunas_trazidas": {},
+        "colunas_data": [],
+        "nome_arquivo_saida": "Atacarejo_analise.xlsx",
+    }
+    cfg["matrizes"].append(matriz_cfg)
+
+    import pipeline
+
+    pipeline.BASE_DIR = tmp_path
+
+    df_base = carregar_base(cfg)
+    resultado = rodar_matriz("Atacarejo", matriz_cfg, df_base, cfg)
+
+    assert resultado is not None
+    # pedido 9003 tem CNPJ fora do Atacarejo.xlsx -> não entra
+    assert set(resultado["Id pedido"]) == {"9001", "9002"}
+
+    # sem Check, sem desconto, e sem nenhuma coluna extra (colunas_trazidas vazio)
+    assert "Check" not in resultado.columns
+    assert "desconto_correto_pct" not in resultado.columns
+    assert list(resultado.columns) == list(cfg["base"]["colunas"].values())
+
+    assert (tmp_path / "saida" / "Atacarejo_analise.xlsx").exists()
+
+
 def test_matriz_tipo_resumo_volume(tmp_path: Path):
     # maio/2026: pedido 1 (Carrefour CA, 100), pedido 2 (Raia CA, 200) em CA;
     #            pedido 3 (Default Generico CA, 50) em WE.
