@@ -154,3 +154,18 @@ Painel_Bandeira) com o guia "Painel x Tabela" (Grupo de clientes -> Tabela
 `Condicao_comercial`). Detalhes de cada passo estão no docstring do
 próprio `analise_erro_bandeira.py`. Testes em
 `tests/test_erro_bandeira.py`.
+
+## Consolidado de Erros Operacionais (junta tudo num arquivo só)
+
+```bash
+python consolidado_erros_operacionais.py
+```
+
+Roda as matrizes de Check do `pipeline.py` (Feira, Canal Autorizador, Sell
+Out, Atacarejo Conecta, Atacarejo Conecta CA — cada uma continua salvando
+seu próprio arquivo normalmente) mais a Análise Erro Bandeira, e junta só
+as linhas de **Erro Operacional** de todas elas num único arquivo,
+`Consolidado_Erros_Operacionais.xlsx`, com uma coluna `fonte` indicando de
+qual matriz veio cada linha. Usa `config.yaml` e `config_erro_bandeira.yaml`
+ao mesmo tempo (`--config`/`--config-bandeira` pra apontar pra outro
+caminho). Testes em `tests/test_consolidado_erros_operacionais.py`.
