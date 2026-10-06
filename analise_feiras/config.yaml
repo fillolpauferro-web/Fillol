@@ -130,8 +130,8 @@ condicao_comercial:
 #
 # tipo: "resumo_mensal_cnpj" (ex.: faturamento mensal do Atacarejo) — sem
 #   Check, filtra a base pelos CNPJs do arquivo_controle (igual tipo
-#   "cnpj"/"consolidacao") e agrupa por mês + EAN — sem detalhe por pedido
-#   nem por CNPJ, só o total consolidado de cada combinação mês/produto:
+#   "cnpj"/"consolidacao") e agrupa por mês + CNPJ + EAN — sem detalhe por
+#   pedido, só o total consolidado de cada combinação mês/CNPJ/produto:
 #   quantidade de pedidos, faturado líquido e quantidade faturada.
 #
 # Em todos os tipos, "colunas_trazidas" são copiadas pra saída sempre que o
@@ -274,7 +274,7 @@ matrizes:
     tipo: "resumo_mensal_cnpj"
     ativo: true
     # mesmo arquivo/CNPJs da matriz Atacarejo acima — aqui só o total
-    # consolidado por mês + EAN (sem Check, sem detalhe por pedido/CNPJ).
+    # consolidado por mês + CNPJ + EAN (sem Check, sem detalhe por pedido).
     arquivo_controle: "C:/Users/I0507867.FARMA/OneDrive - Sanofi/Desktop/Analise Painel/dados/Atacarejo.xlsx"
     aba_controle: null
     chave_controle: "CNPJs"

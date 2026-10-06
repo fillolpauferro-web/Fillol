@@ -982,32 +982,41 @@ def test_matriz_resumo_cnpj_grupo(tmp_path: Path):
 
 def test_matriz_resumo_mensal_cnpj(tmp_path: Path):
     # CNPJ A e B estão no Atacarejo.xlsx; CNPJ C não está (fora da análise).
-    # Maio, EAN X: CNPJ A (qtd 10, faturado 100) + CNPJ B (qtd 20, faturado
-    #       300) -> mesma combinação mês/produto, consolida: 2 pedidos, 30
-    #       unidades, R$ 400. CNPJ C (fora) também tem um pedido de EAN X em
-    #       maio, mas não deve contar.
-    # Junho, EAN Y: CNPJ A (qtd 7, faturado 200) -> sozinho nessa combinação.
+    # Maio, EAN X: CNPJ A tem 2 pedidos (qtd 10+5=15, faturado 100+50=150)
+    #       -> consolida numa linha só (mesmo CNPJ/mês/EAN). CNPJ B tem 1
+    #       pedido (qtd 20, faturado 300) -> linha própria, mesmo
+    #       mês/EAN de A, mas CNPJ diferente. CNPJ C (fora) também compra
+    #       EAN X em maio, mas não deve contar.
+    # Junho, EAN Y: CNPJ A tem 1 pedido (qtd 7, faturado 200).
     base_df = pd.DataFrame(
         {
-            "Tipo de cliente": ["X"] * 4,
+            "Tipo de cliente": ["X"] * 5,
             "CNPJ": [
+                "11.111.111/0001-11",
                 "11.111.111/0001-11",
                 "22.222.222/0001-22",
                 "11.111.111/0001-11",
                 "33.333.333/0001-33",
             ],
-            "Id pedido": ["1", "2", "3", "4"],
-            "EAN": ["1111111111111", "1111111111111", "2222222222222", "1111111111111"],
-            "Tabela de negociação": ["QUALQUER TABELA"] * 4,
+            "Id pedido": ["1", "2", "3", "4", "5"],
+            "EAN": [
+                "1111111111111",
+                "1111111111111",
+                "1111111111111",
+                "2222222222222",
+                "1111111111111",
+            ],
+            "Tabela de negociação": ["QUALQUER TABELA"] * 5,
             "Data do pedido (original)": [
                 "10/05/2026 10:00",
+                "11/05/2026 10:00",
                 "12/05/2026 10:00",
                 "11/06/2026 10:00",
                 "13/05/2026 10:00",
             ],
-            "Faturado líquido (R$)": ["100,00", "300,00", "200,00", "999,00"],
-            "Desconto comercial faturado (%)": ["10"] * 4,
-            "Quantidade faturada": ["10", "20", "7", "99"],
+            "Faturado líquido (R$)": ["100,00", "50,00", "300,00", "200,00", "999,00"],
+            "Desconto comercial faturado (%)": ["10"] * 5,
+            "Quantidade faturada": ["10", "5", "20", "7", "99"],
         }
     )
     atacarejo_df = pd.DataFrame({"CNPJs": ["11.111.111/0001-11", "22.222.222/0001-22"]})
@@ -1039,23 +1048,35 @@ def test_matriz_resumo_mensal_cnpj(tmp_path: Path):
 
     assert resultado is not None
     assert (tmp_path / "saida" / "Atacarejo_Faturamento_Mensal.xlsx").exists()
-    # consolidado por mês + EAN — nenhum detalhe por pedido/CNPJ
-    assert list(zip(resultado["mes"], resultado["ean"])) == [
-        ("2026-05", normalize_ean("1111111111111")),
-        ("2026-06", normalize_ean("2222222222222")),
+    # consolidado por mês + CNPJ + EAN — dá pra ver o volume de cada CNPJ
+    assert "cnpj" in resultado.columns
+
+    cnpj_a = normalize_cnpj("11.111.111/0001-11")
+    cnpj_b = normalize_cnpj("22.222.222/0001-22")
+    ean_x = normalize_ean("1111111111111")
+    ean_y = normalize_ean("2222222222222")
+
+    assert list(zip(resultado["mes"], resultado["cnpj"], resultado["ean"])) == [
+        ("2026-05", cnpj_a, ean_x),
+        ("2026-05", cnpj_b, ean_x),
+        ("2026-06", cnpj_a, ean_y),
     ]
-    assert "cnpj" not in resultado.columns
 
-    resultado = resultado.set_index(["mes", "ean"])
-    maio_ean1 = resultado.loc[("2026-05", normalize_ean("1111111111111"))]
-    assert maio_ean1["qtd_pedidos"] == 2
-    assert round(maio_ean1["faturado_liquido"], 2) == 400.0
-    assert maio_ean1["quantidade_faturada"] == 30
+    resultado = resultado.set_index(["mes", "cnpj", "ean"])
+    maio_a = resultado.loc[("2026-05", cnpj_a, ean_x)]
+    assert maio_a["qtd_pedidos"] == 2
+    assert round(maio_a["faturado_liquido"], 2) == 150.0
+    assert maio_a["quantidade_faturada"] == 15
 
-    junho_ean2 = resultado.loc[("2026-06", normalize_ean("2222222222222"))]
-    assert junho_ean2["qtd_pedidos"] == 1
-    assert round(junho_ean2["faturado_liquido"], 2) == 200.0
-    assert junho_ean2["quantidade_faturada"] == 7
+    maio_b = resultado.loc[("2026-05", cnpj_b, ean_x)]
+    assert maio_b["qtd_pedidos"] == 1
+    assert round(maio_b["faturado_liquido"], 2) == 300.0
+    assert maio_b["quantidade_faturada"] == 20
+
+    junho_a = resultado.loc[("2026-06", cnpj_a, ean_y)]
+    assert junho_a["qtd_pedidos"] == 1
+    assert round(junho_a["faturado_liquido"], 2) == 200.0
+    assert junho_a["quantidade_faturada"] == 7
 
 
 def test_matriz_resumo_por_cnpj_abrir_por_mes(tmp_path: Path):
