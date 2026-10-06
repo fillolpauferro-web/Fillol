@@ -264,6 +264,18 @@ matrizes:
     colunas_data: []
     nome_arquivo_saida: "Atacarejo_analise.xlsx"
 
+  - nome: "AtacarejoFaturamentoMensal"
+    tipo: "resumo_mensal_cnpj"
+    ativo: true
+    # mesmo arquivo/CNPJs da matriz Atacarejo acima — aqui só o total
+    # consolidado por mês (sem Check, sem detalhe por pedido/CNPJ).
+    arquivo_controle: "C:/Users/I0507867.FARMA/OneDrive - Sanofi/Desktop/Analise Painel/dados/Atacarejo.xlsx"
+    aba_controle: null
+    chave_controle: "CNPJs"
+    colunas_trazidas: {}
+    colunas_data: []
+    nome_arquivo_saida: "Atacarejo_Faturamento_Mensal.xlsx"
+
   - nome: "ResumoCAxWE"
     tipo: "resumo_volume"
     ativo: true

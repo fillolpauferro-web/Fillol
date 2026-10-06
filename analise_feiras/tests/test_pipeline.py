@@ -980,6 +980,82 @@ def test_matriz_resumo_cnpj_grupo(tmp_path: Path):
     assert round(linha_b["faturado_liquido"], 2) == 300.0
 
 
+def test_matriz_resumo_mensal_cnpj(tmp_path: Path):
+    # CNPJ A e B estão no Atacarejo.xlsx; CNPJ C não está (fora da análise).
+    # Maio: CNPJ A tem 1 pedido (qtd faturada 10, faturado 100), CNPJ B tem
+    #       1 pedido (qtd faturada 20, faturado 300), CNPJ C (fora) tem 1
+    #       pedido que não deve contar -> mês consolidado: 2 pedidos, 30
+    #       unidades, R$ 400
+    # Junho: CNPJ A tem 1 pedido (qtd faturada 7, faturado 200)
+    #       -> mês consolidado: 1 pedido, 7 unidades, R$ 200
+    base_df = pd.DataFrame(
+        {
+            "Tipo de cliente": ["X"] * 4,
+            "CNPJ": [
+                "11.111.111/0001-11",
+                "11.111.111/0001-11",
+                "22.222.222/0001-22",
+                "33.333.333/0001-33",
+            ],
+            "Id pedido": ["1", "2", "3", "4"],
+            "EAN": ["1", "2", "3", "4"],
+            "Tabela de negociação": ["QUALQUER TABELA"] * 4,
+            "Data do pedido (original)": [
+                "10/05/2026 10:00",
+                "11/06/2026 10:00",
+                "12/05/2026 10:00",
+                "13/05/2026 10:00",
+            ],
+            "Faturado líquido (R$)": ["100,00", "200,00", "300,00", "999,00"],
+            "Desconto comercial faturado (%)": ["10"] * 4,
+            "Quantidade faturada": ["10", "7", "20", "99"],
+        }
+    )
+    atacarejo_df = pd.DataFrame({"CNPJs": ["11.111.111/0001-11", "22.222.222/0001-22"]})
+
+    base_df.to_excel(tmp_path / "base_pedidos.xlsx", index=False)
+    atacarejo_df.to_excel(tmp_path / "Atacarejo.xlsx", index=False)
+    (tmp_path / "saida").mkdir()
+
+    cfg = _montar_config(tmp_path)
+    cfg["base"]["colunas"]["quantidade_faturada"] = "Quantidade faturada"
+    matriz_cfg = {
+        "nome": "AtacarejoFaturamentoMensal",
+        "tipo": "resumo_mensal_cnpj",
+        "ativo": True,
+        "arquivo_controle": "Atacarejo.xlsx",
+        "aba_controle": None,
+        "chave_controle": "CNPJs",
+        "colunas_trazidas": {},
+        "colunas_data": [],
+        "nome_arquivo_saida": "Atacarejo_Faturamento_Mensal.xlsx",
+    }
+
+    import pipeline
+
+    pipeline.BASE_DIR = tmp_path
+
+    df_base = carregar_base(cfg)
+    resultado = rodar_matriz("AtacarejoFaturamentoMensal", matriz_cfg, df_base, cfg)
+
+    assert resultado is not None
+    assert (tmp_path / "saida" / "Atacarejo_Faturamento_Mensal.xlsx").exists()
+    # consolidado só por mês — nenhum detalhe por pedido/CNPJ
+    assert list(resultado["mes"]) == ["2026-05", "2026-06"]
+    assert "cnpj" not in resultado.columns
+
+    resultado = resultado.set_index("mes")
+    maio = resultado.loc["2026-05"]
+    assert maio["qtd_pedidos"] == 2
+    assert round(maio["faturado_liquido"], 2) == 400.0
+    assert maio["quantidade_faturada"] == 30
+
+    junho = resultado.loc["2026-06"]
+    assert junho["qtd_pedidos"] == 1
+    assert round(junho["faturado_liquido"], 2) == 200.0
+    assert junho["quantidade_faturada"] == 7
+
+
 def test_matriz_resumo_por_cnpj_abrir_por_mes(tmp_path: Path):
     # Distribuidora Alpha tem 1 pedido em maio (100) e 1 em junho (200);
     # abrir_por_mes: true precisa gerar as abas "Total" e "Mensal".

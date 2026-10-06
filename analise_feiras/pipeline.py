@@ -66,6 +66,12 @@ define como a base é filtrada e o que sai no resultado:
   de pedidos, faturado líquido e quantidade faturada de cada mês. Exige
   base.colunas.grupo_clientes.
 
+  tipo: "resumo_mensal_cnpj" (ex.: faturamento mensal do Atacarejo) — sem
+  Check, filtra a base pelos CNPJs do arquivo de controle (igual tipo
+  "cnpj"/"consolidacao") e agrupa só por mês — sem detalhe por pedido nem
+  por CNPJ, só o total consolidado de cada mês: quantidade de pedidos,
+  faturado líquido e quantidade faturada.
+
   Um arquivo de saída é salvo por matriz (nome_arquivo_saida no config, ou
   "{nome}_analise.xlsx" por padrão).
 
@@ -610,6 +616,23 @@ def calcular_resumo_cnpj_grupo(df_base: pd.DataFrame, cfg: dict, matriz_cfg: dic
     return resumo.sort_values(["cnpj", "mes"]).reset_index(drop=True)
 
 
+def calcular_resumo_mensal_cnpj(df_base: pd.DataFrame, cnpjs_norm: set[str]) -> pd.DataFrame:
+    """tipo: "resumo_mensal_cnpj" — filtra a base pelos CNPJs do arquivo de
+    controle (igual tipo "cnpj"/"consolidacao") e agrupa só por mês, sem
+    Check nem detalhe por pedido ou por CNPJ: quantidade de pedidos,
+    faturado líquido e quantidade faturada (se configurada) consolidados
+    de cada mês.
+    """
+    df = df_base[df_base["_cnpj_norm"].isin(cnpjs_norm)].copy()
+    df["mes"] = df["_data_pedido"].dt.to_period("M").astype(str)
+
+    resumo = _agregar_volume(df, "mes").reset_index()
+    resumo["faturado_medio_por_pedido"] = (resumo["faturado_liquido"] / resumo["qtd_pedidos"]).round(2)
+    if "quantidade_faturada" in resumo.columns:
+        resumo["quantidade_media_por_pedido"] = (resumo["quantidade_faturada"] / resumo["qtd_pedidos"]).round(2)
+    return resumo.sort_values("mes").reset_index(drop=True)
+
+
 def _salvar_saida(df_saida: pd.DataFrame, pasta_saida: Path, nome_arquivo: str) -> None:
     caminho_final = pasta_saida / nome_arquivo
     df_saida.to_excel(caminho_final, index=False)
@@ -677,6 +700,22 @@ def rodar_matriz(nome_matriz: str, matriz_cfg: dict, df_base: pd.DataFrame, cfg:
             print(f"Nenhuma linha encontrada para a palavra-chave '{matriz_cfg['palavra_chave']}'.")
             return None
         print(f"{len(resumo)} linhas geradas (CNPJ x grupo de clientes x mês).")
+        pasta_saida = BASE_DIR / cfg["saida"]["pasta"]
+        pasta_saida.mkdir(parents=True, exist_ok=True)
+        nome_arquivo = matriz_cfg.get("nome_arquivo_saida") or f"{nome_matriz}_analise.xlsx"
+        _salvar_saida(resumo, pasta_saida, nome_arquivo)
+        return resumo
+
+    if tipo == "resumo_mensal_cnpj":
+        # filtra pelos CNPJs do arquivo de controle e agrupa só por mês —
+        # sem Check, sem detalhe por pedido nem por CNPJ
+        df_controle = carregar_controle(matriz_cfg)
+        cnpjs_validos = set(df_controle["_chave_controle_norm"])
+        resumo = calcular_resumo_mensal_cnpj(df_base, cnpjs_validos)
+        if resumo.empty:
+            print("Nenhuma venda encontrada para os CNPJs do arquivo de controle.")
+            return None
+        print(resumo.to_string(index=False))
         pasta_saida = BASE_DIR / cfg["saida"]["pasta"]
         pasta_saida.mkdir(parents=True, exist_ok=True)
         nome_arquivo = matriz_cfg.get("nome_arquivo_saida") or f"{nome_matriz}_analise.xlsx"
