@@ -43,6 +43,8 @@ from pathlib import Path
 
 import pandas as pd
 
+# % sobre o Faturado Líquido NF para calcular o valor mensal (1,8% = 1.8)
+PCT_LIQUIDO = 1.8
 PASTA_PADRAO = r"C:\Users\I0507867.FARMA\OneDrive - Sanofi\Desktop\Ressarcimento\Parquet"
 DISTRIBUIDORES = {"SANTA CRUZ": "SANTA CRUZ", "PANPHARMA": "PANPHARMA"}
 
@@ -265,6 +267,11 @@ def resumir(df: pd.DataFrame, por: list[str]) -> pd.DataFrame:
     r["ol_cedida"] = r["margem_ol_rs"] - r["ol_realizada"]
     r["pct_ol_retida"] = _div(r["ol_realizada"], r["margem_ol_rs"])
 
+    # X% (padrão 1,8%) do Faturado Líquido NF
+    r["valor_pct_liq"] = r["fat_liq_nf"] * PCT_LIQUIDO / 100
+    r["pct_liq_s_bruto"] = _div(r["valor_pct_liq"], r["fat_bruto_pf"])
+    r["pct_liq_s_ol"] = _div(r["valor_pct_liq"], r["margem_ol_rs"])
+
     nomes = {
         "linhas": "Linhas",
         "qtd_faturada": "Qtde Faturada",
@@ -292,6 +299,9 @@ def resumir(df: pd.DataFrame, por: list[str]) -> pd.DataFrame:
         "pct_ol_real_bruto": "% OL Realizada s/ Bruto PF",
         "pct_ol_real_liquido": "% OL Realizada s/ Líquido NF",
         "pct_ol_retida": "% da OL Retida",
+        "valor_pct_liq": f"{PCT_LIQUIDO:g}% do Líquido NF (R$)".replace(".", ","),
+        "pct_liq_s_bruto": f"% equiv. s/ Bruto PF ({PCT_LIQUIDO:g}% liq.)".replace(".", ","),
+        "pct_liq_s_ol": f"% da OL ({PCT_LIQUIDO:g}% liq.)".replace(".", ","),
         "grupo_distribuidor": "Distribuidor",
         "distribuidor": "Distribuidor (original)",
         "filial": "Filial", "mes": "Mês", "produto": "Produto",
@@ -306,6 +316,54 @@ def total_geral(df: pd.DataFrame) -> pd.DataFrame:
     df = df.assign(_t="TOTAL")
     t = resumir(df, ["_t"]).rename(columns={"_t": "Distribuidor"})
     return pd.concat([resumir(df, ["grupo_distribuidor"]), t], ignore_index=True)
+
+
+def media_mensal(df: pd.DataFrame) -> pd.DataFrame:
+    """Valor de PCT_LIQUIDO% do líquido em cada mês e a média mensal por distribuidor."""
+    m = df.groupby(["grupo_distribuidor", "mes"])[["fat_bruto_pf", "fat_liq_nf",
+                                                   "margem_ol_rs"]].sum().reset_index()
+    m["valor"] = m["fat_liq_nf"] * PCT_LIQUIDO / 100
+    tot = m.groupby("mes")[["fat_bruto_pf", "fat_liq_nf", "margem_ol_rs", "valor"]].sum()
+    m = pd.concat([m, tot.reset_index().assign(grupo_distribuidor="TOTAL")], ignore_index=True)
+
+    linhas = []
+    for dist, g in m.groupby("grupo_distribuidor", sort=False):
+        g = g.sort_values("mes")
+        for _, r in g.iterrows():
+            linhas.append({"Distribuidor": dist, "Mês": r["mes"],
+                           "Faturado Bruto PF (R$)": r["fat_bruto_pf"],
+                           "Faturado Líquido NF (R$)": r["fat_liq_nf"],
+                           "VALOR (R$)": r["valor"],
+                           "OL s/ Bruto (R$)": r["margem_ol_rs"]})
+        n = g["mes"].nunique()
+        linhas.append({"Distribuidor": dist, "Mês": f"MÉDIA MENSAL ({n} meses)",
+                       "Faturado Bruto PF (R$)": g["fat_bruto_pf"].sum() / n,
+                       "Faturado Líquido NF (R$)": g["fat_liq_nf"].sum() / n,
+                       "VALOR (R$)": g["valor"].sum() / n,
+                       "OL s/ Bruto (R$)": g["margem_ol_rs"].sum() / n})
+        linhas.append({"Distribuidor": dist, "Mês": "TOTAL DO PERÍODO",
+                       "Faturado Bruto PF (R$)": g["fat_bruto_pf"].sum(),
+                       "Faturado Líquido NF (R$)": g["fat_liq_nf"].sum(),
+                       "VALOR (R$)": g["valor"].sum(),
+                       "OL s/ Bruto (R$)": g["margem_ol_rs"].sum()})
+    out = pd.DataFrame(linhas)
+    out["% equiv. s/ Bruto PF"] = _div(out["VALOR (R$)"], out["Faturado Bruto PF (R$)"])
+    out["% da OL"] = _div(out["VALOR (R$)"], out["OL s/ Bruto (R$)"])
+    rot = f"{PCT_LIQUIDO:g}% do Líquido NF (R$)".replace(".", ",")
+    return out.rename(columns={"VALOR (R$)": rot})
+
+
+def imprimir_media_mensal(t: pd.DataFrame) -> None:
+    rot = [c for c in t.columns if "% do Líquido NF" in c][0]
+    print(f"\n{rot.replace(' (R$)', '').upper()} - POR MÊS E MÉDIA MENSAL")
+    print("=" * 78)
+    for dist, g in t.groupby("Distribuidor", sort=False):
+        print(f"\n>> {dist}")
+        for _, r in g.iterrows():
+            print(f"   {r['Mês']:<24} Líquido R$ {r['Faturado Líquido NF (R$)']:>16,.2f}"
+                  f"   -> R$ {r[rot]:>14,.2f}"
+                  f"   ({r['% equiv. s/ Bruto PF']:.2%} do bruto)")
+    print("=" * 78)
 
 
 # --------------------------------------------------------------------------
@@ -359,11 +417,15 @@ def imprimir_resumo(tot: pd.DataFrame) -> None:
 
 
 def main() -> None:
+    global PCT_LIQUIDO
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--pasta", default=PASTA_PADRAO, help="pasta com os .parquet")
     ap.add_argument("--saida", default=None, help="arquivo Excel de saída")
+    ap.add_argument("--pct", type=float, default=PCT_LIQUIDO,
+                    help="%% sobre o líquido para o cálculo mensal (padrão 1.8)")
     args = ap.parse_args()
+    PCT_LIQUIDO = args.pct
 
     pasta = Path(args.pasta)
     saida = Path(args.saida) if args.saida else pasta.parent / "Analise_Desconto_SantaCruz_Panpharma.xlsx"
@@ -374,9 +436,12 @@ def main() -> None:
 
     tot = total_geral(df)
     imprimir_resumo(tot)
+    mensal = media_mensal(df)
+    imprimir_media_mensal(mensal)
 
     abas = {
         "Resumo": tot,
+        "Média Mensal %Líq": mensal,
         "Por Mês": resumir(df, ["grupo_distribuidor", "mes"]).sort_values(["Distribuidor", "Mês"]),
         "Por Filial": resumir(df, ["grupo_distribuidor", "filial"]),
         "Por Produto": resumir(df, ["grupo_distribuidor", "produto", "familia", "divisao"]),
