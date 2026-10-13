@@ -147,8 +147,10 @@ def mapear_colunas(df: pd.DataFrame) -> dict:
     for k in ocorrencias:  # mantém a ordem original das colunas
         ocorrencias[k] = sorted(set(ocorrencias[k]), key=list(df.columns).index)
 
-    mapa = {}
+    mapa = {c: c for c in df.columns if c in COLUNAS}  # parquet já padronizado
     for interno, (nome, idx) in COLUNAS.items():
+        if interno in mapa:
+            continue
         cands = ocorrencias.get(norm(nome), [])
         if len(cands) > idx:
             mapa[interno] = cands[idx]
@@ -1246,84 +1248,114 @@ def _linhas_aba_rapido(z: zipfile.ZipFile, caminho: str, sst: list[str], colunas
 LINHAS_POR_GRUPO = 200_000  # linhas gravadas por vez no parquet
 
 
+CONV_VERSAO = "3"  # muda quando a conversão muda -> parquets antigos são refeitos
+CAMPOS_CHAVE = ["pf", "qtd_faturada", "fat_bruto_pf", "fat_liq_pf", "fat_liq_nf", "ean",
+                "desc_portal", "fat_bruto_nf", "margem_ol_rs"]
+
+
+def _avaliar_cabecalho(valores: list) -> tuple[int, dict]:
+    """Nota de quanto a linha parece o cabeçalho do relatório + mapa {interno: índice}."""
+    if len(valores) < 5:
+        return 0, {}
+    nomes = _sem_duplicados(valores)
+    mapa = mapear_colunas(pd.DataFrame(columns=nomes))
+    if "distribuidor" not in mapa:
+        return 0, {}
+    nota = sum(1 for c in CAMPOS_CHAVE if c in mapa)
+    return nota, {k: nomes.index(v) for k, v in mapa.items()}
+
+
 def converter_xlsx_streaming(arq: Path, saida: Path) -> int:
-    """Converte .xlsx grande (várias abas) lendo em streaming só as colunas usadas."""
+    """Converte .xlsx grande (várias abas) lendo em streaming só as colunas usadas.
+    Grava as colunas com o nome interno (distribuidor, fat_liq_pf...), igual para todas as abas."""
     import pyarrow as pa
     import pyarrow.parquet as pq
 
-    usar = CAMPOS_BASE + sum(DIM_DETALHE.values(), [])
+    usar = list(dict.fromkeys(CAMPOS_BASE + sum(DIM_DETALHE.values(), [])))
+    usar = [c for c in usar if c not in ("grupo_distribuidor",)]
+    schema = pa.schema([(c, pa.string()) for c in usar],
+                       metadata={b"ressarc_conv": CONV_VERSAO.encode()})
     tmp = saida.with_suffix(".parquet.tmp")
-    writer, nomes_saida, total = None, None, 0
-    cab_anterior = None  # (colunas, nomes) da última aba com cabeçalho
+    writer, total, mapa_ant = None, 0, None
     with zipfile.ZipFile(arq) as z:
         sst = _shared_strings(z)
         for aba, caminho in _abas_xlsx(z):
-            # 1) procura o cabeçalho ("Distribuidor") nas primeiras 50 linhas
-            cab, n_cab, amostra = None, 0, []
+            # 1) acha o cabeçalho: a linha (entre as 60 primeiras) que mais parece o relatório
+            melhor, n_cab, amostra = (0, {}), 0, []
             for k, (num, linha) in enumerate(_linhas_aba(z, caminho, sst)):
                 amostra.append(linha)
-                if any(norm(v) == "distribuidor" for v in linha.values()):
-                    cab, n_cab = linha, num
+                if linha:
+                    largura = max(linha) + 1
+                    nota = _avaliar_cabecalho([linha.get(i, f"col_{i}") for i in range(largura)])
+                    if nota[0] > melhor[0]:
+                        melhor, n_cab = nota, num
+                if k >= 60:
                     break
-                if k >= 50:
-                    break
-            if cab is not None:
-                largura = max(cab) + 1
-                nomes = _sem_duplicados(cab.get(i, f"col_{i}") for i in range(largura))
-                mapa = mapear_colunas(pd.DataFrame(columns=nomes))
-                idx = {nomes.index(v) for k2, v in mapa.items() if k2 in usar}
-                if "distribuidor" not in mapa:
-                    print(f"     aba '{aba}': cabeçalho sem Distribuidor, ignorada")
+            nota, mapa = melhor
+            if nota >= 3:
+                mapa_ant = mapa
+            elif mapa_ant is not None and amostra:
+                # aba de continuação sem cabeçalho: usa o cabeçalho da aba anterior
+                i_dist = mapa_ant["distribuidor"]
+                vals = [str(l.get(i_dist, "")).strip() for l in amostra[:20]]
+                ok = sum(1 for v in vals if v and not v.replace(".", "").isdigit())
+                if ok < 0.9 * len(vals):
+                    print(f"     aba '{aba}': ignorada (não é base do relatório). "
+                          f"1ª linha: {list(amostra[0].values())[:8]}")
                     continue
-                colunas = sorted(idx)
-                cab_anterior = (colunas, [nomes[i] for i in colunas], nomes.index(mapa["distribuidor"]))
-            elif cab_anterior is not None:
-                # aba de continuação sem cabeçalho: aceita se a coluna Distribuidor vier preenchida
-                i_dist = cab_anterior[2]
-                cheias = sum(1 for l in amostra[:20] if str(l.get(i_dist, "")).strip()
-                             and not str(l.get(i_dist, "")).replace(".", "").isdigit())
-                if not amostra or cheias < 0.9 * min(20, len(amostra)):
-                    print(f"     aba '{aba}': sem cabeçalho/dados do relatório, ignorada")
-                    continue
-                n_cab = 0
+                mapa, n_cab = mapa_ant, 0
             else:
-                print(f"     aba '{aba}': sem cabeçalho 'Distribuidor', ignorada")
+                prim = list(amostra[0].values())[:8] if amostra else []
+                print(f"     aba '{aba}': ignorada (sem cabeçalho do relatório). 1ª linha: {prim}")
                 continue
 
-            colunas, nomes_col, _ = cab_anterior
-            if nomes_saida is None:
-                nomes_saida = nomes_col
-                schema = pa.schema([(n, pa.string()) for n in nomes_saida])
+            campos = [c for c in usar if c in mapa]
+            colunas = sorted({mapa[c] for c in campos})
+            if writer is None:
                 writer = pq.ParquetWriter(tmp, schema)
-            elif nomes_col != nomes_saida:
-                print(f"     aba '{aba}': colunas diferentes da primeira aba, ignorada")
-                continue
-
-            buf = {c: [] for c in colunas}
+            buf = {c: [] for c in campos}
             n_aba = 0
 
             def gravar():
                 nonlocal buf
-                if buf[colunas[0]] or any(buf.values()):
-                    tab = pa.table({n: pa.array(buf[c], type=pa.string())
-                                    for c, n in zip(colunas, nomes_saida)})
+                n = len(buf[campos[0]])
+                if n:
+                    tab = pa.table({c: pa.array(buf[c] if c in buf else [None] * n, type=pa.string())
+                                    for c in usar}, schema=schema)
                     writer.write_table(tab)
-                buf = {c: [] for c in colunas}
+                buf = {c: [] for c in campos}
 
             for linha in _linhas_aba_rapido(z, caminho, sst, colunas, n_cab):
-                for c in colunas:
-                    buf[c].append(linha.get(c))
+                for c in campos:
+                    buf[c].append(linha.get(mapa[c]))
                 n_aba += 1
                 if n_aba % LINHAS_POR_GRUPO == 0:
                     gravar()
             gravar()
             total += n_aba
-            print(f"     aba '{aba}': {n_aba:,} linhas")
+            faltam = [c for c in ("fat_bruto_pf", "fat_liq_pf", "pf", "qtd_faturada", "ean") if c not in mapa]
+            onde = f"cabeçalho na linha {n_cab}" if n_cab else "continuação, sem cabeçalho"
+            print(f"     aba '{aba}': {n_aba:,} linhas ({onde})"
+                  + (f" | sem colunas: {faltam}" if faltam else ""))
     if writer is None:
         raise ValueError("nenhuma aba com o cabeçalho do relatório (coluna 'Distribuidor')")
     writer.close()
     tmp.replace(saida)
     return total
+
+
+def parquet_atualizado(saida: Path, arq: Path) -> bool:
+    """O parquet existe, é mais novo que o Excel e foi gerado por esta versão?"""
+    if not saida.exists() or saida.stat().st_mtime < arq.stat().st_mtime:
+        return False
+    if arq.suffix.lower() not in (".xlsx", ".xlsm"):
+        return True
+    try:
+        import pyarrow.parquet as pq
+        meta = pq.read_schema(saida).metadata or {}
+        return meta.get(b"ressarc_conv") == CONV_VERSAO.encode()
+    except Exception:  # noqa: BLE001
+        return False
 
 
 def converter(origem: Path, destino: Path, refazer: bool) -> None:
@@ -1341,7 +1373,7 @@ def converter(origem: Path, destino: Path, refazer: bool) -> None:
     print(f"Convertendo {len(arquivos)} arquivo(s) de {origem}")
     for arq in arquivos:
         saida = destino / (arq.stem + ".parquet")
-        if saida.exists() and not refazer and saida.stat().st_mtime >= arq.stat().st_mtime:
+        if not refazer and parquet_atualizado(saida, arq):
             print(f"  [JÁ EXISTE] {saida.name}")
             continue
         t0 = time.time()
