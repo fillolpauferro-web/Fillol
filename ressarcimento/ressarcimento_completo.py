@@ -20,6 +20,9 @@ import time
 import re
 import sys
 import unicodedata
+import zipfile
+import xml.etree.ElementTree as ET
+from html import unescape as _unescape
 from pathlib import Path
 
 try:
@@ -42,6 +45,10 @@ MES_FIM = "2026-08"
 # Arquivo DE PARA Cluster (na pasta Ressarcimento). None = procura pelo nome
 ARQUIVO_DE_PARA = None
 COLUNA_DE_PARA = "L"   # coluna com o De-Para (cluster) no arquivo DE PARA
+# Só converte/analisa arquivos cujo nome contém este texto (None = todos)
+FILTRO_ARQUIVOS = "Recalculo dívida"
+# True = o mês vem do nome do arquivo ("...mai26..." -> 2026-05); False = da Data de Emissão da NF
+MES_PELO_NOME_DO_ARQUIVO = True
 # Rep. OL por cluster (PROCX do novo cluster). OL Líquido = Faturado Líquido (PF) x Rep. OL
 REP_OL = {
     "EXCLUSIVOS": 0.12,
@@ -308,6 +315,22 @@ DIM_DETALHE = {
 _AVISOS: set = set()
 
 
+def mes_do_nome(nome: str) -> str | None:
+    """'Recalculo dívida jun 26 - 1 a 30.06' -> '2026-06'."""
+    abrev = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"]
+    t = unicodedata.normalize("NFKD", nome).encode("ascii", "ignore").decode().lower()
+    m = re.search(r"\b(" + "|".join(abrev) + r")[a-z]*[\s._-]*(\d{2}|\d{4})\b", t)
+    if not m:
+        return None
+    ano = m.group(2)
+    ano = ano if len(ano) == 4 else "20" + ano
+    return f"{ano}-{abrev.index(m.group(1)) + 1:02d}"
+
+
+def arquivo_selecionado(p: Path) -> bool:
+    return not FILTRO_ARQUIVOS or norm(FILTRO_ARQUIVOS) in norm(p.stem)
+
+
 def _mapear_unicos(serie: pd.Series, func) -> pd.Series:
     """Aplica func só nos valores distintos (muito mais rápido em milhões de linhas)."""
     t = serie.fillna("").astype(str)
@@ -331,7 +354,7 @@ def calcular_mes(serie: pd.Series) -> pd.Series:
 
 
 def preparar_lote(bruto: pd.DataFrame, mapa: dict, dp_map: dict | None,
-                  nome: str, primeiro: bool) -> pd.DataFrame | None:
+                  nome: str, primeiro: bool, mes_fixo: str | None = None) -> pd.DataFrame | None:
     df = pd.DataFrame({interno: bruto[real] for interno, real in mapa.items()})
     del bruto
     grupo = _mapear_unicos(df["distribuidor"], classificar_distribuidor)
@@ -361,7 +384,10 @@ def preparar_lote(bruto: pd.DataFrame, mapa: dict, dp_map: dict | None,
     df["margem_ol_rs"] = df["margem_ol_rs"].where(df["margem_ol_rs"] != 0, ol_calc)
     df["custo_distrib"] = df["fat_bruto_pf"] * (1 - df["desc_entrada_pct"] / 100)
     df["ol_realizada"] = df["fat_liq_nf"] + df["ressarcimento"] - df["custo_distrib"]
-    df["mes"] = calcular_mes(df["data_nf"]) if "data_nf" in df else "N/D"
+    if mes_fixo:
+        df["mes"] = mes_fixo
+    else:
+        df["mes"] = calcular_mes(df["data_nf"]) if "data_nf" in df else "N/D"
 
     # DE PARA + campos do Projeto
     df["ean_norm"] = _mapear_unicos(df["ean"], norm_ean) if "ean" in df else ""
@@ -470,9 +496,10 @@ def processar_parquets(pasta: Path, dp_map: dict | None, detalhe: bool) -> dict:
     """Lê os parquets em lotes e devolve só tabelas já agregadas (pouca memória)."""
     import pyarrow.parquet as pq
 
-    arquivos = sorted(pasta.rglob("*.parquet"))
+    arquivos = sorted(p for p in pasta.rglob("*.parquet") if arquivo_selecionado(p))
     if not arquivos:
-        sys.exit(f"Nenhum arquivo .parquet encontrado em: {pasta}")
+        sys.exit(f"Nenhum .parquet com '{FILTRO_ARQUIVOS}' no nome em: {pasta}")
+    print(f"  {len(arquivos)} arquivo(s) selecionado(s) (FILTRO_ARQUIVOS = {FILTRO_ARQUIVOS!r})")
 
     chaves = {
         "resumo": ["grupo_distribuidor"],
@@ -501,6 +528,9 @@ def processar_parquets(pasta: Path, dp_map: dict | None, detalhe: bool) -> dict:
         if plano is None:
             continue
         mapa = plano["mapa"]
+        mes_fixo = mes_do_nome(arq.stem) if MES_PELO_NOME_DO_ARQUIVO else None
+        if MES_PELO_NOME_DO_ARQUIVO:
+            print(f"     mês pelo nome do arquivo: {mes_fixo or 'não identificado (usa Data da NF)'}")
         if VERBOSO:
             print(f"  Mapeamento {arq.name}: {mapa}")
 
@@ -508,7 +538,7 @@ def processar_parquets(pasta: Path, dp_map: dict | None, detalhe: bool) -> dict:
         parciais = {k: [] for k in chaves}
         try:
             for i, bruto in enumerate(ler_lotes(arq, plano)):
-                df = preparar_lote(bruto, mapa, dp_map, arq.name, i == 0)
+                df = preparar_lote(bruto, mapa, dp_map, arq.name, i == 0, mes_fixo)
                 del bruto
                 if df is None:
                     continue
@@ -1078,13 +1108,232 @@ def preparar_para_parquet(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
+# ==========================================================================
+# LEITURA DE XLSX GRANDE EM STREAMING (sem carregar a planilha na memória)
+# ==========================================================================
+_NS = "{http://schemas.openxmlformats.org/spreadsheetml/2006/main}"
+_NS_REL = "{http://schemas.openxmlformats.org/officeDocument/2006/relationships}"
+
+
+def _col_idx(ref: str) -> int:
+    n = 0
+    for ch in ref:
+        if "A" <= ch <= "Z":
+            n = n * 26 + (ord(ch) - 64)
+        else:
+            break
+    return n - 1
+
+
+def _abas_xlsx(z: zipfile.ZipFile) -> list[tuple[str, str]]:
+    """[(nome da aba, caminho do xml)] na ordem do arquivo."""
+    wb = ET.fromstring(z.read("xl/workbook.xml"))
+    rels = ET.fromstring(z.read("xl/_rels/workbook.xml.rels"))
+    alvo = {r.get("Id"): r.get("Target") for r in rels}
+    abas = []
+    for s in wb.iter(_NS + "sheet"):
+        t = alvo.get(s.get(_NS_REL + "id"), "")
+        t = t.lstrip("/")
+        if not t.startswith("xl/"):
+            t = "xl/" + t
+        abas.append((s.get("name"), t))
+    return abas
+
+
+def _shared_strings(z: zipfile.ZipFile) -> list[str]:
+    if "xl/sharedStrings.xml" not in z.namelist():
+        return []
+    out = []
+    with z.open("xl/sharedStrings.xml") as f:
+        for ev, el in ET.iterparse(f, events=("end",)):
+            if el.tag == _NS + "si":
+                out.append("".join(t.text or "" for t in el.iter(_NS + "t")))
+                el.clear()
+    return out
+
+
+def _linhas_aba(z: zipfile.ZipFile, caminho: str, sst: list[str]):
+    """Gera (número da linha, {indice_coluna: valor_texto}) - leitor completo, mais lento."""
+    with z.open(caminho) as f:
+        for ev, el in ET.iterparse(f, events=("end",)):
+            if el.tag != _NS + "row":
+                continue
+            linha = {}
+            pos = 0
+            num = int(el.get("r") or 0)
+            for c in el:
+                ref = c.get("r")
+                i = _col_idx(ref) if ref else pos
+                pos = i + 1
+                t = c.get("t")
+                if t == "inlineStr":
+                    v = "".join(x.text or "" for x in c.iter(_NS + "t"))
+                else:
+                    ve = c.find(_NS + "v")
+                    if ve is None or ve.text is None:
+                        continue
+                    v = ve.text
+                    if t == "s":
+                        v = sst[int(v)]
+                if v != "":
+                    linha[i] = v
+            el.clear()
+            yield num, linha
+
+
+
+
+def _letra(i: int) -> str:
+    s = ""
+    i += 1
+    while i:
+        i, r = divmod(i - 1, 26)
+        s = chr(65 + r) + s
+    return s
+
+
+def _linhas_aba_rapido(z: zipfile.ZipFile, caminho: str, sst: list[str], colunas: list[int],
+                       a_partir: int, bloco: int = 16 * 1024 * 1024):
+    """Lê só as colunas pedidas (índices) das linhas > a_partir. Gera dicts {indice: texto}."""
+    letras = {_letra(i): i for i in colunas}
+    alt = "|".join(sorted(letras, key=len, reverse=True))
+    pat = re.compile(r'<c r="(' + alt + r')(\d+)"([^>]*?)(?:/>|>(.*?)</c>)', re.S)
+    pat_v = re.compile(r"<v>([^<]*)</v>")
+    pat_t = re.compile(r"<t[^>]*>([^<]*)</t>")
+    resto = ""
+    linha, atual = {}, None
+    with z.open(caminho) as f:
+        while True:
+            dados = f.read(bloco)
+            fim = not dados
+            texto = resto + dados.decode("utf-8", errors="replace")
+            if not fim:
+                corte = texto.rfind("</row>")
+                if corte < 0:
+                    resto = texto
+                    continue
+                resto, texto = texto[corte + 6:], texto[:corte + 6]
+            for m in pat.finditer(texto):
+                num = int(m.group(2))
+                if num <= a_partir:
+                    continue
+                if num != atual:
+                    if linha:
+                        yield linha
+                    linha, atual = {}, num
+                corpo = m.group(4)
+                if not corpo:
+                    continue
+                attrs = m.group(3)
+                if 't="s"' in attrs:
+                    v = pat_v.search(corpo)
+                    v = sst[int(v.group(1))] if v else ""
+                elif 't="inlineStr"' in attrs:
+                    v = "".join(pat_t.findall(corpo))
+                else:
+                    v = pat_v.search(corpo)
+                    v = v.group(1) if v else ""
+                if "&" in v:
+                    v = _unescape(v)
+                if v != "":
+                    linha[letras[m.group(1)]] = v
+            if fim:
+                break
+    if linha:
+        yield linha
+
+
+LINHAS_POR_GRUPO = 200_000  # linhas gravadas por vez no parquet
+
+
+def converter_xlsx_streaming(arq: Path, saida: Path) -> int:
+    """Converte .xlsx grande (várias abas) lendo em streaming só as colunas usadas."""
+    import pyarrow as pa
+    import pyarrow.parquet as pq
+
+    usar = CAMPOS_BASE + sum(DIM_DETALHE.values(), [])
+    tmp = saida.with_suffix(".parquet.tmp")
+    writer, nomes_saida, total = None, None, 0
+    cab_anterior = None  # (colunas, nomes) da última aba com cabeçalho
+    with zipfile.ZipFile(arq) as z:
+        sst = _shared_strings(z)
+        for aba, caminho in _abas_xlsx(z):
+            # 1) procura o cabeçalho ("Distribuidor") nas primeiras 50 linhas
+            cab, n_cab, amostra = None, 0, []
+            for k, (num, linha) in enumerate(_linhas_aba(z, caminho, sst)):
+                amostra.append(linha)
+                if any(norm(v) == "distribuidor" for v in linha.values()):
+                    cab, n_cab = linha, num
+                    break
+                if k >= 50:
+                    break
+            if cab is not None:
+                largura = max(cab) + 1
+                nomes = _sem_duplicados(cab.get(i, f"col_{i}") for i in range(largura))
+                mapa = mapear_colunas(pd.DataFrame(columns=nomes))
+                idx = {nomes.index(v) for k2, v in mapa.items() if k2 in usar}
+                if "distribuidor" not in mapa:
+                    print(f"     aba '{aba}': cabeçalho sem Distribuidor, ignorada")
+                    continue
+                colunas = sorted(idx)
+                cab_anterior = (colunas, [nomes[i] for i in colunas], nomes.index(mapa["distribuidor"]))
+            elif cab_anterior is not None:
+                # aba de continuação sem cabeçalho: aceita se a coluna Distribuidor vier preenchida
+                i_dist = cab_anterior[2]
+                cheias = sum(1 for l in amostra[:20] if str(l.get(i_dist, "")).strip()
+                             and not str(l.get(i_dist, "")).replace(".", "").isdigit())
+                if not amostra or cheias < 0.9 * min(20, len(amostra)):
+                    print(f"     aba '{aba}': sem cabeçalho/dados do relatório, ignorada")
+                    continue
+                n_cab = 0
+            else:
+                print(f"     aba '{aba}': sem cabeçalho 'Distribuidor', ignorada")
+                continue
+
+            colunas, nomes_col, _ = cab_anterior
+            if nomes_saida is None:
+                nomes_saida = nomes_col
+                schema = pa.schema([(n, pa.string()) for n in nomes_saida])
+                writer = pq.ParquetWriter(tmp, schema)
+            elif nomes_col != nomes_saida:
+                print(f"     aba '{aba}': colunas diferentes da primeira aba, ignorada")
+                continue
+
+            buf = {c: [] for c in colunas}
+            n_aba = 0
+
+            def gravar():
+                nonlocal buf
+                if buf[colunas[0]] or any(buf.values()):
+                    tab = pa.table({n: pa.array(buf[c], type=pa.string())
+                                    for c, n in zip(colunas, nomes_saida)})
+                    writer.write_table(tab)
+                buf = {c: [] for c in colunas}
+
+            for linha in _linhas_aba_rapido(z, caminho, sst, colunas, n_cab):
+                for c in colunas:
+                    buf[c].append(linha.get(c))
+                n_aba += 1
+                if n_aba % LINHAS_POR_GRUPO == 0:
+                    gravar()
+            gravar()
+            total += n_aba
+            print(f"     aba '{aba}': {n_aba:,} linhas")
+    if writer is None:
+        raise ValueError("nenhuma aba com o cabeçalho do relatório (coluna 'Distribuidor')")
+    writer.close()
+    tmp.replace(saida)
+    return total
+
+
 def converter(origem: Path, destino: Path, refazer: bool) -> None:
     destino.mkdir(parents=True, exist_ok=True)
     arquivos = sorted(p for p in origem.iterdir()
                       if p.is_file() and p.suffix.lower() in EXTENSOES
                       and not p.name.startswith("~$")
                       and not p.name.startswith(("Analise_Desconto", "Projeto_OL_DDC"))
-                      and "depara" not in norm(p.stem))
+                      and "depara" not in norm(p.stem)
+                      and arquivo_selecionado(p))
     if not arquivos:
         print(f"Nenhum Excel/CSV encontrado em {origem}")
         return
@@ -1096,13 +1345,18 @@ def converter(origem: Path, destino: Path, refazer: bool) -> None:
             print(f"  [JÁ EXISTE] {saida.name}")
             continue
         t0 = time.time()
+        print(f"  Convertendo {arq.name} ...", flush=True)
         try:
-            df = preparar_para_parquet(ler_relatorio(arq))
-            df.to_parquet(saida, index=False)
-            print(f"  [OK] {arq.name} -> {saida.name}: {len(df):,} linhas "
-                  f"({time.time() - t0:.0f}s)")
+            if arq.suffix.lower() in (".xlsx", ".xlsm"):
+                n = converter_xlsx_streaming(arq, saida)
+            else:
+                df = preparar_para_parquet(ler_relatorio(arq))
+                df.to_parquet(saida, index=False)
+                n = len(df)
+                del df
+            print(f"  [OK] {arq.name} -> {saida.name}: {n:,} linhas ({time.time() - t0:.0f}s)")
         except Exception as e:  # noqa: BLE001
-            print(f"  [ERRO] {arq.name}: {e}")
+            print(f"  [ERRO] {arq.name}: {type(e).__name__}: {e}")
 
 
 def main() -> None:
