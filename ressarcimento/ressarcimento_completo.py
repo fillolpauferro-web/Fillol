@@ -33,6 +33,14 @@ except ImportError as _e:
 PCT_LIQUIDO = 1.8
 PASTA_PADRAO = r"C:\Users\I0507867.FARMA\OneDrive - Sanofi\Desktop\Ressarcimento\Parquet"
 DISTRIBUIDORES = {"SANTA CRUZ": "SANTA CRUZ", "PANPHARMA": "PANPHARMA"}
+# False = todos os distribuidores/clientes; True = só Santa Cruz e Panpharma
+APENAS_SC_PANPHARMA = False
+# Período do quadro "Projeto" (Mês de emissão da NF, formato AAAA-MM)
+MES_INICIO = "2026-05"
+MES_FIM = "2026-08"
+# Arquivo DE PARA Cluster (na pasta Ressarcimento). None = procura pelo nome
+ARQUIVO_DE_PARA = None
+COLUNA_DE_PARA = "L"   # coluna com o De-Para (cluster) no arquivo DE PARA
 
 
 # --------------------------------------------------------------------------
@@ -91,7 +99,7 @@ NUMERICAS = [
 ]
 OBRIGATORIAS = ["distribuidor", "fat_bruto_pf", "fat_liq_nf"]
 MARGEM_OL_PADRAO = 6.0
-VERBOSO = False  # True mostra qual coluna do arquivo foi usada para cada campo  # usado se o arquivo não tiver "% Margem OL"
+VERBOSO = False  # True mostra qual coluna do arquivo foi usada para cada campo
 
 # Outros nomes aceitos (já normalizados: minúsculo, sem acento/espaço)
 SINONIMOS = {
@@ -280,7 +288,17 @@ def ler_parquets(pasta: Path) -> pd.DataFrame:
     partes = []
     for arq in arquivos:
         try:
-            bruto = ajustar_cabecalho(pd.read_parquet(arq))
+            bruto = None
+            try:  # lê só as colunas usadas (bem mais rápido/leve)
+                import pyarrow.parquet as pq
+                nomes = pq.read_schema(arq).names
+                mapa0 = mapear_colunas(pd.DataFrame(columns=nomes))
+                if all(c in mapa0 for c in OBRIGATORIAS):
+                    bruto = pd.read_parquet(arq, columns=list(dict.fromkeys(mapa0.values())))
+            except Exception:  # noqa: BLE001
+                bruto = None
+            if bruto is None:
+                bruto = ajustar_cabecalho(pd.read_parquet(arq))
         except Exception as e:  # noqa: BLE001
             print(f"  [ERRO] {arq.name}: {e}")
             continue
@@ -291,7 +309,7 @@ def ler_parquets(pasta: Path) -> pd.DataFrame:
                 mapa["distribuidor"] = col
                 print(f"  [AVISO] {arq.name}: Distribuidor lido da coluna '{col}'")
         if "distribuidor" not in mapa:
-            print(f"  [PULADO] {arq.name}: nenhuma coluna com SANTA CRUZ/PANPHARMA.")
+            print(f"  [PULADO] {arq.name}: coluna Distribuidor não encontrada.")
             print(f"           Colunas do arquivo: {list(bruto.columns)}")
             continue
         if VERBOSO:
@@ -299,9 +317,14 @@ def ler_parquets(pasta: Path) -> pd.DataFrame:
 
         df = pd.DataFrame({interno: bruto[real] for interno, real in mapa.items()})
         df["grupo_distribuidor"] = df["distribuidor"].map(classificar_distribuidor)
-        df = df[df["grupo_distribuidor"].notna()].copy()
+        if APENAS_SC_PANPHARMA:
+            df = df[df["grupo_distribuidor"].notna()].copy()
+        else:
+            outros = df["distribuidor"].astype(str).str.strip().str.upper()
+            df["grupo_distribuidor"] = df["grupo_distribuidor"].fillna(outros)
+            df = df[~df["grupo_distribuidor"].isin(["", "NAN", "NONE"])].copy()
         if df.empty:
-            print(f"  [OK] {arq.name}: 0 linhas de Santa Cruz/Panpharma")
+            print(f"  [OK] {arq.name}: 0 linhas")
             continue
 
         for c in NUMERICAS:
@@ -315,10 +338,10 @@ def ler_parquets(pasta: Path) -> pd.DataFrame:
             print(f"           Colunas do arquivo: {list(bruto.columns)}")
         df["arquivo"] = arq.name
         partes.append(df)
-        print(f"  [OK] {arq.name}: {len(df):,} linhas de Santa Cruz/Panpharma")
+        print(f"  [OK] {arq.name}: {len(df):,} linhas")
 
     if not partes:
-        sys.exit("Nenhuma linha de SANTA CRUZ ou PANPHARMA encontrada.")
+        sys.exit("Nenhuma linha encontrada nos parquets.")
     df = pd.concat(partes, ignore_index=True)
 
     # ---- Margem OL ----------------------------------------------------------
@@ -485,6 +508,7 @@ def imprimir_media_mensal(t: pd.DataFrame) -> None:
 def salvar_excel(abas: dict, caminho: Path) -> None:
     with pd.ExcelWriter(caminho, engine="openpyxl") as xw:
         for nome, tabela in abas.items():
+            tabela = tabela.head(1_048_000)  # limite de linhas do Excel
             tabela.to_excel(xw, sheet_name=nome[:31], index=False)
             ws = xw.sheets[nome[:31]]
             ws.freeze_panes = "A2"
@@ -502,7 +526,7 @@ def salvar_excel(abas: dict, caminho: Path) -> None:
 
 def imprimir_resumo(tot: pd.DataFrame) -> None:
     print("\n" + "=" * 78)
-    print("DESCONTO LÍQUIDO REPASSADO - SANTA CRUZ x PANPHARMA")
+    print("DESCONTO LÍQUIDO REPASSADO POR DISTRIBUIDOR")
     print("=" * 78)
     for _, r in tot.iterrows():
         print(f"\n>> {r['Distribuidor']}")
@@ -529,12 +553,234 @@ def imprimir_resumo(tot: pd.DataFrame) -> None:
     print("\n" + "=" * 78)
 
 
+# --------------------------------------------------------------------------
+# DE PARA Cluster (EAN -> De-Para)
+# --------------------------------------------------------------------------
+def norm_ean(v) -> str:
+    """'7896420000000.0', '7,89642E+12', ' 07896420000000' -> '7896420000000'."""
+    if v is None or (isinstance(v, float) and pd.isna(v)):
+        return ""
+    if isinstance(v, (int, float)):
+        return str(int(v))
+    t = str(v).strip().strip('"').replace(" ", "")
+    if re.fullmatch(r"[\d.,]+[eE][+-]?\d+", t):
+        try:
+            return str(int(float(t.replace(",", "."))))
+        except ValueError:
+            pass
+    t = re.sub(r"\.0+$", "", t)
+    return re.sub(r"\D", "", t).lstrip("0")
+
+
+def achar_arquivo_de_para(origem: Path) -> Path | None:
+    if ARQUIVO_DE_PARA:
+        return Path(ARQUIVO_DE_PARA)
+    for p in sorted(origem.iterdir()):
+        if p.is_file() and not p.name.startswith("~$") and p.suffix.lower() in EXTENSOES \
+                and "depara" in norm(p.stem):
+            return p
+    return None
+
+
+def _letra_para_indice(letra: str) -> int:
+    n = 0
+    for ch in letra.upper():
+        n = n * 26 + (ord(ch) - 64)
+    return n - 1
+
+
+def ler_de_para(arq: Path) -> pd.DataFrame:
+    """Retorna DataFrame [ean, de_para] (EAN único)."""
+    if arq.suffix.lower() == ".csv":
+        bruto = pd.read_csv(arq, sep=None, engine="python", header=None, dtype=str,
+                            encoding="latin-1")
+    else:
+        bruto = pd.read_excel(arq, header=None, dtype=str, engine=_motor_excel(arq))
+    # linha de cabeçalho = primeira que tem uma célula com "EAN"
+    h = 0
+    for i in range(min(30, len(bruto))):
+        if any("ean" in norm(v) for v in bruto.iloc[i].tolist()):
+            h = i
+            break
+    cab = [norm(v) for v in bruto.iloc[h].tolist()]
+    dados = bruto.iloc[h + 1:]
+
+    i_dp = next((i for i, c in enumerate(cab) if c == "depara"), None)
+    if i_dp is None:
+        i_dp = _letra_para_indice(COLUNA_DE_PARA)
+    i_ean = next((i for i, c in enumerate(cab) if c in ("ean", "eandoproduto", "codigoean",
+                                                        "codean", "eanproduto")), None)
+    if i_ean is None:
+        i_ean = next((i for i, c in enumerate(cab) if "ean" in c), None)
+    if i_ean is None:  # coluna com mais valores de 13 dígitos começando com 789
+        conta = [dados.iloc[:, i].map(norm_ean).str.match(r"^\d{12,14}$").sum()
+                 for i in range(dados.shape[1])]
+        i_ean = max(range(len(conta)), key=conta.__getitem__)
+
+    dp = pd.DataFrame({"ean": dados.iloc[:, i_ean].map(norm_ean),
+                       "de_para": dados.iloc[:, i_dp].astype(str).str.strip()})
+    dp = dp[(dp["ean"] != "") & ~dp["de_para"].isin(["", "nan", "None"])]
+    print(f"DE PARA: {arq.name} | EAN = coluna {i_ean + 1}, De-Para = coluna {i_dp + 1} "
+          f"| {dp['ean'].nunique():,} EANs")
+    return dp.drop_duplicates("ean")
+
+
+def aplicar_de_para(df: pd.DataFrame, dp: pd.DataFrame | None) -> pd.DataFrame:
+    df["ean_norm"] = df["ean"].map(norm_ean) if "ean" in df else ""
+    if dp is None:
+        df["de_para"] = "SEM DE PARA"
+        return df
+    df = df.merge(dp.rename(columns={"ean": "ean_norm"}), on="ean_norm", how="left")
+    df["de_para"] = df["de_para"].fillna("SEM DE PARA")
+    return df
+
+
+# --------------------------------------------------------------------------
+# Quadro "Projeto" (formato da tabela dinâmica)
+# --------------------------------------------------------------------------
+MESES_PT = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"]
+MESES_EXT = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto",
+             "Setembro", "Outubro", "Novembro", "Dezembro"]
+
+
+def rotulo_mes(m: str, extenso=False) -> str:
+    a, mm = m.split("-")
+    return MESES_EXT[int(mm) - 1] if extenso else f"{MESES_PT[int(mm) - 1]}.{a[2:]}"
+
+
+def quadro_projeto(df: pd.DataFrame, divisor: float = 1.0) -> pd.DataFrame:
+    """Distribuidor x De-Para com OL Líquido, %OL, Faturado Líquido PF e DDC."""
+    g = (df.groupby(["grupo_distribuidor", "de_para"])[["margem_ol_rs", "fat_bruto_pf", "fat_liq_pf"]]
+         .sum() / divisor).reset_index()
+    linhas = []
+
+    def linha(dist, dp, r, tipo):
+        return {"Distribuidor": dist, "DE PARA": dp, "tipo": tipo,
+                ".OL Líquido": r["margem_ol_rs"],
+                ".OL Liq Novo": r["margem_ol_rs"] / r["fat_bruto_pf"] if r["fat_bruto_pf"] else 0,
+                ".OL Sob Liq": r["margem_ol_rs"] / r["fat_liq_pf"] if r["fat_liq_pf"] else 0,
+                ".Faturado Líquido (PF)": r["fat_liq_pf"],
+                ddc_col(): r["fat_liq_pf"] * PCT_LIQUIDO / 100}
+
+    ordem = g.groupby("grupo_distribuidor")["fat_liq_pf"].sum().sort_values(ascending=False).index
+    for dist in ordem:
+        gd = g[g["grupo_distribuidor"] == dist].sort_values("de_para")
+        for i, (_, r) in enumerate(gd.iterrows()):
+            linhas.append(linha(dist if i == 0 else "", r["de_para"], r, "item"))
+        linhas.append(linha(f"{dist} Total", "", gd.sum(numeric_only=True), "total"))
+    linhas.append(linha("Total Geral", "", g.sum(numeric_only=True), "geral"))
+    return pd.DataFrame(linhas)
+
+
+def ddc_col() -> str:
+    return f".DDC {PCT_LIQUIDO:g}%"
+
+
+def escrever_quadro(ws, q: pd.DataFrame, titulo: str, rodape_esq: str, meses_ano: int = 12):
+    from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
+    azul = PatternFill("solid", fgColor="BDD7EE")
+    fino = Side(style="thin", color="000000")
+    cols = ["Distribuidor", "DE PARA", ".OL Líquido", ".OL Liq Novo", ".OL Sob Liq",
+            ".Faturado Líquido (PF)", ddc_col()]
+    fmts = [None, None, "#,##0.00", "0%", "0%", "#,##0.00", "#,##0.00"]
+    ws["A1"] = titulo
+    for j, c in enumerate(cols, start=1):
+        cel = ws.cell(row=2, column=j, value=c)
+        cel.font, cel.fill = Font(bold=True), azul
+        cel.alignment = Alignment(horizontal="center")
+    lin = 3
+    for _, r in q.iterrows():
+        for j, c in enumerate(cols, start=1):
+            cel = ws.cell(row=lin, column=j, value=r[c])
+            if fmts[j - 1]:
+                cel.number_format = fmts[j - 1]
+            if j in (4, 5):
+                cel.alignment = Alignment(horizontal="center")
+            if r["tipo"] != "item":
+                cel.font = Font(bold=True)
+                cel.border = Border(top=fino)
+            if r["tipo"] == "geral":
+                cel.fill = azul
+            elif r["tipo"] == "item" and j == 1 and r[c]:
+                cel.font = Font(bold=True)
+        lin += 1
+    total_ddc = q.loc[q["tipo"] == "geral", ddc_col()].iloc[0]
+    vermelho = Font(bold=True, color="FF0000", size=12)
+    ws.cell(row=lin, column=1, value=rodape_esq).font = vermelho
+    ws.cell(row=lin, column=6, value="Anual Projetado:").font = vermelho
+    ws.cell(row=lin, column=6).alignment = Alignment(horizontal="right")
+    c = ws.cell(row=lin, column=7, value=total_ddc * meses_ano)
+    c.font, c.number_format = vermelho, "#,##0.00"
+    for letra, w in zip("ABCDEFG", (34, 16, 18, 14, 13, 24, 16)):
+        ws.column_dimensions[letra].width = w
+    ws.freeze_panes = "A3"
+
+
+def gerar_projeto(df: pd.DataFrame, origem: Path, saida: Path) -> None:
+    arq_dp = achar_arquivo_de_para(origem)
+    if arq_dp is None:
+        print("[AVISO] Arquivo DE PARA Cluster não encontrado na pasta; tudo ficará 'SEM DE PARA'.")
+        dp = None
+    else:
+        dp = ler_de_para(arq_dp)
+    df = aplicar_de_para(df, dp)
+
+    per = df[(df["mes"] >= MES_INICIO) & (df["mes"] <= MES_FIM)].copy()
+    meses = sorted(per["mes"].dropna().unique())
+    if per.empty:
+        print(f"[AVISO] Nenhuma linha entre {MES_INICIO} e {MES_FIM}. "
+              f"Meses disponíveis: {sorted(df['mes'].dropna().unique())}")
+        return
+
+    sem = per[per["de_para"] == "SEM DE PARA"]
+    pct_sem = sem["fat_liq_pf"].sum() / per["fat_liq_pf"].sum() if per["fat_liq_pf"].sum() else 0
+    print(f"\nDE PARA: {per['ean_norm'].nunique() - sem['ean_norm'].nunique():,} EANs com cluster, "
+          f"{sem['ean_norm'].nunique():,} sem cluster ({pct_sem:.2%} do Faturado Líquido PF)")
+
+    from openpyxl import Workbook
+    wb = Workbook()
+    wb.remove(wb.active)
+    for m in meses:
+        q = quadro_projeto(per[per["mes"] == m])
+        escrever_quadro(wb.create_sheet(f"Projeto {rotulo_mes(m)}"), q, "Projeto",
+                        f"{rotulo_mes(m, True)} mês Referência")
+        tg = q[q["tipo"] == "geral"].iloc[0]
+        print(f"  {rotulo_mes(m)}: Fat. Líquido PF R$ {tg['.Faturado Líquido (PF)']:,.2f} | "
+              f"{ddc_col()} R$ {tg[ddc_col()]:,.2f} | Anual proj. R$ {tg[ddc_col()] * 12:,.2f}")
+    n = len(meses)
+    periodo = f"{rotulo_mes(meses[0])} a {rotulo_mes(meses[-1])}"
+    q = quadro_projeto(per, divisor=n)
+    escrever_quadro(wb.create_sheet("Projeto Média"), q, f"Projeto - média mensal {periodo}",
+                    f"Média mensal {periodo} ({n} meses)")
+    tg = q[q["tipo"] == "geral"].iloc[0]
+    print(f"  MÉDIA ({n} meses): {ddc_col()} R$ {tg[ddc_col()]:,.2f}/mês | "
+          f"Anual proj. R$ {tg[ddc_col()] * 12:,.2f}")
+    q = quadro_projeto(per)
+    escrever_quadro(wb.create_sheet("Projeto Acumulado"), q, f"Projeto - acumulado {periodo}",
+                    f"Acumulado {periodo}", meses_ano=12 / n)
+
+    # base por EAN para conferência do De-Para
+    if "produto" not in per:
+        per["produto"] = ""
+    base = (per.groupby(["ean_norm", "produto", "de_para"], dropna=False)
+            [["fat_liq_pf", "margem_ol_rs"]].sum().reset_index()
+            .sort_values("fat_liq_pf", ascending=False))
+    ws = wb.create_sheet("EAN x De-Para")
+    ws.append(["EAN", "Produto", "De-Para", "Faturado Líquido PF", "OL Líquido"])
+    for r in base.itertuples(index=False):
+        ws.append(list(r))
+    ws.column_dimensions["A"].width, ws.column_dimensions["B"].width = 16, 45
+    wb.save(saida)
+    print(f"Excel do Projeto gerado: {saida}")
+
+
 def analisar() -> None:
     global PCT_LIQUIDO
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--pasta", default=PASTA_PADRAO, help="pasta com os .parquet")
     ap.add_argument("--saida", default=None, help="arquivo Excel de saída")
+    ap.add_argument("--origem", default=None, help="pasta Ressarcimento (onde está o DE PARA)")
     ap.add_argument("--pct", type=float, default=PCT_LIQUIDO,
                     help="%% sobre o líquido para o cálculo mensal (padrão 1.8)")
     args, _ = ap.parse_known_args()
@@ -546,6 +792,10 @@ def analisar() -> None:
     print(f"Lendo parquets em: {pasta}")
     df = ler_parquets(pasta)
     print(f"\nTotal de linhas analisadas: {len(df):,}")
+
+    origem = Path(args.origem) if args.origem else pasta.parent
+    print("\n" + "=" * 78 + f"\nPROJETO {MES_INICIO} a {MES_FIM} (todos os distribuidores)\n" + "=" * 78)
+    gerar_projeto(df, origem, origem / f"Projeto_OL_DDC_{MES_INICIO}_a_{MES_FIM}.xlsx")
 
     tot = total_geral(df)
     imprimir_resumo(tot)
@@ -639,7 +889,8 @@ def converter(origem: Path, destino: Path, refazer: bool) -> None:
     arquivos = sorted(p for p in origem.iterdir()
                       if p.is_file() and p.suffix.lower() in EXTENSOES
                       and not p.name.startswith("~$")
-                      and not p.name.startswith("Analise_Desconto"))
+                      and not p.name.startswith(("Analise_Desconto", "Projeto_OL_DDC"))
+                      and "depara" not in norm(p.stem))
     if not arquivos:
         print(f"Nenhum Excel/CSV encontrado em {origem}")
         return
@@ -675,8 +926,8 @@ def main() -> None:
         return
 
     print("\n" + "#" * 78 + "\nANÁLISE\n" + "#" * 78)
-    sys.argv = [sys.argv[0], "--pasta", str(destino),
-                "--saida", str(origem / "Analise_Desconto_SantaCruz_Panpharma.xlsx")] + extras
+    sys.argv = [sys.argv[0], "--pasta", str(destino), "--origem", str(origem),
+                "--saida", str(origem / "Analise_Desconto.xlsx")] + extras
     analisar()
     print("\nConcluído.")
 
