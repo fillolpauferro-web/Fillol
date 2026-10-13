@@ -41,6 +41,15 @@ MES_FIM = "2026-08"
 # Arquivo DE PARA Cluster (na pasta Ressarcimento). None = procura pelo nome
 ARQUIVO_DE_PARA = None
 COLUNA_DE_PARA = "L"   # coluna com o De-Para (cluster) no arquivo DE PARA
+# Rep. OL por cluster (PROCX do novo cluster). OL Líquido = Faturado Líquido (PF) x Rep. OL
+REP_OL = {
+    "EXCLUSIVOS": 0.12,
+    "F. POPULAR": 0.12,
+    "OUTROS": 0.15,
+    "TOP SKUS": 0.17,
+}
+REP_OL_SEM_CLUSTER = 0.0   # % para EAN sem De-Para / cluster fora da lista acima
+PCT_OL_BRUTO = 0.06        # 6%OL = Preço Fábrica[A] x Quantidade Faturada[B] x 6%
 
 
 # --------------------------------------------------------------------------
@@ -635,6 +644,18 @@ def aplicar_de_para(df: pd.DataFrame, dp: pd.DataFrame | None) -> pd.DataFrame:
     return df
 
 
+def calcular_campos_projeto(df: pd.DataFrame) -> pd.DataFrame:
+    """6%OL, Rep. OL (PROCX do cluster) e OL Líquido."""
+    tabela = {norm(k): v for k, v in REP_OL.items()}
+    df["ol_6"] = df["pf"] * df["qtd_faturada"] * PCT_OL_BRUTO
+    df["rep_ol"] = df["de_para"].map(lambda c: tabela.get(norm(c), REP_OL_SEM_CLUSTER))
+    df["ol_liquido"] = df["fat_liq_pf"] * df["rep_ol"]
+    fora = sorted(set(df.loc[~df["de_para"].map(lambda c: norm(c) in tabela), "de_para"]))
+    if fora:
+        print(f"[AVISO] Clusters sem Rep. OL na tabela (usando {REP_OL_SEM_CLUSTER:.0%}): {fora}")
+    return df
+
+
 # --------------------------------------------------------------------------
 # Quadro "Projeto" (formato da tabela dinâmica)
 # --------------------------------------------------------------------------
@@ -650,15 +671,15 @@ def rotulo_mes(m: str, extenso=False) -> str:
 
 def quadro_projeto(df: pd.DataFrame, divisor: float = 1.0) -> pd.DataFrame:
     """Distribuidor x De-Para com OL Líquido, %OL, Faturado Líquido PF e DDC."""
-    g = (df.groupby(["grupo_distribuidor", "de_para"])[["margem_ol_rs", "fat_bruto_pf", "fat_liq_pf"]]
+    g = (df.groupby(["grupo_distribuidor", "de_para"])[["ol_liquido", "fat_bruto_pf", "fat_liq_pf"]]
          .sum() / divisor).reset_index()
     linhas = []
 
     def linha(dist, dp, r, tipo):
         return {"Distribuidor": dist, "DE PARA": dp, "tipo": tipo,
-                ".OL Líquido": r["margem_ol_rs"],
-                ".OL Liq Novo": r["margem_ol_rs"] / r["fat_bruto_pf"] if r["fat_bruto_pf"] else 0,
-                ".OL Sob Liq": r["margem_ol_rs"] / r["fat_liq_pf"] if r["fat_liq_pf"] else 0,
+                ".OL Líquido": r["ol_liquido"],
+                ".OL Liq Novo": r["ol_liquido"] / r["fat_bruto_pf"] if r["fat_bruto_pf"] else 0,
+                ".OL Sob Liq": r["ol_liquido"] / r["fat_liq_pf"] if r["fat_liq_pf"] else 0,
                 ".Faturado Líquido (PF)": r["fat_liq_pf"],
                 ddc_col(): r["fat_liq_pf"] * PCT_LIQUIDO / 100}
 
@@ -723,7 +744,7 @@ def gerar_projeto(df: pd.DataFrame, origem: Path, saida: Path) -> None:
         dp = None
     else:
         dp = ler_de_para(arq_dp)
-    df = aplicar_de_para(df, dp)
+    df = calcular_campos_projeto(aplicar_de_para(df, dp))
 
     per = df[(df["mes"] >= MES_INICIO) & (df["mes"] <= MES_FIM)].copy()
     meses = sorted(per["mes"].dropna().unique())
@@ -762,11 +783,12 @@ def gerar_projeto(df: pd.DataFrame, origem: Path, saida: Path) -> None:
     # base por EAN para conferência do De-Para
     if "produto" not in per:
         per["produto"] = ""
-    base = (per.groupby(["ean_norm", "produto", "de_para"], dropna=False)
-            [["fat_liq_pf", "margem_ol_rs"]].sum().reset_index()
+    base = (per.groupby(["ean_norm", "produto", "de_para", "rep_ol"], dropna=False)
+            [["fat_bruto_pf", "fat_liq_pf", "ol_6", "ol_liquido"]].sum().reset_index()
             .sort_values("fat_liq_pf", ascending=False))
     ws = wb.create_sheet("EAN x De-Para")
-    ws.append(["EAN", "Produto", "De-Para", "Faturado Líquido PF", "OL Líquido"])
+    ws.append(["EAN", "Produto", "De-Para", "Rep. OL", "Faturado Bruto (PF)[C]",
+               "Faturado Líquido (PF)", "6%OL", "OL Líquido"])
     for r in base.itertuples(index=False):
         ws.append(list(r))
     ws.column_dimensions["A"].width, ws.column_dimensions["B"].width = 16, 45
