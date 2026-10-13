@@ -24,6 +24,15 @@ Indicadores (todos ponderados por valor, nunca média simples de %):
     % Desc. NF             = Desconto NF / Faturado Bruto NF
     % Desc. Portal         = Desconto Portal / Faturado Bruto PF
     % Ressarc. s/ PF       = Ressarcimento / Faturado Bruto PF
+
+    Margem OL (6% calculada sobre o Faturado Bruto PF):
+    OL s/ Bruto R$         = coluna "Margem OL" (= % Margem OL x Faturado Bruto PF)
+    % OL s/ Líquido NF     = OL s/ Bruto R$ / Faturado Líquido NF
+                             -> quanto os 6% do bruto representam sobre o líquido
+    OL Realizada R$        = Faturado Líquido NF + Ressarcimento
+                             - Faturado Bruto PF x (1 - % Desconto entrada)
+                             -> o que o distribuidor efetivamente ficou
+    OL Repassada R$        = OL s/ Bruto - OL Realizada (sobra que virou desconto)
 """
 
 import argparse
@@ -78,6 +87,7 @@ COLUNAS = {
     "fat_liq_nf": ("Faturado Líquido", 0),
     "desc_entrada_pct": ("% Desconto entrada", 0),
     "margem_ol_pct": ("% Margem OL", 0),
+    "margem_ol_rs": ("Margem OL", 1),   # R$ (a 1ª "margemol" é "% Margem OL")
     "ressarcimento": ("Ressarcimento", 0),
     "valor_repasse": ("Valor Repasse", 0),
     "desc_adicional": ("Valor Desconto Adicional", 0),
@@ -88,7 +98,7 @@ COLUNAS = {
 NUMERICAS = [
     "pf", "qtd_faturada", "fat_bruto_pf", "desc_pedido_pct", "desc_portal",
     "fat_liq_pf", "fat_bruto_nf", "desc_com_nf_pct", "desc_fin_nf_pct", "desc_nf",
-    "fat_liq_nf", "desc_entrada_pct", "margem_ol_pct", "ressarcimento",
+    "fat_liq_nf", "desc_entrada_pct", "margem_ol_pct", "margem_ol_rs", "ressarcimento",
     "valor_repasse", "desc_adicional", "valor_icms", "valor_st", "devolucao",
 ]
 OBRIGATORIAS = ["distribuidor", "fat_bruto_pf", "fat_liq_nf"]
@@ -116,7 +126,7 @@ def mapear_colunas(df: pd.DataFrame) -> dict:
         cands = ocorrencias.get(norm(nome), [])
         if len(cands) > idx:
             mapa[interno] = cands[idx]
-        elif cands:
+        elif interno == "produto" and cands:
             mapa[interno] = cands[-1]
     return mapa
 
@@ -196,6 +206,16 @@ def ler_parquets(pasta: Path) -> pd.DataFrame:
         sys.exit("Nenhuma linha de SANTA CRUZ ou PANPHARMA encontrada.")
     df = pd.concat(partes, ignore_index=True)
 
+    # ---- Margem OL ----------------------------------------------------------
+    # Ressarcimento = (Menor Desc. - Desc. Entrada + %OL) x PF x Qtd, ou seja,
+    # a OL (6%) é calculada sobre o Faturado Bruto PF.
+    ol_calc = df["fat_bruto_pf"] * df["margem_ol_pct"] / 100
+    df["margem_ol_rs"] = df["margem_ol_rs"].where(df["margem_ol_rs"] != 0, ol_calc)
+    # Quanto o distribuidor realmente ficou: vendeu (líquido NF) + recebeu
+    # ressarcimento - custo de compra (PF com desconto de entrada).
+    df["custo_distrib"] = df["fat_bruto_pf"] * (1 - df["desc_entrada_pct"] / 100)
+    df["ol_realizada"] = df["fat_liq_nf"] + df["ressarcimento"] - df["custo_distrib"]
+
     if "data_nf" in df:
         datas = pd.to_datetime(df["data_nf"], errors="coerce", format="mixed", dayfirst=False)
         br = df["data_nf"].astype(str).str.match(r"^\d{2}/\d{2}/\d{4}")
@@ -215,6 +235,7 @@ def ler_parquets(pasta: Path) -> pd.DataFrame:
 SOMAS = [
     "qtd_faturada", "fat_bruto_pf", "desc_portal", "fat_liq_pf", "fat_bruto_nf",
     "desc_nf", "fat_liq_nf", "ressarcimento", "valor_repasse", "desc_adicional",
+    "margem_ol_rs", "custo_distrib", "ol_realizada",
 ]
 
 
@@ -236,6 +257,14 @@ def resumir(df: pd.DataFrame, por: list[str]) -> pd.DataFrame:
     # Parte do desconto ao cliente que é bancada pelo ressarcimento
     r["pct_desc_coberto_ressarc"] = _div(r["ressarcimento"], r["desc_liquido_pf"])
 
+    # OL: os 6% calculados no bruto, quanto representam no líquido
+    r["pct_ol_bruto"] = _div(r["margem_ol_rs"], r["fat_bruto_pf"])
+    r["pct_ol_liquido"] = _div(r["margem_ol_rs"], r["fat_liq_nf"])
+    r["pct_ol_real_bruto"] = _div(r["ol_realizada"], r["fat_bruto_pf"])
+    r["pct_ol_real_liquido"] = _div(r["ol_realizada"], r["fat_liq_nf"])
+    r["ol_cedida"] = r["margem_ol_rs"] - r["ol_realizada"]
+    r["pct_ol_retida"] = _div(r["ol_realizada"], r["margem_ol_rs"])
+
     nomes = {
         "linhas": "Linhas",
         "qtd_faturada": "Qtde Faturada",
@@ -254,6 +283,15 @@ def resumir(df: pd.DataFrame, por: list[str]) -> pd.DataFrame:
         "pct_desc_portal": "% Desc. Portal",
         "pct_ressarcimento_pf": "% Ressarc. s/ PF",
         "pct_desc_coberto_ressarc": "% Desc. coberto p/ Ressarc.",
+        "margem_ol_rs": "OL s/ Bruto (R$)",
+        "custo_distrib": "Custo Distribuidor (R$)",
+        "ol_realizada": "OL Realizada (R$)",
+        "ol_cedida": "OL Repassada ao Cliente (R$)",
+        "pct_ol_bruto": "% OL s/ Bruto PF",
+        "pct_ol_liquido": "% OL s/ Líquido NF",
+        "pct_ol_real_bruto": "% OL Realizada s/ Bruto PF",
+        "pct_ol_real_liquido": "% OL Realizada s/ Líquido NF",
+        "pct_ol_retida": "% da OL Retida",
         "grupo_distribuidor": "Distribuidor",
         "distribuidor": "Distribuidor (original)",
         "filial": "Filial", "mes": "Mês", "produto": "Produto",
@@ -307,6 +345,16 @@ def imprimir_resumo(tot: pd.DataFrame) -> None:
               f"   ({r['% Desc. Portal']:.2%})")
         print(f"   Ressarcimento ............ R$ {r['Ressarcimento (R$)']:>18,.2f}"
               f"   ({r['% Ressarc. s/ PF']:.2%} s/ PF)")
+        print("   --- Margem OL ---")
+        print(f"   OL s/ Bruto PF ........... R$ {r['OL s/ Bruto (R$)']:>18,.2f}"
+              f"   ({r['% OL s/ Bruto PF']:.2%} do bruto)")
+        print(f"   -> no Líquido NF equivale a ............................"
+              f"   {r['% OL s/ Líquido NF']:.2%} do líquido")
+        print(f"   OL Realizada ............. R$ {r['OL Realizada (R$)']:>18,.2f}"
+              f"   ({r['% OL Realizada s/ Bruto PF']:.2%} bruto | "
+              f"{r['% OL Realizada s/ Líquido NF']:.2%} líquido)")
+        print(f"   OL Repassada ao cliente .. R$ {r['OL Repassada ao Cliente (R$)']:>18,.2f}"
+              f"   ({r['% da OL Retida']:.2%} da OL ficou com o distribuidor)")
     print("\n" + "=" * 78)
 
 
