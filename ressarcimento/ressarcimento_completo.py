@@ -90,6 +90,19 @@ NUMERICAS = [
     "valor_repasse", "desc_adicional", "valor_icms", "valor_st", "devolucao",
 ]
 OBRIGATORIAS = ["distribuidor", "fat_bruto_pf", "fat_liq_nf"]
+MARGEM_OL_PADRAO = 6.0
+VERBOSO = False  # True mostra qual coluna do arquivo foi usada para cada campo  # usado se o arquivo não tiver "% Margem OL"
+
+# Outros nomes aceitos (já normalizados: minúsculo, sem acento/espaço)
+SINONIMOS = {
+    "distribuidor": {"distribuidora", "nomedistribuidor", "razaosocialdistribuidor", "ol", "operadorlogistico"},
+    "fat_bruto_pf": {"faturadobrutopf", "valorbrutopf", "brutopf", "faturamentobrutopf"},
+    "fat_liq_nf": {"faturadoliquidonf", "valorliquidonf", "liquidonf", "faturamentoliquido",
+                   "valorliquido", "faturadoliquidonotafiscal"},
+    "fat_bruto_nf": {"faturadobrutonf", "valorbrutonf", "brutonf", "valorbruto"},
+    "qtd_faturada": {"quantidadefaturada", "qtdefaturada", "qtdfaturada"},
+    "pf": {"precofabrica", "pf"},
+}
 
 
 def _base(col: str) -> str:
@@ -116,15 +129,115 @@ def mapear_colunas(df: pd.DataFrame) -> dict:
             mapa[interno] = cands[idx]
         elif interno == "produto" and cands:
             mapa[interno] = cands[-1]
+
+    # Não achou pelo nome exato: aceita nomes "parecidos", ex.
+    # "('Portal Fidelize', 'Faturado Bruto (PF)[C]')", "DISTRIBUIDOR_NOME",
+    # "Faturado Bruto PF", "Faturado Liquido NF"...
+    usados = set(mapa.values())
+    for interno, (nome, _) in COLUNAS.items():
+        if interno in mapa or interno == "margem_ol_rs":
+            continue
+        alvo = norm(re.sub(r"\[.*?\]", "", nome))  # sem [A], [B]...
+        cands = []
+        for col in df.columns:
+            n = norm(re.sub(r"\[.*?\]", "", str(col)))
+            if col in usados or not alvo:
+                continue
+            if n.endswith(alvo) or n.startswith(alvo):
+                cands.append((abs(len(n) - len(alvo)), col))
+        # "CNPJ da Filial do Distribuidor" não é o Distribuidor
+        if interno == "distribuidor":  # tem que ter nomes de distribuidor dentro
+            cands = [c for c in cands if "cnpj" not in norm(c[1])
+                     and df[c[1]].head(20000).astype(str).map(classificar_distribuidor).notna().any()]
+        if cands:
+            mapa[interno] = min(cands)[1]
+            usados.add(mapa[interno])
+    for interno, alts in SINONIMOS.items():
+        if interno in mapa:
+            continue
+        for col in df.columns:
+            if col not in usados and norm(col) in alts:
+                mapa[interno] = col
+                usados.add(col)
+                break
     return mapa
+
+
+def achar_distribuidor_pelo_conteudo(df: pd.DataFrame):
+    """Coluna de texto que mais contém SANTA CRUZ / PANPHARMA."""
+    melhor, maior = None, 0
+    amostra = df.head(20000)
+    for col in amostra.columns:
+        if "cnpj" in norm(col):
+            continue
+        try:
+            v = amostra[col].dropna().astype(str)
+        except Exception:  # noqa: BLE001
+            continue
+        if v.empty or pd.api.types.is_numeric_dtype(amostra[col]):
+            continue
+        qtd = v.map(classificar_distribuidor).notna().sum()
+        bonus = 1.5 if "distrib" in norm(col) else 1.0
+        if qtd * bonus > maior:
+            melhor, maior = col, qtd * bonus
+    return melhor
+
+
+def completar_colunas(df: pd.DataFrame) -> list[str]:
+    """Cria as colunas que faltam a partir das que existem. Retorna o que foi criado."""
+    criadas = []
+    tem = lambda c: c in df.columns and df[c].abs().sum() > 0  # noqa: E731
+
+    def criar(col, valor, como):
+        df[col] = valor
+        criadas.append(f"{col} = {como}")
+
+    if not tem("fat_bruto_pf"):
+        if tem("pf") and tem("qtd_faturada"):
+            criar("fat_bruto_pf", df["pf"] * df["qtd_faturada"], "PF x Qtde faturada")
+        elif tem("fat_liq_pf") and tem("desc_portal"):
+            criar("fat_bruto_pf", df["fat_liq_pf"] + df["desc_portal"], "Líquido PF + Desconto portal")
+        elif tem("fat_bruto_nf"):
+            criar("fat_bruto_pf", df["fat_bruto_nf"], "Faturado Bruto NF")
+    if not tem("desc_portal") and tem("fat_bruto_pf") and tem("desc_pedido_pct"):
+        criar("desc_portal", df["fat_bruto_pf"] * df["desc_pedido_pct"] / 100,
+              "Bruto PF x Desconto pedido")
+    if not tem("fat_liq_pf") and tem("fat_bruto_pf"):
+        criar("fat_liq_pf", df["fat_bruto_pf"] - df.get("desc_portal", 0), "Bruto PF - Desconto portal")
+    if not tem("fat_bruto_nf") and tem("fat_liq_nf") and tem("desc_nf"):
+        criar("fat_bruto_nf", df["fat_liq_nf"] + df["desc_nf"], "Líquido NF + Desconto NF")
+    if not tem("fat_liq_nf"):
+        if tem("fat_bruto_nf") and tem("desc_nf"):
+            criar("fat_liq_nf", df["fat_bruto_nf"] - df["desc_nf"], "Bruto NF - Desconto NF")
+        elif tem("fat_liq_pf"):
+            criar("fat_liq_nf", df["fat_liq_pf"], "Faturado Líquido PF")
+    if not tem("fat_bruto_nf"):
+        criar("fat_bruto_nf", df["fat_bruto_pf"], "Faturado Bruto PF")
+    if not tem("desc_nf"):
+        criar("desc_nf", df["fat_bruto_nf"] - df["fat_liq_nf"], "Bruto NF - Líquido NF")
+    if not tem("margem_ol_pct"):
+        criar("margem_ol_pct", MARGEM_OL_PADRAO, f"{MARGEM_OL_PADRAO}% (padrão)")
+    return criadas
 
 
 def ajustar_cabecalho(df: pd.DataFrame) -> pd.DataFrame:
     """Se o parquet foi gerado com as linhas de título do Excel, acha a linha
     que contém 'Distribuidor' e usa como cabeçalho."""
+    # colunas vindas de cabeçalho em 2 linhas: "('Portal Fidelize', 'Distribuidor')"
+    def _ultimo(c):
+        if isinstance(c, tuple):
+            partes = [str(x) for x in c]
+        else:
+            m = re.match(r"^\((.*)\)$", str(c).strip())
+            partes = re.findall(r"'([^']*)'", m.group(1)) if m else []
+        partes = [x for x in partes if x and not x.startswith("Unnamed")]
+        return partes[-1] if partes else c
+    if any(_ultimo(c) != c for c in df.columns):
+        df = df.copy()
+        df.columns = [_ultimo(c) for c in df.columns]
     if any(norm(c) == "distribuidor" for c in df.columns):
         return df
-    for i in range(min(10, len(df))):
+    for i in range(min(50, len(df))):
         if any(norm(v) == "distribuidor" for v in df.iloc[i].tolist()):
             novo = df.iloc[i + 1:].copy()
             nomes, vistos = [], {}
@@ -172,10 +285,17 @@ def ler_parquets(pasta: Path) -> pd.DataFrame:
             print(f"  [ERRO] {arq.name}: {e}")
             continue
         mapa = mapear_colunas(bruto)
-        faltando = [c for c in OBRIGATORIAS if c not in mapa]
-        if faltando:
-            print(f"  [PULADO] {arq.name}: colunas não encontradas {faltando}")
+        if "distribuidor" not in mapa:
+            col = achar_distribuidor_pelo_conteudo(bruto)
+            if col is not None:
+                mapa["distribuidor"] = col
+                print(f"  [AVISO] {arq.name}: Distribuidor lido da coluna '{col}'")
+        if "distribuidor" not in mapa:
+            print(f"  [PULADO] {arq.name}: nenhuma coluna com SANTA CRUZ/PANPHARMA.")
+            print(f"           Colunas do arquivo: {list(bruto.columns)}")
             continue
+        if VERBOSO:
+            print(f"  Mapeamento {arq.name}: {mapa}")
 
         df = pd.DataFrame({interno: bruto[real] for interno, real in mapa.items()})
         df["grupo_distribuidor"] = df["distribuidor"].map(classificar_distribuidor)
@@ -186,6 +306,13 @@ def ler_parquets(pasta: Path) -> pd.DataFrame:
 
         for c in NUMERICAS:
             df[c] = para_numero(df[c]) if c in df else 0.0
+        criadas = completar_colunas(df)
+        for c in criadas:
+            print(f"  [CRIADA] {arq.name}: {c}")
+        faltando = [c for c in OBRIGATORIAS[1:] if c not in df or df[c].abs().sum() == 0]
+        if faltando:
+            print(f"  [AVISO] {arq.name}: sem dados para {faltando} (ficarão zerados).")
+            print(f"           Colunas do arquivo: {list(bruto.columns)}")
         df["arquivo"] = arq.name
         partes.append(df)
         print(f"  [OK] {arq.name}: {len(df):,} linhas de Santa Cruz/Panpharma")
@@ -464,25 +591,31 @@ def _linha_cabecalho(previa: pd.DataFrame) -> int:
     for i in range(len(previa)):
         if any(norm(v) == "distribuidor" for v in previa.iloc[i].tolist()):
             return i
-    return 0
+    return -1
 
 
 def ler_relatorio(arq: Path) -> pd.DataFrame:
     if arq.suffix.lower() == ".csv":
         for sep, enc in ((";", "utf-8-sig"), (";", "latin-1"), (",", "utf-8-sig")):
             try:
-                previa = pd.read_csv(arq, sep=sep, encoding=enc, header=None, nrows=10, dtype=str)
+                previa = pd.read_csv(arq, sep=sep, encoding=enc, header=None, nrows=50, dtype=str)
                 if previa.shape[1] > 5:
                     break
             except Exception:  # noqa: BLE001
                 continue
-        h = _linha_cabecalho(previa)
-        df = pd.read_csv(arq, sep=sep, encoding=enc, skiprows=h, dtype=str, decimal=",")
+        h = max(_linha_cabecalho(previa), 0)
+        df = pd.read_csv(arq, sep=sep, encoding=enc, skiprows=h, dtype=str)
     else:
         motor = _motor_excel(arq)
-        previa = pd.read_excel(arq, header=None, nrows=10, engine=motor)
-        h = _linha_cabecalho(previa)
-        df = pd.read_excel(arq, header=h, engine=motor)
+        abas = pd.ExcelFile(arq, engine=motor).sheet_names
+        aba, h = abas[0], 0
+        for nome in abas:  # usa a aba que tiver o cabeçalho "Distribuidor"
+            previa = pd.read_excel(arq, sheet_name=nome, header=None, nrows=50, engine=motor)
+            linha = _linha_cabecalho(previa)
+            if linha >= 0:
+                aba, h = nome, linha
+                break
+        df = pd.read_excel(arq, sheet_name=aba, header=h, engine=motor)
 
     # remove rodapé "Fim do arquivo" e linhas vazias
     primeira = df.columns[0]
