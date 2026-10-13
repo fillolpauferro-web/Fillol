@@ -381,6 +381,91 @@ def _somar(lista: list, por: list[str]) -> pd.DataFrame:
     return pd.concat(lista).groupby(por, dropna=False).sum(numeric_only=True).reset_index()
 
 
+def _ultimo_nome(c):
+    """"('Portal Fidelize', 'Distribuidor')" -> "Distribuidor"."""
+    if isinstance(c, tuple):
+        partes = [str(x) for x in c]
+    else:
+        m = re.match(r"^\((.*)\)$", str(c).strip())
+        partes = re.findall(r"'([^']*)'", m.group(1)) if m else []
+    partes = [x for x in partes if x and not x.startswith("Unnamed")]
+    return partes[-1] if partes else c
+
+
+def _sem_duplicados(nomes) -> list[str]:
+    saida, vistos = [], {}
+    for v in nomes:
+        v = str(v)
+        n = vistos.get(v, 0)
+        saida.append(v if n == 0 else f"{v}.{n}")
+        vistos[v] = n + 1
+    return saida
+
+
+def plano_leitura(arq: Path, detalhe: bool) -> dict | None:
+    """Descobre, SEM carregar o arquivo inteiro, quais colunas ler e como renomear.
+    Retorna {"rename": {original: novo}, "mapa": {interno: novo}, "pular": n_linhas}."""
+    import pyarrow.parquet as pq
+
+    originais = pq.read_schema(arq).names
+    originais = [c for c in originais if not str(c).startswith("__index_level")]
+    novos = _sem_duplicados(_ultimo_nome(c) for c in originais)
+    rename = dict(zip(originais, novos))
+    pular = 0
+    mapa = mapear_colunas(pd.DataFrame(columns=novos))
+
+    if "distribuidor" not in mapa:
+        # amostra pequena para achar o cabeçalho dentro dos dados ou a coluna pelo conteúdo
+        pf = pq.ParquetFile(arq)
+        amostra = next(pf.iter_batches(batch_size=5000), None)
+        if amostra is None:
+            print(f"  [PULADO] {arq.name}: arquivo vazio.")
+            return None
+        amostra = amostra.to_pandas()
+        amostra = amostra[[c for c in originais if c in amostra.columns]]
+        amostra.columns = novos
+        for i in range(min(50, len(amostra))):
+            if any(norm(v) == "distribuidor" for v in amostra.iloc[i].tolist()):
+                novos = _sem_duplicados(amostra.iloc[i].tolist())
+                rename = dict(zip(originais, novos))
+                pular = i + 1
+                mapa = mapear_colunas(pd.DataFrame(columns=novos))
+                print(f"  [AVISO] {arq.name}: cabeçalho encontrado na linha {i + 1} dos dados")
+                break
+        if "distribuidor" not in mapa:
+            amostra.columns = novos
+            col = achar_distribuidor_pelo_conteudo(amostra.iloc[pular:])
+            if col is not None:
+                mapa["distribuidor"] = col
+                print(f"  [AVISO] {arq.name}: Distribuidor lido da coluna '{col}'")
+    if "distribuidor" not in mapa:
+        print(f"  [PULADO] {arq.name}: coluna Distribuidor não encontrada.")
+        print(f"           Colunas do arquivo: {novos[:60]}")
+        return None
+
+    usar = CAMPOS_BASE + (sum(DIM_DETALHE.values(), []) if detalhe else [])
+    mapa = {k: v for k, v in mapa.items() if k in usar}
+    return {"rename": rename, "mapa": mapa, "pular": pular}
+
+
+def ler_lotes(arq: Path, plano: dict):
+    """Lê o parquet em lotes, só com as colunas necessárias."""
+    import pyarrow.parquet as pq
+
+    inverso = {v: k for k, v in plano["rename"].items()}
+    colunas = list(dict.fromkeys(inverso[v] for v in plano["mapa"].values()))
+    pular = plano["pular"]
+    for b in pq.ParquetFile(arq).iter_batches(batch_size=TAMANHO_LOTE, columns=colunas):
+        df = b.to_pandas()
+        del b
+        df.columns = [plano["rename"][c] for c in df.columns]
+        if pular:
+            n = min(pular, len(df))
+            df = df.iloc[n:]
+            pular -= n
+        yield df
+
+
 def processar_parquets(pasta: Path, dp_map: dict | None, detalhe: bool) -> dict:
     """Lê os parquets em lotes e devolve só tabelas já agregadas (pouca memória)."""
     import pyarrow.parquet as pq
@@ -407,48 +492,39 @@ def processar_parquets(pasta: Path, dp_map: dict | None, detalhe: bool) -> dict:
 
     for arq in arquivos:
         t0 = time.time()
+        print(f"  Lendo {arq.name} ...", flush=True)
         try:
-            nomes = pq.read_schema(arq).names
+            plano = plano_leitura(arq, detalhe)
         except Exception as e:  # noqa: BLE001
-            print(f"  [ERRO] {arq.name}: {e}")
+            print(f"  [ERRO] {arq.name}: {type(e).__name__}: {e}")
             continue
-        mapa = mapear_colunas(pd.DataFrame(columns=nomes))
-        if all(c in mapa for c in OBRIGATORIAS):
-            usar = CAMPOS_BASE + (sum(DIM_DETALHE.values(), []) if detalhe else [])
-            mapa = {k: v for k, v in mapa.items() if k in usar}
-            lotes = (b.to_pandas() for b in pq.ParquetFile(arq).iter_batches(
-                batch_size=TAMANHO_LOTE, columns=list(dict.fromkeys(mapa.values()))))
-        else:  # cabeçalho fora do padrão: lê o arquivo inteiro e corrige
-            bruto = ajustar_cabecalho(pd.read_parquet(arq))
-            mapa = mapear_colunas(bruto)
-            if "distribuidor" not in mapa:
-                col = achar_distribuidor_pelo_conteudo(bruto)
-                if col is not None:
-                    mapa["distribuidor"] = col
-                    print(f"  [AVISO] {arq.name}: Distribuidor lido da coluna '{col}'")
-            if "distribuidor" not in mapa:
-                print(f"  [PULADO] {arq.name}: coluna Distribuidor não encontrada.")
-                print(f"           Colunas do arquivo: {list(bruto.columns)}")
-                continue
-            lotes = iter([bruto])
+        if plano is None:
+            continue
+        mapa = plano["mapa"]
         if VERBOSO:
             print(f"  Mapeamento {arq.name}: {mapa}")
 
         n_arq = 0
         parciais = {k: [] for k in chaves}
-        for i, bruto in enumerate(lotes):
-            df = preparar_lote(bruto, mapa, dp_map, arq.name, i == 0)
-            if df is None:
-                continue
-            n_arq += len(df)
-            for k, por in chaves.items():
-                por = [c for c in por if c in df]
-                cols = valores.get(k, SOMAS + ["linhas"])
-                parciais[k].append(df.groupby(por, dropna=False)[cols].sum().reset_index())
-            if "produto" in df:
-                for e, pnome in df.drop_duplicates("ean_norm")[["ean_norm", "produto"]].itertuples(index=False):
-                    produtos.setdefault(e, pnome)
-            del df
+        try:
+            for i, bruto in enumerate(ler_lotes(arq, plano)):
+                df = preparar_lote(bruto, mapa, dp_map, arq.name, i == 0)
+                del bruto
+                if df is None:
+                    continue
+                n_arq += len(df)
+                for k, por in chaves.items():
+                    por = [c for c in por if c in df]
+                    cols = valores.get(k, SOMAS + ["linhas"])
+                    parciais[k].append(df.groupby(por, dropna=False)[cols].sum().reset_index())
+                if "produto" in df:
+                    for e, pnome in df.drop_duplicates("ean_norm")[["ean_norm", "produto"]].itertuples(index=False):
+                        produtos.setdefault(e, pnome)
+                del df
+        except MemoryError:
+            print(f"  [ERRO] {arq.name}: memória insuficiente. Diminua TAMANHO_LOTE "
+                  f"(hoje {TAMANHO_LOTE:,}) no início do arquivo e rode de novo.")
+            raise
         for k, por in chaves.items():  # consolida o arquivo antes do próximo
             if parciais[k]:
                 acum[k].append(_somar(parciais[k], [c for c in por if c in parciais[k][0]]))
