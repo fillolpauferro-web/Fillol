@@ -16,6 +16,7 @@ Pré-requisito (uma vez só):  pip install pandas pyarrow openpyxl python-calami
 
 
 import argparse
+import time
 import re
 import sys
 import unicodedata
@@ -289,91 +290,180 @@ def classificar_distribuidor(valor) -> str | None:
     return None
 
 
-def ler_parquets(pasta: Path) -> pd.DataFrame:
+GERAR_ANALISE_DETALHADA = False  # True = abas por Filial/Produto/Cliente... (mais pesado)
+TAMANHO_LOTE = 300_000           # linhas lidas por vez (diminua se faltar memória)
+
+CAMPOS_BASE = ["distribuidor", "ean", "produto", "data_nf", "pf", "qtd_faturada",
+               "fat_bruto_pf", "desc_pedido_pct", "desc_portal", "fat_liq_pf", "fat_bruto_nf",
+               "desc_nf", "fat_liq_nf", "desc_entrada_pct", "margem_ol_pct", "margem_ol_rs",
+               "ressarcimento", "valor_repasse", "desc_adicional"]
+DIM_DETALHE = {
+    "Por Filial": ["grupo_distribuidor", "filial"],
+    "Por Produto": ["grupo_distribuidor", "produto", "familia", "divisao"],
+    "Por Canal": ["grupo_distribuidor", "canal"],
+    "Por UF": ["grupo_distribuidor", "uf"],
+    "Por Grupo Clientes": ["grupo_distribuidor", "grupo_clientes"],
+    "Por Cliente (PDV)": ["grupo_distribuidor", "cnpj", "cliente", "uf"],
+}
+_AVISOS: set = set()
+
+
+def _mapear_unicos(serie: pd.Series, func) -> pd.Series:
+    """Aplica func só nos valores distintos (muito mais rápido em milhões de linhas)."""
+    t = serie.fillna("").astype(str)
+    return t.map({v: func(v) for v in t.unique()})
+
+
+def calcular_mes(serie: pd.Series) -> pd.Series:
+    if pd.api.types.is_datetime64_any_dtype(serie):
+        return serie.dt.strftime("%Y-%m").fillna("N/D")
+    t = serie.fillna("").astype(str).str.strip()
+    mes = pd.Series("N/D", index=t.index, dtype=object)
+    iso = t.str.match(r"^\d{4}-\d{2}")
+    mes[iso] = t[iso].str[:7]
+    br = t.str.match(r"^\d{2}/\d{2}/\d{4}")
+    mes[br] = t[br].str[6:10] + "-" + t[br].str[3:5]
+    serial = t.str.match(r"^\d{5}(\.\d+)?$")  # data como número do Excel
+    if serial.any():
+        d = pd.to_datetime(t[serial].astype(float), unit="D", origin="1899-12-30")
+        mes[serial] = d.dt.strftime("%Y-%m")
+    return mes
+
+
+def preparar_lote(bruto: pd.DataFrame, mapa: dict, dp_map: dict | None,
+                  nome: str, primeiro: bool) -> pd.DataFrame | None:
+    df = pd.DataFrame({interno: bruto[real] for interno, real in mapa.items()})
+    del bruto
+    grupo = _mapear_unicos(df["distribuidor"], classificar_distribuidor)
+    if APENAS_SC_PANPHARMA:
+        manter = grupo.notna()
+    else:
+        outros = _mapear_unicos(df["distribuidor"], lambda v: v.strip().upper())
+        grupo = grupo.fillna(outros)
+        manter = ~grupo.isin(["", "NAN", "NONE"])
+    df["grupo_distribuidor"] = grupo
+    df = df[manter]
+    if df.empty:
+        return None
+
+    for c in NUMERICAS:
+        df[c] = para_numero(df[c]) if c in df else 0.0
+    criadas = completar_colunas(df)
+    if primeiro:
+        for c in criadas:
+            print(f"  [CRIADA] {nome}: {c}")
+        faltando = [c for c in OBRIGATORIAS[1:] if c not in df or df[c].abs().sum() == 0]
+        if faltando:
+            print(f"  [AVISO] {nome}: sem dados para {faltando} (ficarão zerados).")
+
+    # Margem OL do relatório (6% s/ bruto) e OL realizada
+    ol_calc = df["fat_bruto_pf"] * df["margem_ol_pct"] / 100
+    df["margem_ol_rs"] = df["margem_ol_rs"].where(df["margem_ol_rs"] != 0, ol_calc)
+    df["custo_distrib"] = df["fat_bruto_pf"] * (1 - df["desc_entrada_pct"] / 100)
+    df["ol_realizada"] = df["fat_liq_nf"] + df["ressarcimento"] - df["custo_distrib"]
+    df["mes"] = calcular_mes(df["data_nf"]) if "data_nf" in df else "N/D"
+
+    # DE PARA + campos do Projeto
+    df["ean_norm"] = _mapear_unicos(df["ean"], norm_ean) if "ean" in df else ""
+    df["de_para"] = df["ean_norm"].map(dp_map).fillna("SEM DE PARA") if dp_map else "SEM DE PARA"
+    calcular_campos_projeto(df)
+    for c in ("produto", "filial", "familia", "divisao", "canal", "uf", "grupo_clientes",
+              "cnpj", "cliente"):
+        if c in df:
+            df[c] = df[c].fillna("").astype(str)
+    df["linhas"] = 1
+    return df
+
+
+def _somar(lista: list, por: list[str]) -> pd.DataFrame:
+    if not lista:
+        return pd.DataFrame()
+    return pd.concat(lista).groupby(por, dropna=False).sum(numeric_only=True).reset_index()
+
+
+def processar_parquets(pasta: Path, dp_map: dict | None, detalhe: bool) -> dict:
+    """Lê os parquets em lotes e devolve só tabelas já agregadas (pouca memória)."""
+    import pyarrow.parquet as pq
+
     arquivos = sorted(pasta.rglob("*.parquet"))
     if not arquivos:
         sys.exit(f"Nenhum arquivo .parquet encontrado em: {pasta}")
 
-    partes = []
+    chaves = {
+        "resumo": ["grupo_distribuidor"],
+        "mes": ["grupo_distribuidor", "mes"],
+        "projeto": ["grupo_distribuidor", "mes", "de_para"],
+        "ean": ["mes", "ean_norm", "de_para", "rep_ol"],
+    }
+    if detalhe:
+        chaves.update(DIM_DETALHE)
+    valores = {
+        "projeto": ["ol_liquido", "fat_bruto_pf", "fat_liq_pf", "linhas"],
+        "ean": ["fat_bruto_pf", "fat_liq_pf", "ol_6", "ol_liquido", "linhas"],
+    }
+    acum = {k: [] for k in chaves}
+    produtos: dict = {}
+    total_linhas = 0
+
     for arq in arquivos:
+        t0 = time.time()
         try:
-            bruto = None
-            try:  # lê só as colunas usadas (bem mais rápido/leve)
-                import pyarrow.parquet as pq
-                nomes = pq.read_schema(arq).names
-                mapa0 = mapear_colunas(pd.DataFrame(columns=nomes))
-                if all(c in mapa0 for c in OBRIGATORIAS):
-                    bruto = pd.read_parquet(arq, columns=list(dict.fromkeys(mapa0.values())))
-            except Exception:  # noqa: BLE001
-                bruto = None
-            if bruto is None:
-                bruto = ajustar_cabecalho(pd.read_parquet(arq))
+            nomes = pq.read_schema(arq).names
         except Exception as e:  # noqa: BLE001
             print(f"  [ERRO] {arq.name}: {e}")
             continue
-        mapa = mapear_colunas(bruto)
-        if "distribuidor" not in mapa:
-            col = achar_distribuidor_pelo_conteudo(bruto)
-            if col is not None:
-                mapa["distribuidor"] = col
-                print(f"  [AVISO] {arq.name}: Distribuidor lido da coluna '{col}'")
-        if "distribuidor" not in mapa:
-            print(f"  [PULADO] {arq.name}: coluna Distribuidor não encontrada.")
-            print(f"           Colunas do arquivo: {list(bruto.columns)}")
-            continue
+        mapa = mapear_colunas(pd.DataFrame(columns=nomes))
+        if all(c in mapa for c in OBRIGATORIAS):
+            usar = CAMPOS_BASE + (sum(DIM_DETALHE.values(), []) if detalhe else [])
+            mapa = {k: v for k, v in mapa.items() if k in usar}
+            lotes = (b.to_pandas() for b in pq.ParquetFile(arq).iter_batches(
+                batch_size=TAMANHO_LOTE, columns=list(dict.fromkeys(mapa.values()))))
+        else:  # cabeçalho fora do padrão: lê o arquivo inteiro e corrige
+            bruto = ajustar_cabecalho(pd.read_parquet(arq))
+            mapa = mapear_colunas(bruto)
+            if "distribuidor" not in mapa:
+                col = achar_distribuidor_pelo_conteudo(bruto)
+                if col is not None:
+                    mapa["distribuidor"] = col
+                    print(f"  [AVISO] {arq.name}: Distribuidor lido da coluna '{col}'")
+            if "distribuidor" not in mapa:
+                print(f"  [PULADO] {arq.name}: coluna Distribuidor não encontrada.")
+                print(f"           Colunas do arquivo: {list(bruto.columns)}")
+                continue
+            lotes = iter([bruto])
         if VERBOSO:
             print(f"  Mapeamento {arq.name}: {mapa}")
 
-        df = pd.DataFrame({interno: bruto[real] for interno, real in mapa.items()})
-        df["grupo_distribuidor"] = df["distribuidor"].map(classificar_distribuidor)
-        if APENAS_SC_PANPHARMA:
-            df = df[df["grupo_distribuidor"].notna()].copy()
-        else:
-            outros = df["distribuidor"].astype(str).str.strip().str.upper()
-            df["grupo_distribuidor"] = df["grupo_distribuidor"].fillna(outros)
-            df = df[~df["grupo_distribuidor"].isin(["", "NAN", "NONE"])].copy()
-        if df.empty:
-            print(f"  [OK] {arq.name}: 0 linhas")
-            continue
+        n_arq = 0
+        parciais = {k: [] for k in chaves}
+        for i, bruto in enumerate(lotes):
+            df = preparar_lote(bruto, mapa, dp_map, arq.name, i == 0)
+            if df is None:
+                continue
+            n_arq += len(df)
+            for k, por in chaves.items():
+                por = [c for c in por if c in df]
+                cols = valores.get(k, SOMAS + ["linhas"])
+                parciais[k].append(df.groupby(por, dropna=False)[cols].sum().reset_index())
+            if "produto" in df:
+                for e, pnome in df.drop_duplicates("ean_norm")[["ean_norm", "produto"]].itertuples(index=False):
+                    produtos.setdefault(e, pnome)
+            del df
+        for k, por in chaves.items():  # consolida o arquivo antes do próximo
+            if parciais[k]:
+                acum[k].append(_somar(parciais[k], [c for c in por if c in parciais[k][0]]))
+        total_linhas += n_arq
+        print(f"  [OK] {arq.name}: {n_arq:,} linhas ({time.time() - t0:.0f}s)")
 
-        for c in NUMERICAS:
-            df[c] = para_numero(df[c]) if c in df else 0.0
-        criadas = completar_colunas(df)
-        for c in criadas:
-            print(f"  [CRIADA] {arq.name}: {c}")
-        faltando = [c for c in OBRIGATORIAS[1:] if c not in df or df[c].abs().sum() == 0]
-        if faltando:
-            print(f"  [AVISO] {arq.name}: sem dados para {faltando} (ficarão zerados).")
-            print(f"           Colunas do arquivo: {list(bruto.columns)}")
-        df["arquivo"] = arq.name
-        partes.append(df)
-        print(f"  [OK] {arq.name}: {len(df):,} linhas")
-
-    if not partes:
+    if total_linhas == 0:
         sys.exit("Nenhuma linha encontrada nos parquets.")
-    df = pd.concat(partes, ignore_index=True)
-
-    # ---- Margem OL ----------------------------------------------------------
-    # Ressarcimento = (Menor Desc. - Desc. Entrada + %OL) x PF x Qtd, ou seja,
-    # a OL (6%) é calculada sobre o Faturado Bruto PF.
-    ol_calc = df["fat_bruto_pf"] * df["margem_ol_pct"] / 100
-    df["margem_ol_rs"] = df["margem_ol_rs"].where(df["margem_ol_rs"] != 0, ol_calc)
-    # Quanto o distribuidor realmente ficou: vendeu (líquido NF) + recebeu
-    # ressarcimento - custo de compra (PF com desconto de entrada).
-    df["custo_distrib"] = df["fat_bruto_pf"] * (1 - df["desc_entrada_pct"] / 100)
-    df["ol_realizada"] = df["fat_liq_nf"] + df["ressarcimento"] - df["custo_distrib"]
-
-    if "data_nf" in df:
-        datas = pd.to_datetime(df["data_nf"], errors="coerce", format="mixed", dayfirst=False)
-        br = df["data_nf"].astype(str).str.match(r"^\d{2}/\d{2}/\d{4}")
-        if br.any():
-            datas[br] = pd.to_datetime(df.loc[br, "data_nf"].astype(str).str[:10],
-                                       format="%d/%m/%Y", errors="coerce")
-        df["data_nf"] = datas
-        df["mes"] = df["data_nf"].dt.to_period("M").astype(str)
-    else:
-        df["mes"] = "N/D"
-    return df
+    if _AVISOS:
+        print(f"[AVISO] Clusters sem Rep. OL na tabela (usando {REP_OL_SEM_CLUSTER:.0%}): "
+              f"{sorted(_AVISOS)}")
+    out = {k: _somar(v, [c for c in chaves[k] if v and c in v[0]]) for k, v in acum.items()}
+    out["produtos"] = produtos
+    out["total_linhas"] = total_linhas
+    return out
 
 
 # --------------------------------------------------------------------------
@@ -392,8 +482,11 @@ def _div(a, b):
 
 def resumir(df: pd.DataFrame, por: list[str]) -> pd.DataFrame:
     por = [p for p in por if p in df.columns]
-    r = df.groupby(por, dropna=False)[SOMAS].sum().reset_index()
-    r.insert(len(por), "linhas", df.groupby(por, dropna=False).size().values)
+    if "linhas" in df:
+        r = df.groupby(por, dropna=False)[["linhas"] + SOMAS].sum().reset_index()
+    else:
+        r = df.groupby(por, dropna=False)[SOMAS].sum().reset_index()
+        r.insert(len(por), "linhas", df.groupby(por, dropna=False).size().values)
 
     # Desconto efetivo do cliente medido contra o Preço Fábrica
     r["desc_liquido_pf"] = r["fat_bruto_pf"] - r["fat_liq_nf"]
@@ -648,11 +741,9 @@ def calcular_campos_projeto(df: pd.DataFrame) -> pd.DataFrame:
     """6%OL, Rep. OL (PROCX do cluster) e OL Líquido."""
     tabela = {norm(k): v for k, v in REP_OL.items()}
     df["ol_6"] = df["pf"] * df["qtd_faturada"] * PCT_OL_BRUTO
-    df["rep_ol"] = df["de_para"].map(lambda c: tabela.get(norm(c), REP_OL_SEM_CLUSTER))
+    df["rep_ol"] = _mapear_unicos(df["de_para"], lambda c: tabela.get(norm(c), REP_OL_SEM_CLUSTER))
     df["ol_liquido"] = df["fat_liq_pf"] * df["rep_ol"]
-    fora = sorted(set(df.loc[~df["de_para"].map(lambda c: norm(c) in tabela), "de_para"]))
-    if fora:
-        print(f"[AVISO] Clusters sem Rep. OL na tabela (usando {REP_OL_SEM_CLUSTER:.0%}): {fora}")
+    _AVISOS.update(c for c in df["de_para"].unique() if norm(c) not in tabela)
     return df
 
 
@@ -737,25 +828,29 @@ def escrever_quadro(ws, q: pd.DataFrame, titulo: str, rodape_esq: str, meses_ano
     ws.freeze_panes = "A3"
 
 
-def gerar_projeto(df: pd.DataFrame, origem: Path, saida: Path) -> None:
+def carregar_de_para(origem: Path) -> dict | None:
     arq_dp = achar_arquivo_de_para(origem)
     if arq_dp is None:
         print("[AVISO] Arquivo DE PARA Cluster não encontrado na pasta; tudo ficará 'SEM DE PARA'.")
-        dp = None
-    else:
-        dp = ler_de_para(arq_dp)
-    df = calcular_campos_projeto(aplicar_de_para(df, dp))
+        return None
+    dp = ler_de_para(arq_dp)
+    return dict(zip(dp["ean"], dp["de_para"]))
 
-    per = df[(df["mes"] >= MES_INICIO) & (df["mes"] <= MES_FIM)].copy()
+
+def gerar_projeto(agg: dict, saida: Path) -> None:
+    proj, ean = agg["projeto"], agg["ean"]
+    per = proj[(proj["mes"] >= MES_INICIO) & (proj["mes"] <= MES_FIM)]
     meses = sorted(per["mes"].dropna().unique())
     if per.empty:
         print(f"[AVISO] Nenhuma linha entre {MES_INICIO} e {MES_FIM}. "
-              f"Meses disponíveis: {sorted(df['mes'].dropna().unique())}")
+              f"Meses disponíveis: {sorted(proj['mes'].dropna().unique())}")
         return
 
-    sem = per[per["de_para"] == "SEM DE PARA"]
-    pct_sem = sem["fat_liq_pf"].sum() / per["fat_liq_pf"].sum() if per["fat_liq_pf"].sum() else 0
-    print(f"\nDE PARA: {per['ean_norm'].nunique() - sem['ean_norm'].nunique():,} EANs com cluster, "
+    ean_per = ean[(ean["mes"] >= MES_INICIO) & (ean["mes"] <= MES_FIM)]
+    sem = ean_per[ean_per["de_para"] == "SEM DE PARA"]
+    tot_liq = ean_per["fat_liq_pf"].sum()
+    pct_sem = sem["fat_liq_pf"].sum() / tot_liq if tot_liq else 0
+    print(f"\nDE PARA: {ean_per['ean_norm'].nunique() - sem['ean_norm'].nunique():,} EANs com cluster, "
           f"{sem['ean_norm'].nunique():,} sem cluster ({pct_sem:.2%} do Faturado Líquido PF)")
 
     from openpyxl import Workbook
@@ -781,11 +876,10 @@ def gerar_projeto(df: pd.DataFrame, origem: Path, saida: Path) -> None:
                     f"Acumulado {periodo}", meses_ano=12 / n)
 
     # base por EAN para conferência do De-Para
-    if "produto" not in per:
-        per["produto"] = ""
-    base = (per.groupby(["ean_norm", "produto", "de_para", "rep_ol"], dropna=False)
+    base = (ean_per.groupby(["ean_norm", "de_para", "rep_ol"], dropna=False)
             [["fat_bruto_pf", "fat_liq_pf", "ol_6", "ol_liquido"]].sum().reset_index()
             .sort_values("fat_liq_pf", ascending=False))
+    base.insert(1, "produto", base["ean_norm"].map(agg["produtos"]).fillna(""))
     ws = wb.create_sheet("EAN x De-Para")
     ws.append(["EAN", "Produto", "De-Para", "Rep. OL", "Faturado Bruto (PF)[C]",
                "Faturado Líquido (PF)", "6%OL", "OL Líquido"])
@@ -811,30 +905,33 @@ def analisar() -> None:
     pasta = Path(args.pasta)
     saida = Path(args.saida) if args.saida else pasta.parent / "Analise_Desconto_SantaCruz_Panpharma.xlsx"
 
-    print(f"Lendo parquets em: {pasta}")
-    df = ler_parquets(pasta)
-    print(f"\nTotal de linhas analisadas: {len(df):,}")
-
     origem = Path(args.origem) if args.origem else pasta.parent
-    print("\n" + "=" * 78 + f"\nPROJETO {MES_INICIO} a {MES_FIM} (todos os distribuidores)\n" + "=" * 78)
-    gerar_projeto(df, origem, origem / f"Projeto_OL_DDC_{MES_INICIO}_a_{MES_FIM}.xlsx")
+    dp_map = carregar_de_para(origem)
 
-    tot = total_geral(df)
+    print(f"Lendo parquets em: {pasta}")
+    agg = processar_parquets(pasta, dp_map, GERAR_ANALISE_DETALHADA)
+    print(f"\nTotal de linhas analisadas: {agg['total_linhas']:,}")
+    por_mes = agg["mes"].groupby("mes")[["linhas", "fat_liq_pf"]].sum()
+    print("Linhas por mês (confira se não há arquivo duplicado na pasta Parquet):")
+    for m, r in por_mes.iterrows():
+        print(f"   {m}: {int(r['linhas']):>12,} linhas | Fat. Líquido PF R$ {r['fat_liq_pf']:>18,.2f}")
+
+    print("\n" + "=" * 78 + f"\nPROJETO {MES_INICIO} a {MES_FIM} (todos os distribuidores)\n" + "=" * 78)
+    gerar_projeto(agg, origem / f"Projeto_OL_DDC_{MES_INICIO}_a_{MES_FIM}.xlsx")
+
+    tot = total_geral(agg["resumo"])
     imprimir_resumo(tot)
-    mensal = media_mensal(df)
+    mensal = media_mensal(agg["mes"])
     imprimir_media_mensal(mensal)
 
     abas = {
         "Resumo": tot,
         "Média Mensal %Líq": mensal,
-        "Por Mês": resumir(df, ["grupo_distribuidor", "mes"]).sort_values(["Distribuidor", "Mês"]),
-        "Por Filial": resumir(df, ["grupo_distribuidor", "filial"]),
-        "Por Produto": resumir(df, ["grupo_distribuidor", "produto", "familia", "divisao"]),
-        "Por Canal": resumir(df, ["grupo_distribuidor", "canal"]),
-        "Por UF": resumir(df, ["grupo_distribuidor", "uf"]),
-        "Por Grupo Clientes": resumir(df, ["grupo_distribuidor", "grupo_clientes"]),
-        "Por Cliente (PDV)": resumir(df, ["grupo_distribuidor", "cnpj", "cliente", "uf"]),
+        "Por Mês": resumir(agg["mes"], ["grupo_distribuidor", "mes"]).sort_values(["Distribuidor", "Mês"]),
     }
+    for nome, por in DIM_DETALHE.items():
+        if nome in agg and not agg[nome].empty:
+            abas[nome] = resumir(agg[nome], por)
     salvar_excel(abas, saida)
     print(f"Excel gerado: {saida}")
 
@@ -842,7 +939,6 @@ def analisar() -> None:
 # ==========================================================================
 # CONVERSÃO EXCEL/CSV -> PARQUET
 # ==========================================================================
-import time
 
 ORIGEM_PADRAO = r"C:\Users\I0507867.FARMA\OneDrive - Sanofi\Desktop\Ressarcimento"
 DESTINO_PADRAO = ORIGEM_PADRAO + r"\Parquet"
