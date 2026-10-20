@@ -15,16 +15,10 @@ Observação: na planilha, "Variação Est. Chão Calculado" = estoque − |Est.
 
 A planilha de entrada não está versionada (dados de clientes).
 
-## Análise de mix
+## Análise de mix (volume)
 
 ```
 python analise_mix.py Analise_SIT_Provisao_Out_26.xlsx saida
 ```
 
-Soma todos os distribuidores. Como o Gross Price de cada SKU não muda entre os meses, a variação do valor do estoque se divide em:
-
-- **Efeito volume** = (unidades ago − unidades abr) × preço médio de abril
-- **Efeito mix** = unidades ago × (preço médio ago − preço médio abr); por SKU: Δ participação × unidades ago × (preço do SKU − preço médio de abril)
-- **Efeito preço** = 0
-
-"Estoque − demanda" = participação no estoque de agosto − participação no Sell Out de maio a agosto (em R$).
+Soma todos os distribuidores e trabalha só em unidades: estoque CD por mês, Sell Out por mês, cobertura (estoque de agosto ÷ Sell Out médio de maio a agosto) e "estoque − demanda" (participação nas unidades em estoque − participação nas unidades vendidas), por Curva ABC, Segmentação, família e SKU.
