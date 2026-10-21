@@ -134,6 +134,12 @@ condicao_comercial:
 #   pedido, só o total consolidado de cada combinação mês/CNPJ/produto:
 #   quantidade de pedidos, faturado líquido e quantidade faturada.
 #
+# tipo: "resumo_cnpj_total" (ex.: todos os CNPJs que compraram) — sem
+#   Check, sem filtro nenhum (nem CNPJ de controle, nem Tabela de
+#   negociação): roda na base inteira e agrupa só por CNPJ — um único
+#   consolidado por CNPJ (sem abrir por mês nem por produto), com
+#   quantidade de pedidos, faturado líquido e quantidade faturada.
+#
 # Em todos os tipos, "colunas_trazidas" são copiadas pra saída sempre que o
 # CNPJ é encontrado no controle (mesmo se o Check der erro, quando aplicável).
 # "nome_arquivo_saida" (opcional) troca o nome padrão "{nome}_analise.xlsx"
@@ -281,6 +287,13 @@ matrizes:
     colunas_trazidas: {}
     colunas_data: []
     nome_arquivo_saida: "Atacarejo_Faturamento_Mensal.xlsx"
+
+  - nome: "ConsolidadoPorCNPJ"
+    tipo: "resumo_cnpj_total"
+    ativo: true
+    # roda na base inteira, sem filtro nenhum — todos os CNPJs que
+    # passaram pedido, consolidado (sem mês, sem produto).
+    nome_arquivo_saida: "Consolidado_Por_CNPJ.xlsx"
 
   - nome: "ResumoCAxWE"
     tipo: "resumo_volume"

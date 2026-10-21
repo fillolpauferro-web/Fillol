@@ -72,6 +72,12 @@ define como a base é filtrada e o que sai no resultado:
   pedido, só o total consolidado de cada combinação mês/CNPJ/produto:
   quantidade de pedidos, faturado líquido e quantidade faturada.
 
+  tipo: "resumo_cnpj_total" (ex.: todos os CNPJs que compraram) — sem
+  Check, sem filtro nenhum (nem CNPJ de controle, nem Tabela de
+  negociação): roda na base inteira e agrupa só por CNPJ — um único
+  consolidado por CNPJ (sem abrir por mês nem por produto), com
+  quantidade de pedidos, faturado líquido e quantidade faturada.
+
   Um arquivo de saída é salvo por matriz (nome_arquivo_saida no config, ou
   "{nome}_analise.xlsx" por padrão).
 
@@ -637,6 +643,17 @@ def calcular_resumo_mensal_cnpj(df_base: pd.DataFrame, cnpjs_norm: set[str]) -> 
     return resumo.sort_values(["mes", "cnpj", "ean"]).reset_index(drop=True)
 
 
+def calcular_resumo_cnpj_total(df_base: pd.DataFrame) -> pd.DataFrame:
+    """tipo: "resumo_cnpj_total" — roda na base inteira, sem filtro nenhum
+    (nem por CNPJ de controle, nem por Tabela de negociação): agrupa só
+    por CNPJ, somando quantidade de pedidos, quantidade faturada e
+    faturado líquido de cada CNPJ que fez pelo menos um pedido — um único
+    consolidado por CNPJ, sem abrir por mês nem por produto.
+    """
+    resumo = _agregar_volume(df_base, "_cnpj_norm").reset_index().rename(columns={"_cnpj_norm": "cnpj"})
+    return resumo.sort_values("cnpj").reset_index(drop=True)
+
+
 def _salvar_saida(df_saida: pd.DataFrame, pasta_saida: Path, nome_arquivo: str) -> None:
     caminho_final = pasta_saida / nome_arquivo
     df_saida.to_excel(caminho_final, index=False)
@@ -720,6 +737,20 @@ def rodar_matriz(nome_matriz: str, matriz_cfg: dict, df_base: pd.DataFrame, cfg:
             print("Nenhuma venda encontrada para os CNPJs do arquivo de controle.")
             return None
         print(f"{len(resumo)} linhas geradas (mês x CNPJ x produto).")
+        pasta_saida = BASE_DIR / cfg["saida"]["pasta"]
+        pasta_saida.mkdir(parents=True, exist_ok=True)
+        nome_arquivo = matriz_cfg.get("nome_arquivo_saida") or f"{nome_matriz}_analise.xlsx"
+        _salvar_saida(resumo, pasta_saida, nome_arquivo)
+        return resumo
+
+    if tipo == "resumo_cnpj_total":
+        # roda na base inteira, sem CNPJ de controle nem Tabela — todos os
+        # CNPJs que fizeram pelo menos um pedido, consolidado
+        resumo = calcular_resumo_cnpj_total(df_base)
+        if resumo.empty:
+            print("Nenhum pedido encontrado na base.")
+            return None
+        print(f"{len(resumo)} CNPJs com pelo menos um pedido.")
         pasta_saida = BASE_DIR / cfg["saida"]["pasta"]
         pasta_saida.mkdir(parents=True, exist_ok=True)
         nome_arquivo = matriz_cfg.get("nome_arquivo_saida") or f"{nome_matriz}_analise.xlsx"

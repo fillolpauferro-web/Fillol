@@ -1079,6 +1079,60 @@ def test_matriz_resumo_mensal_cnpj(tmp_path: Path):
     assert junho_a["quantidade_faturada"] == 7
 
 
+def test_matriz_tipo_resumo_cnpj_total(tmp_path: Path):
+    # Roda na base inteira, sem filtro por CNPJ de controle nem Tabela:
+    # CNPJ A tem 2 pedidos (qtd 10+5=15, faturado 100+50=150), CNPJ B tem
+    # 1 pedido (qtd 20, faturado 300) -> todo CNPJ que comprou entra, cada
+    # um consolidado numa linha só (sem mês, sem produto).
+    base_df = pd.DataFrame(
+        {
+            "Tipo de cliente": ["X"] * 3,
+            "CNPJ": ["11.111.111/0001-11", "11.111.111/0001-11", "22.222.222/0001-22"],
+            "Id pedido": ["1", "2", "3"],
+            "EAN": ["1111111111111", "2222222222222", "3333333333333"],
+            "Tabela de negociação": ["QUALQUER TABELA"] * 3,
+            "Data do pedido (original)": ["10/05/2026 10:00", "11/06/2026 10:00", "12/05/2026 10:00"],
+            "Faturado líquido (R$)": ["100,00", "50,00", "300,00"],
+            "Desconto comercial faturado (%)": ["10"] * 3,
+            "Quantidade faturada": ["10", "5", "20"],
+        }
+    )
+
+    base_df.to_excel(tmp_path / "base_pedidos.xlsx", index=False)
+    (tmp_path / "saida").mkdir()
+
+    cfg = _montar_config(tmp_path)
+    cfg["base"]["colunas"]["quantidade_faturada"] = "Quantidade faturada"
+    matriz_cfg = {
+        "nome": "ConsolidadoPorCNPJ",
+        "tipo": "resumo_cnpj_total",
+        "ativo": True,
+        "nome_arquivo_saida": "Consolidado_Por_CNPJ.xlsx",
+    }
+
+    import pipeline
+
+    pipeline.BASE_DIR = tmp_path
+
+    df_base = carregar_base(cfg)
+    resultado = rodar_matriz("ConsolidadoPorCNPJ", matriz_cfg, df_base, cfg)
+
+    assert resultado is not None
+    assert (tmp_path / "saida" / "Consolidado_Por_CNPJ.xlsx").exists()
+    assert len(resultado) == 2  # um CNPJ por linha, consolidado
+
+    resultado = resultado.set_index("cnpj")
+    cnpj_a = resultado.loc[normalize_cnpj("11.111.111/0001-11")]
+    assert cnpj_a["qtd_pedidos"] == 2
+    assert round(cnpj_a["faturado_liquido"], 2) == 150.0
+    assert cnpj_a["quantidade_faturada"] == 15
+
+    cnpj_b = resultado.loc[normalize_cnpj("22.222.222/0001-22")]
+    assert cnpj_b["qtd_pedidos"] == 1
+    assert round(cnpj_b["faturado_liquido"], 2) == 300.0
+    assert cnpj_b["quantidade_faturada"] == 20
+
+
 def test_matriz_resumo_por_cnpj_abrir_por_mes(tmp_path: Path):
     # Distribuidora Alpha tem 1 pedido em maio (100) e 1 em junho (200);
     # abrir_por_mes: true precisa gerar as abas "Total" e "Mensal".
